@@ -666,7 +666,16 @@ const STATUSES=[
   {id:"주문완료", next:"배송완료", label:"배송완료로",  bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
   {id:"배송완료", next:"구매요청", label:"구매요청으로", bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
 ];
-function statusCfg(s){return STATUSES.find(x=>x.id===s)||STATUSES[0];}
+function statusCfg(s){return STATUSES.find(x=>x.id===s)||STATUSES[1];}
+
+const CATEGORIES=[
+  {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
+  {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
+  {id:"직원",     bg:"#F3E8FF",color:"#6B21A8"},
+  {id:"게임관리", bg:"#DCFCE7",color:"#14532D"},
+  {id:"잡화",     bg:"#F1F5F9",color:"#475569"},
+];
+function catCfg(c){return CATEGORIES.find(x=>x.id===c)||{bg:"#F1F5F9",color:"#475569"};}
 
 /* ══════════════════════════════════
    품목 상세 모달
@@ -674,6 +683,7 @@ function statusCfg(s){return STATUSES.find(x=>x.id===s)||STATUSES[0];}
 function ItemDetailModal({item, history, onClose, onSave, onDelete}){
   const isNew=!item.id;
   const [name,setName]=useState(item.name||"");
+  const [category,setCategory]=useState(item.category||"");
   const [link,setLink]=useState(item.link||"");
   const [memo,setMemo]=useState(item.memo||"");
   const [saving,setSaving]=useState(false);
@@ -695,7 +705,7 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
     e.preventDefault();
     if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
     setSaving(true);
-    await onSave({id:item.id||uid(),name:name.trim(),link:link.trim(),memo:memo.trim()});
+    await onSave({id:item.id||uid(),name:name.trim(),category,link:link.trim(),memo:memo.trim()});
     setSaving(false);
   }
 
@@ -713,6 +723,21 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
             placeholder="예: 음료수, 컵, 영수증지"/>
           {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>카테고리</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {CATEGORIES.map(c=>(
+              <button key={c.id} type="button" onClick={()=>setCategory(category===c.id?"":c.id)}
+                style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
+                  border:`1.5px solid ${category===c.id?c.color:"#E2E8F0"}`,
+                  background:category===c.id?c.bg:"#fff",
+                  color:category===c.id?c.color:"#94A3B8"}}>
+                {c.id}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={{marginBottom:12}}>
@@ -787,9 +812,10 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
 ══════════════════════════════════ */
 function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkStatus}){
   const [filterStore,setFilterStore]=useState("all");
+  const [filterCat,setFilterCat]=useState("all");
   const [search,setSearch]=useState("");
   const [checked,setChecked]=useState(new Set());
-  const [bulkStore,setBulkStore]=useState("all"); // 일괄변경용 매장 선택
+  const [bulkStore,setBulkStore]=useState("all");
 
   // 품목별 최신 상태 (매장별)
   function latestStatus(itemId,storeId){
@@ -802,15 +828,15 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
   const filtered=useMemo(()=>{
     let l=items;
     if(search.trim())l=l.filter(it=>it.name.toLowerCase().includes(search.trim().toLowerCase()));
+    if(filterCat!=="all")l=l.filter(it=>it.category===filterCat);
     if(filterStore!=="all"){
-      // 해당 매장에서 구매요청 또는 주문완료인 것만
       l=l.filter(it=>{
         const s=latestStatus(it.id,filterStore);
         return s==="구매요청"||s==="주문완료";
       });
     }
     return l;
-  },[items,search,filterStore,history]);
+  },[items,search,filterCat,filterStore,history]);
 
   function toggleCheck(id){
     setChecked(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
@@ -822,6 +848,8 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
 
   function bulkChange(status){
     if(checked.size===0){alert("품목을 선택해주세요.");return;}
+    const storeLabel=bulkStore==="all"?"양쪽 매장":bulkStore;
+    if(!window.confirm(`선택한 ${checked.size}개 품목을 [${storeLabel}] 기준으로\n"${status}"(으)로 변경할까요?`))return;
     const stores=bulkStore==="all"?STORES.map(s=>s.id):[bulkStore];
     onBulkStatus([...checked],stores,status);
     setChecked(new Set());
@@ -842,6 +870,25 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
             <option value="all">전체 매장</option>
             {STORES.map(s=><option key={s.id} value={s.id}>{s.label} (미완료만)</option>)}
           </select>
+          {/* 카테고리 필터 */}
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <button onClick={()=>setFilterCat("all")}
+              style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",
+                borderColor:filterCat==="all"?"#334155":"#E2E8F0",
+                background:filterCat==="all"?"#334155":"#fff",
+                color:filterCat==="all"?"#fff":"#94A3B8"}}>
+              전체
+            </button>
+            {CATEGORIES.map(c=>(
+              <button key={c.id} onClick={()=>setFilterCat(filterCat===c.id?"all":c.id)}
+                style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .1s",
+                  borderColor:filterCat===c.id?c.color:"#E2E8F0",
+                  background:filterCat===c.id?c.bg:"#fff",
+                  color:filterCat===c.id?c.color:"#94A3B8"}}>
+                {c.id}
+              </button>
+            ))}
+          </div>
           <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}개</span>
           <button onClick={onAddItem}
             style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
@@ -853,6 +900,13 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
           <span style={{fontSize:11,color:"#94A3B8"}}>
             {checkedCount>0?`${checkedCount}개 선택됨`:"체크박스로 선택 후 일괄 변경"}
           </span>
+          {/* 일괄변경 매장 선택 */}
+          <select value={bulkStore} onChange={e=>setBulkStore(e.target.value)}
+            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",
+              background:checkedCount>0?"#fff":"#F8FAFC",color:checkedCount>0?"#1E293B":"#CBD5E1",cursor:"pointer"}}>
+            <option value="all">양쪽 매장</option>
+            {STORES.map(s=><option key={s.id} value={s.id}>{s.id}만</option>)}
+          </select>
           {["구매요청","주문완료","배송완료"].map(st=>{
             const cfg=statusCfg(st);
             return(
@@ -911,6 +965,9 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
                         style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1",padding:0}}>
                         {item.name}
                       </button>
+                      {item.category&&(()=>{const c=catCfg(item.category);return(
+                        <span style={{display:"inline-block",marginLeft:6,padding:"1px 7px",borderRadius:999,fontSize:10,fontWeight:700,background:c.bg,color:c.color}}>{item.category}</span>
+                      );})()}
                       {item.link&&(
                         <a href={item.link} target="_blank" rel="noopener noreferrer"
                           style={{display:"block",fontSize:10,color:"#3B82F6",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -928,7 +985,10 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
                             <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>
                               {st}
                             </span>
-                            <button onClick={()=>onStatusChange(item.id,s.id,cfg.next)}
+                            <button onClick={()=>{
+                              if(window.confirm(`"${item.name}"을(를)\n[${s.id}] 기준으로 "${cfg.next}"(으)로 변경할까요?`))
+                                onStatusChange(item.id,s.id,cfg.next);
+                            }}
                               style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:`1.5px solid ${nextCfg.dot}`,
                                 background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
                               → {cfg.next}
@@ -980,7 +1040,7 @@ function App(){
       }catch(e){setWorks([]);}
       try{
         const {data}=await sb.from('order_items').select('*').order('created_at',{ascending:true});
-        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,link:r.link||"",memo:r.memo||""})));
+        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,category:r.category||"",link:r.link||"",memo:r.memo||""})));
       }catch(e){setOrderItems([]);}
       try{
         const {data}=await sb.from('order_history').select('*').order('changed_at',{ascending:false}).limit(2000);
@@ -1022,11 +1082,11 @@ function App(){
     const isNew=!form.id||!orderItems.find(x=>x.id===form.id);
     try{
       if(isNew){
-        await sb.from('order_items').insert({id:form.id,name:form.name,link:form.link,memo:form.memo});
-        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,link:form.link,memo:form.memo}]);
+        await sb.from('order_items').insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});
+        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}]);
       }else{
-        await sb.from('order_items').update({name:form.name,link:form.link,memo:form.memo}).eq('id',form.id);
-        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,link:form.link,memo:form.memo}:x));
+        await sb.from('order_items').update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq('id',form.id);
+        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x));
       }
       setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
