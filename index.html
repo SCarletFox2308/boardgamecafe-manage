@@ -368,116 +368,6 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
 }
 
 /* ══════════════════════════════════
-   ORDER MODAL
-══════════════════════════════════ */
-function OrderModal({record,onClose,onSave,onDelete}){
-  const isEdit=!!record;
-  const [form,setForm]=useState(isEdit?{
-    storeId:record.storeId, itemName:record.itemName,
-    qty:String(record.qty||""), unit:record.unit||"개",
-    price:record.price!=null?String(record.price):"",
-    orderedAt:record.orderedAt?record.orderedAt.slice(0,10):new Date().toISOString().slice(0,10),
-    memo:record.memo||"",
-  }:{
-    storeId:STORES[0]?.id||"", itemName:"", qty:"", unit:"개", price:"",
-    orderedAt:new Date().toISOString().slice(0,10), memo:"",
-  });
-  const [err,setErr]=useState({});
-  const [saving,setSaving]=useState(false);
-
-  async function submit(e){
-    e.preventDefault();
-    const er={};
-    if(!form.storeId)er.storeId="매장을 선택해주세요.";
-    if(!form.itemName.trim())er.itemName="품목명을 입력해주세요.";
-    if(!form.qty||isNaN(Number(form.qty)))er.qty="수량을 입력해주세요.";
-    if(!form.orderedAt)er.orderedAt="날짜를 입력해주세요.";
-    if(Object.keys(er).length){setErr(er);return;}
-    setSaving(true);
-    await onSave({...form,qty:Number(form.qty),price:form.price!==""&&!isNaN(Number(form.price))?Number(form.price):null});
-    setSaving(false);
-  }
-
-  return(
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"주문 기록 수정":"재고 주문 등록"}</h2>
-          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
-        </div>
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 <span style={{color:"#EF4444"}}>*</span></label>
-          <div style={{display:"flex",gap:10}}>
-            {STORES.map(s=>{const b=s.badge;return(
-              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
-                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
-                  background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer"}}>
-                {s.id}
-              </button>
-            );})}
-          </div>
-        </div>
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 <span style={{color:"#EF4444"}}>*</span></label>
-          <input value={form.itemName} onChange={e=>setForm({...form,itemName:e.target.value})}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.itemName?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="예: 음료수, 컵, 영수증지"/>
-          {err.itemName&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.itemName}</p>}
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:14}}>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>수량 <span style={{color:"#EF4444"}}>*</span></label>
-            <input type="number" value={form.qty} onChange={e=>setForm({...form,qty:e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.qty?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}} min="0"/>
-            {err.qty&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.qty}</p>}
-          </div>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>단위</label>
-            <select value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})}
-              className="ml-sel" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",background:"#fff"}}>
-              {["개","박스","봉","병","롤","세트","kg","L"].map(u=><option key={u} value={u}>{u}</option>)}
-            </select>
-          </div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>금액 (원)</label>
-            <input type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} min="0"/>
-          </div>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 날짜 <span style={{color:"#EF4444"}}>*</span></label>
-            <input type="date" value={form.orderedAt} onChange={e=>setForm({...form,orderedAt:e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.orderedAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
-          </div>
-        </div>
-        <div style={{marginBottom:20}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
-          <input value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="배송 정보, 담당자 등"/>
-        </div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          {isEdit?(
-            <button type="button" onClick={()=>onDelete(record)}
-              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
-              <Trash2 size={13}/> 삭제
-            </button>
-          ):<span/>}
-          <div style={{display:"flex",gap:8}}>
-            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
-              {saving?"저장 중…":(isEdit?"수정":"등록")}
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════
    CALENDAR VIEW
 ══════════════════════════════════ */
 function CalendarView({works, onDayClick}){
@@ -769,17 +659,318 @@ function WorkListView({works,onEdit,onDelete}){
 }
 
 /* ══════════════════════════════════
+   상태 설정
+══════════════════════════════════ */
+const STATUSES=[
+  {id:"구매요청", next:"주문완료", label:"주문완료로",  bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
+  {id:"주문완료", next:"배송완료", label:"배송완료로",  bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
+  {id:"배송완료", next:"구매요청", label:"구매요청으로", bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
+];
+function statusCfg(s){return STATUSES.find(x=>x.id===s)||STATUSES[0];}
+
+/* ══════════════════════════════════
+   품목 상세 모달
+══════════════════════════════════ */
+function ItemDetailModal({item, history, onClose, onSave, onDelete}){
+  const isNew=!item.id;
+  const [name,setName]=useState(item.name||"");
+  const [link,setLink]=useState(item.link||"");
+  const [memo,setMemo]=useState(item.memo||"");
+  const [saving,setSaving]=useState(false);
+  const [err,setErr]=useState("");
+
+  // 배송완료 이력 매장별 최근 5건
+  const histByStore=useMemo(()=>{
+    const m={};
+    STORES.forEach(s=>{
+      m[s.id]=(history||[])
+        .filter(h=>h.itemId===item.id&&h.storeId===s.id&&h.status==="배송완료")
+        .sort((a,b)=>b.changedAt>a.changedAt?1:-1)
+        .slice(0,5);
+    });
+    return m;
+  },[history,item.id]);
+
+  async function submit(e){
+    e.preventDefault();
+    if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
+    setSaving(true);
+    await onSave({id:item.id||uid(),name:name.trim(),link:link.trim(),memo:memo.trim()});
+    setSaving(false);
+  }
+
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isNew?"품목 추가":"품목 상세"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 *</label>
+          <input value={name} onChange={e=>{setName(e.target.value);setErr("");}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
+            placeholder="예: 음료수, 컵, 영수증지"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 링크</label>
+          <input value={link} onChange={e=>setLink(e.target.value)}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
+            placeholder="https://..."/>
+        </div>
+
+        <div style={{marginBottom:link?4:16}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>특이사항</label>
+          <input value={memo} onChange={e=>setMemo(e.target.value)}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
+            placeholder="용량, 규격, 주의사항 등"/>
+        </div>
+
+        {link&&(
+          <div style={{marginBottom:16}}>
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              style={{fontSize:12,color:"#2563EB",textDecoration:"underline"}}>🔗 주문 링크 열기</a>
+          </div>
+        )}
+
+        {/* 배송완료 이력 */}
+        {!isNew&&(
+          <div style={{marginBottom:20,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>배송완료 이력</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {STORES.map(s=>{
+                const b=s.badge;
+                const rows=histByStore[s.id]||[];
+                return(
+                  <div key={s.id}>
+                    <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:6,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+                    {rows.length===0
+                      ?<p style={{fontSize:11,color:"#CBD5E1"}}>이력 없음</p>
+                      :rows.map(h=>(
+                        <div key={h.id} className="ml-mono" style={{fontSize:11,color:"#64748B",padding:"2px 0"}}>
+                          {h.changedAt?h.changedAt.slice(0,10):"—"}
+                        </div>
+                      ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {!isNew?(
+            <button type="button" onClick={()=>onDelete(item)}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose}
+              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving}
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              {saving?"저장 중…":isNew?"추가":"저장"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   재고 주문 뷰
+══════════════════════════════════ */
+function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkStatus}){
+  const [filterStore,setFilterStore]=useState("all");
+  const [search,setSearch]=useState("");
+  const [checked,setChecked]=useState(new Set());
+  const [bulkStore,setBulkStore]=useState("all"); // 일괄변경용 매장 선택
+
+  // 품목별 최신 상태 (매장별)
+  function latestStatus(itemId,storeId){
+    const h=(history||[])
+      .filter(x=>x.itemId===itemId&&x.storeId===storeId)
+      .sort((a,b)=>b.changedAt>a.changedAt?1:-1);
+    return h[0]?.status||"구매요청";
+  }
+
+  const filtered=useMemo(()=>{
+    let l=items;
+    if(search.trim())l=l.filter(it=>it.name.toLowerCase().includes(search.trim().toLowerCase()));
+    if(filterStore!=="all"){
+      // 해당 매장에서 구매요청 또는 주문완료인 것만
+      l=l.filter(it=>{
+        const s=latestStatus(it.id,filterStore);
+        return s==="구매요청"||s==="주문완료";
+      });
+    }
+    return l;
+  },[items,search,filterStore,history]);
+
+  function toggleCheck(id){
+    setChecked(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
+  }
+  function toggleAll(){
+    if(checked.size===filtered.length)setChecked(new Set());
+    else setChecked(new Set(filtered.map(i=>i.id)));
+  }
+
+  function bulkChange(status){
+    if(checked.size===0){alert("품목을 선택해주세요.");return;}
+    const stores=bulkStore==="all"?STORES.map(s=>s.id):[bulkStore];
+    onBulkStatus([...checked],stores,status);
+    setChecked(new Set());
+  }
+
+  const checkedCount=checked.size;
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      {/* 필터 + 일괄버튼 */}
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",flexShrink:0}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",marginBottom:8}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="품목명 검색…"
+            style={{padding:"6px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:160}}/>
+          <select value={filterStore} onChange={e=>{setFilterStore(e.target.value);setChecked(new Set());}}
+            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 매장</option>
+            {STORES.map(s=><option key={s.id} value={s.id}>{s.label} (미완료만)</option>)}
+          </select>
+          <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}개</span>
+          <button onClick={onAddItem}
+            style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
+            <Plus size={12}/> 품목 추가
+          </button>
+        </div>
+        {/* 일괄 상태변경 */}
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:11,color:"#94A3B8"}}>
+            {checkedCount>0?`${checkedCount}개 선택됨`:"체크박스로 선택 후 일괄 변경"}
+          </span>
+          {["구매요청","주문완료","배송완료"].map(st=>{
+            const cfg=statusCfg(st);
+            return(
+              <button key={st} onClick={()=>bulkChange(st)}
+                style={{padding:"4px 12px",borderRadius:999,fontSize:11,fontWeight:700,border:`1.5px solid ${cfg.dot}`,
+                  background:checkedCount>0?cfg.bg:"#F8FAFC",color:checkedCount>0?cfg.color:"#CBD5E1",
+                  cursor:checkedCount>0?"pointer":"not-allowed",transition:"all .12s"}}>
+                일괄 {st}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 테이블 */}
+      <div className="tbl-wrap">
+        {filtered.length===0?(
+          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>
+            {items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}
+          </div>
+        ):(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
+            <colgroup>
+              <col style={{width:36}}/>
+              <col style={{width:"22%"}}/>
+              <col/>
+              <col/>
+              <col style={{width:"20%"}}/>
+              <col style={{width:36}}/>
+            </colgroup>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 10px",textAlign:"center"}}>
+                  <input type="checkbox" checked={checkedCount===filtered.length&&filtered.length>0}
+                    onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                </th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>미플 상태</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>아카이브 상태</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>특이사항</th>
+                <th style={{padding:"10px 10px"}}/>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item,i)=>{
+                const isCk=checked.has(item.id);
+                return(
+                  <tr key={item.id} className={`ml-row ${i%2===0?"even":"odd"}`}
+                    style={{background:isCk?"#EFF6FF!important":""}}>
+                    <td style={{padding:"10px 10px",textAlign:"center"}}>
+                      <input type="checkbox" checked={isCk} onChange={()=>toggleCheck(item.id)}
+                        style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                    </td>
+                    <td style={{padding:"10px 14px"}}>
+                      <button onClick={()=>onItemClick(item)}
+                        style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1",padding:0}}>
+                        {item.name}
+                      </button>
+                      {item.link&&(
+                        <a href={item.link} target="_blank" rel="noopener noreferrer"
+                          style={{display:"block",fontSize:10,color:"#3B82F6",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          🔗 링크
+                        </a>
+                      )}
+                    </td>
+                    {STORES.map(s=>{
+                      const st=latestStatus(item.id,s.id);
+                      const cfg=statusCfg(st);
+                      const nextCfg=statusCfg(cfg.next);
+                      return(
+                        <td key={s.id} style={{padding:"8px 14px",textAlign:"center"}}>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+                            <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>
+                              {st}
+                            </span>
+                            <button onClick={()=>onStatusChange(item.id,s.id,cfg.next)}
+                              style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:`1.5px solid ${nextCfg.dot}`,
+                                background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              → {cfg.next}
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
+                    <td style={{padding:"10px 14px",fontSize:11,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {item.memo||""}
+                    </td>
+                    <td style={{padding:"10px 10px",textAlign:"center"}}>
+                      <button onClick={()=>onItemClick(item)}
+                        style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
+                        <Pencil size={12}/>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
    MAIN APP
 ══════════════════════════════════ */
 function App(){
-  const [tab,setTab]=useState("cal");       // cal | list | order
+  const [tab,setTab]=useState("cal");
   const [loading,setLoading]=useState(true);
 
   const [works,setWorks]=useState([]);
-  const [workModal,setWorkModal]=useState(null); // null | {record?:w, date?:str}
+  const [workModal,setWorkModal]=useState(null);
 
-  const [orders,setOrders]=useState([]);
-  const [orderModal,setOrderModal]=useState(null);
+  // 재고 품목 + 이력
+  const [orderItems,setOrderItems]=useState([]);
+  const [orderHistory,setOrderHistory]=useState([]);
+  const [itemModal,setItemModal]=useState(null); // null | item obj (id없으면 신규)
 
   useEffect(()=>{
     (async()=>{
@@ -788,16 +979,19 @@ function App(){
         setWorks((data||[]).map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo||""})));
       }catch(e){setWorks([]);}
       try{
-        const {data}=await sb.from('order_records').select('*').order('ordered_at',{ascending:false}).limit(500);
-        setOrders((data||[]).map(r=>({id:r.id,storeId:r.store_id,itemName:r.item_name,qty:r.qty,unit:r.unit||"개",price:r.price,orderedAt:r.ordered_at,memo:r.memo||""})));
-      }catch(e){setOrders([]);}
+        const {data}=await sb.from('order_items').select('*').order('created_at',{ascending:true});
+        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,link:r.link||"",memo:r.memo||""})));
+      }catch(e){setOrderItems([]);}
+      try{
+        const {data}=await sb.from('order_history').select('*').order('changed_at',{ascending:false}).limit(2000);
+        setOrderHistory((data||[]).map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})));
+      }catch(e){setOrderHistory([]);}
       setLoading(false);
     })();
   },[]);
 
   /* work CRUD */
   async function handleSaveWork(rows){
-    // rows = 배열 (반복 등록 시 여러 개, 단건도 배열로 옴)
     const isEdit=rows.length===1&&!!(workModal?.record);
     try{
       if(isEdit){
@@ -823,32 +1017,51 @@ function App(){
     }catch(e){alert("삭제 실패: "+e.message);}
   }
 
-  /* order CRUD */
-  async function handleSaveOrder(form){
-    const isEdit=!!(orderModal?.record);
-    const row={
-      id:isEdit?orderModal.record.id:uid(),
-      store_id:form.storeId, item_name:form.itemName, qty:form.qty,
-      unit:form.unit, price:form.price, ordered_at:form.orderedAt, memo:form.memo,
-    };
+  /* order item CRUD */
+  async function handleSaveItem(form){
+    const isNew=!form.id||!orderItems.find(x=>x.id===form.id);
     try{
-      if(isEdit){
-        await sb.from('order_records').update(row).eq('id',row.id);
-        setOrders(prev=>prev.map(o=>o.id===row.id?{id:row.id,storeId:row.store_id,itemName:row.item_name,qty:row.qty,unit:row.unit,price:row.price,orderedAt:row.ordered_at,memo:row.memo}:o));
+      if(isNew){
+        await sb.from('order_items').insert({id:form.id,name:form.name,link:form.link,memo:form.memo});
+        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,link:form.link,memo:form.memo}]);
       }else{
-        await sb.from('order_records').insert(row);
-        setOrders(prev=>[{id:row.id,storeId:row.store_id,itemName:row.item_name,qty:row.qty,unit:row.unit,price:row.price,orderedAt:row.ordered_at,memo:row.memo},...prev]);
+        await sb.from('order_items').update({name:form.name,link:form.link,memo:form.memo}).eq('id',form.id);
+        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,link:form.link,memo:form.memo}:x));
       }
-      setOrderModal(null);
+      setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteOrder(o){
-    if(!window.confirm("이 주문 기록을 삭제할까요?"))return;
+  async function handleDeleteItem(item){
+    if(!window.confirm(`"${item.name}" 품목을 삭제할까요? 이력도 모두 삭제됩니다.`))return;
     try{
-      await sb.from('order_records').delete().eq('id',o.id);
-      setOrders(prev=>prev.filter(x=>x.id!==o.id));
-      setOrderModal(null);
+      await sb.from('order_items').delete().eq('id',item.id);
+      setOrderItems(prev=>prev.filter(x=>x.id!==item.id));
+      setOrderHistory(prev=>prev.filter(x=>x.itemId!==item.id));
+      setItemModal(null);
     }catch(e){alert("삭제 실패: "+e.message);}
+  }
+
+  /* 상태 변경 (단건) */
+  async function handleStatusChange(itemId,storeId,newStatus){
+    const row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};
+    try{
+      await sb.from('order_history').insert(row);
+      setOrderHistory(prev=>[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev]);
+    }catch(e){alert("상태 변경 실패: "+e.message);}
+  }
+
+  /* 일괄 상태 변경 */
+  async function handleBulkStatus(itemIds,storeIds,status){
+    const rows=[];
+    itemIds.forEach(itemId=>{
+      storeIds.forEach(storeId=>{
+        rows.push({id:uid(),item_id:itemId,store_id:storeId,status,changed_at:new Date().toISOString()});
+      });
+    });
+    try{
+      await sb.from('order_history').insert(rows);
+      setOrderHistory(prev=>[...rows.map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})),...prev]);
+    }catch(e){alert("일괄 변경 실패: "+e.message);}
   }
 
   const TABS=[
@@ -867,14 +1080,6 @@ function App(){
           <div>
             <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
             <h1 style={{fontSize:20,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
-          </div>
-          <div>
-            {tab==="order"&&(
-              <button onClick={()=>setOrderModal({})}
-                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
-                <Plus size={13}/> 주문 등록
-              </button>
-            )}
           </div>
         </div>
         <div style={{display:"flex",gap:2}}>
@@ -908,62 +1113,14 @@ function App(){
             </div>
           )}
           {tab==="order"&&(
-            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <div className="tbl-wrap">
-                {orders.length===0?(
-                  <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>주문 기록이 없어요. 위에서 등록해주세요.</div>
-                ):(
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                    <thead>
-                      <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>날짜</th>
-                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
-                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>품목</th>
-                        <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>수량</th>
-                        <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>금액</th>
-                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
-                        <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {orders.map((o,i)=>{
-                        const sb2=storeBadge(o.storeId);
-                        return(
-                          <tr key={o.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
-                            <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{o.orderedAt||"—"}</td>
-                            <td style={{padding:"9px 14px"}}>
-                              <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{o.storeId}</span>
-                            </td>
-                            <td style={{padding:"9px 14px",fontWeight:500,color:"#1E293B"}}>{o.itemName}</td>
-                            <td style={{padding:"9px 14px",textAlign:"center"}}>
-                              <span className="ml-mono" style={{fontSize:12,color:"#374151"}}>{o.qty} {o.unit}</span>
-                            </td>
-                            <td style={{padding:"9px 14px",textAlign:"right"}}>
-                              {o.price!=null&&o.price!==""
-                                ?<span className="ml-mono" style={{fontSize:12,color:"#1E293B",fontWeight:500}}>{Number(o.price).toLocaleString()}원</span>
-                                :<span style={{color:"#94A3B8",fontSize:12}}>—</span>}
-                            </td>
-                            <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{o.memo||""}</td>
-                            <td style={{padding:"9px 14px",textAlign:"center"}}>
-                              <div style={{display:"inline-flex",gap:6}}>
-                                <button onClick={()=>setOrderModal({record:o})}
-                                  style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}>
-                                  <Pencil size={12}/>
-                                </button>
-                                <button onClick={()=>handleDeleteOrder(o)}
-                                  style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}>
-                                  <Trash2 size={12}/>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
+            <OrderView
+              items={orderItems}
+              history={orderHistory}
+              onItemClick={item=>setItemModal(item)}
+              onAddItem={()=>setItemModal({})}
+              onStatusChange={handleStatusChange}
+              onBulkStatus={handleBulkStatus}
+            />
           )}
         </>
       )}
@@ -978,12 +1135,13 @@ function App(){
           onDelete={handleDeleteWork}
         />
       )}
-      {orderModal!==null&&(
-        <OrderModal
-          record={orderModal.record||null}
-          onClose={()=>setOrderModal(null)}
-          onSave={handleSaveOrder}
-          onDelete={handleDeleteOrder}
+      {itemModal!==null&&(
+        <ItemDetailModal
+          item={itemModal}
+          history={orderHistory}
+          onClose={()=>setItemModal(null)}
+          onSave={handleSaveItem}
+          onDelete={handleDeleteItem}
         />
       )}
     </div>
