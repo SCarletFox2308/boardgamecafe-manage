@@ -119,10 +119,28 @@ const CSS=`
 /* ══════════════════════════════════
    WORK MODAL (날짜 클릭 or 수정)
 ══════════════════════════════════ */
+const DOW_LABELS=["일","월","화","수","목","금","토"];
+
+// 날짜 문자열(YYYY-MM-DD)에서 요일(0=일) 반환
+function getDow(ds){return new Date(ds+"T12:00:00").getDay();}
+
+// startDate~endDate 사이에서 특정 요일들에 해당하는 날짜 배열 반환
+function getDatesForDows(startDs, endDs, dows){
+  const result=[];
+  const cur=new Date(startDs+"T12:00:00");
+  const end=new Date(endDs+"T12:00:00");
+  while(cur<=end){
+    if(dows.includes(cur.getDay()))result.push(dateStr(cur));
+    cur.setDate(cur.getDate()+1);
+  }
+  return result;
+}
+
 function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
   const isEdit=!!record;
   const now=new Date();
   const initDate=defaultDate||dateStr(now);
+
   const [form,setForm]=useState(isEdit?{
     staffId:record.staffId, storeId:record.storeId,
     startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
@@ -131,13 +149,38 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
   }:{
     staffId:STAFF[0]?.id||"",
     storeId:STORES[0]?.id||"",
-    startAt:`${initDate}T09:00`,
-    endAt:`${initDate}T18:00`,
+    startAt:`${initDate}T14:00`,
+    endAt:`${initDate}T23:00`,
     memo:"",
   });
+
+  // 반복 설정 (신규 등록 전용)
+  const initDow=getDow(initDate);
+  const [repeat,setRepeat]=useState(false);
+  const [repeatDows,setRepeatDows]=useState([initDow]); // 선택된 요일 배열
+  const [repeatEnd,setRepeatEnd]=useState(()=>{
+    // 기본 종료일: 4주 후
+    const d=new Date(initDate+"T12:00:00");
+    d.setDate(d.getDate()+27);
+    return dateStr(d);
+  });
+  const [previewCount,setPreviewCount]=useState(0);
+
+  // 반복 미리보기 날짜 수 계산
+  useEffect(()=>{
+    if(!repeat||repeatDows.length===0){setPreviewCount(0);return;}
+    const startDs=form.startAt.slice(0,10)||initDate;
+    const dates=getDatesForDows(startDs,repeatEnd,repeatDows);
+    setPreviewCount(dates.length);
+  },[repeat,repeatDows,repeatEnd,form.startAt]);
+
   const [err,setErr]=useState({});
   const [saving,setSaving]=useState(false);
   const hours=calcHours(form.startAt,form.endAt);
+
+  function toggleDow(d){
+    setRepeatDows(prev=>prev.includes(d)?prev.filter(x=>x!==d):[...prev,d].sort());
+  }
 
   async function submit(e){
     e.preventDefault();
@@ -146,12 +189,36 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
     if(!form.storeId)er.storeId="매장을 선택해주세요.";
     if(!form.startAt)er.startAt="출근 시간을 입력해주세요.";
     if(form.endAt&&form.startAt&&new Date(form.endAt)<=new Date(form.startAt))er.endAt="종료 시간이 시작보다 빠릅니다.";
+    if(repeat&&repeatDows.length===0)er.repeat="반복할 요일을 선택해주세요.";
     if(Object.keys(er).length){setErr(er);return;}
     setSaving(true);
-    await onSave({...form,
-      startAt:form.startAt?new Date(form.startAt).toISOString():null,
-      endAt:form.endAt?new Date(form.endAt).toISOString():null,
-    });
+
+    const startTime=form.startAt.slice(11); // "14:00"
+    const endTime=form.endAt?form.endAt.slice(11):"";
+
+    if(!isEdit&&repeat&&repeatDows.length>0){
+      // 반복 등록: 해당 요일들의 날짜마다 각각 생성
+      const startDs=form.startAt.slice(0,10);
+      const dates=getDatesForDows(startDs,repeatEnd,repeatDows);
+      // 시작 날짜가 선택 요일에 없으면 첫 날짜만 단일 등록
+      const allDates=dates.length>0?dates:[startDs];
+      const rows=allDates.map(ds=>({
+        id:uid(),
+        staffId:form.staffId, storeId:form.storeId,
+        startAt:new Date(`${ds}T${startTime}`).toISOString(),
+        endAt:endTime?new Date(`${ds}T${endTime}`).toISOString():null,
+        memo:form.memo,
+      }));
+      await onSave(rows); // 배열로 전달
+    } else {
+      await onSave([{
+        id:isEdit?record.id:uid(),
+        staffId:form.staffId, storeId:form.storeId,
+        startAt:new Date(form.startAt).toISOString(),
+        endAt:form.endAt?new Date(form.endAt).toISOString():null,
+        memo:form.memo,
+      }]);
+    }
     setSaving(false);
   }
 
@@ -168,10 +235,11 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 <span style={{color:"#EF4444"}}>*</span></label>
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
             {STAFF.map(s=>(
-              <button key={s.id} type="button"
-                onClick={()=>setForm({...form,staffId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
-                  background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#374151",cursor:"pointer",transition:"all .12s"}}>
+              <button key={s.id} type="button" onClick={()=>setForm({...form,staffId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
+                  border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
+                  background:form.staffId===s.id?s.color:"#fff",
+                  color:form.staffId===s.id?"#fff":"#374151",cursor:"pointer",transition:"all .12s"}}>
                 {s.name}
               </button>
             ))}
@@ -184,11 +252,11 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 <span style={{color:"#EF4444"}}>*</span></label>
           <div style={{display:"flex",gap:10}}>
             {STORES.map(s=>{const b=s.badge;return(
-              <button key={s.id} type="button"
-                onClick={()=>setForm({...form,storeId:s.id})}
+              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
                 style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
                   border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
-                  background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer",transition:"all .12s"}}>
+                  background:form.storeId===s.id?b.bg:"#fff",
+                  color:form.storeId===s.id?b.color:"#374151",cursor:"pointer",transition:"all .12s"}}>
                 {s.id}
               </button>
             );})}
@@ -198,7 +266,9 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
         {/* 시간 */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
           <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>출근 시간 <span style={{color:"#EF4444"}}>*</span></label>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>
+              {repeat?"시작일 + 출근 *":"출근 시간 *"}
+            </label>
             <input type="datetime-local" value={form.startAt} onChange={e=>setForm({...form,startAt:e.target.value})}
               className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.startAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
             {err.startAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
@@ -213,7 +283,59 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
 
         {hours!=null&&(
           <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#14532D",fontWeight:600}}>
-            ⏱ 근무 시간: {fmtHours(hours)}
+            ⏱ 1일 근무 시간: {fmtHours(hours)}
+          </div>
+        )}
+
+        {/* ── 반복 설정 (신규 등록만) ── */}
+        {!isEdit&&(
+          <div style={{marginBottom:14,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:repeat?12:0}}>
+              <input type="checkbox" checked={repeat} onChange={e=>setRepeat(e.target.checked)}
+                style={{width:16,height:16,accentColor:"#2563EB",cursor:"pointer"}}/>
+              <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>반복 등록</span>
+              <span style={{fontSize:11,color:"#94A3B8"}}>매주 특정 요일에 반복</span>
+            </label>
+
+            {repeat&&(
+              <>
+                {/* 요일 선택 */}
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 요일</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {DOW_LABELS.map((label,idx)=>{
+                      const sel=repeatDows.includes(idx);
+                      const isHol=idx===0||idx===6;
+                      return(
+                        <button key={idx} type="button" onClick={()=>toggleDow(idx)}
+                          style={{width:36,height:36,borderRadius:"50%",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",transition:"all .12s",
+                            background:sel?"#2563EB":"#fff",
+                            color:sel?"#fff":isHol?(idx===0?"#EF4444":"#3B82F6"):"#374151",
+                            boxShadow:sel?"0 0 0 2px #2563EB":"0 0 0 1.5px #CBD5E1"}}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {err.repeat&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.repeat}</p>}
+                </div>
+
+                {/* 종료일 */}
+                <div>
+                  <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 종료일</div>
+                  <input type="date" value={repeatEnd} onChange={e=>setRepeatEnd(e.target.value)}
+                    className="ml-inp" style={{padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",width:"100%"}}/>
+                </div>
+
+                {/* 미리보기 */}
+                {previewCount>0&&(
+                  <div style={{marginTop:10,background:"#EFF6FF",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#1D4ED8",fontWeight:600}}>
+                    📅 총 {previewCount}일 등록 예정
+                    {" · "}{fmtHours((hours||0)*previewCount)} 합산
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
@@ -236,7 +358,7 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
               style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
             <button type="submit" disabled={saving}
               style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
-              {saving?"저장 중…":(isEdit?"수정":"등록")}
+              {saving?"저장 중…":isEdit?"수정":repeat&&previewCount>1?`${previewCount}일 등록`:"등록"}
             </button>
           </div>
         </div>
@@ -674,20 +796,20 @@ function App(){
   },[]);
 
   /* work CRUD */
-  async function handleSaveWork(form){
-    const isEdit=!!(workModal?.record);
-    const row={
-      id:isEdit?workModal.record.id:uid(),
-      staff_id:form.staffId, store_id:form.storeId,
-      start_at:form.startAt, end_at:form.endAt||null, memo:form.memo,
-    };
+  async function handleSaveWork(rows){
+    // rows = 배열 (반복 등록 시 여러 개, 단건도 배열로 옴)
+    const isEdit=rows.length===1&&!!(workModal?.record);
     try{
       if(isEdit){
+        const r=rows[0];
+        const row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};
         await sb.from('work_records').update(row).eq('id',row.id);
         setWorks(prev=>prev.map(w=>w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w));
       }else{
-        await sb.from('work_records').insert(row);
-        setWorks(prev=>[{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo},...prev]);
+        const dbRows=rows.map(r=>({id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo}));
+        await sb.from('work_records').insert(dbRows);
+        const newWorks=dbRows.map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo}));
+        setWorks(prev=>[...newWorks,...prev]);
       }
       setWorkModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
