@@ -30,7 +30,7 @@ function Plus({size=16,...p}){return React.createElement("svg",{width:size,heigh
 function Pencil({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"}),React.createElement("path",{d:"m15 5 4 4"}));}
 function Trash2({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M3 6h18"}),React.createElement("path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}),React.createElement("path",{d:"M10 11v6"}),React.createElement("path",{d:"M14 11v6"}));}
 function X({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M18 6 6 18M6 6l12 12"}));}
-function Lock({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("rect",{x:"3",y:"11",width:"18",height:"11",rx:"2"}),React.createElement("path",{d:"M7 11V7a5 5 0 0 1 10 0v4"}));}
+
 function Clock({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("circle",{cx:"12",cy:"12",r:"10"}),React.createElement("path",{d:"M12 6v6l4 2"}));}
 function Package({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m7.5 4.27 9 5.15"}),React.createElement("path",{d:"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"}),React.createElement("path",{d:"m3.3 7 8.7 5 8.7-5"}),React.createElement("path",{d:"M12 22V12"}));}
 function ChevronDown({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m6 9 6 6 6-6"}));}
@@ -122,55 +122,7 @@ const CSS = `
   .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
 `;
 
-/* ═══════════ PIN MODAL ═══════════ */
-function PinModal({pin, onSuccess, onClose}) {
-  const [mode]       = useState(pin == null ? "setup" : "unlock");
-  const [inp, setInp] = useState("");
-  const [conf, setConf] = useState("");
-  const [err, setErr]   = useState("");
 
-  async function submit(e) {
-    e.preventDefault(); setErr("");
-    if (mode === "unlock") {
-      if (inp === pin) onSuccess(inp);
-      else setErr("암호가 틀렸어요.");
-      return;
-    }
-    if (!inp.trim())  { setErr("암호를 입력해주세요."); return; }
-    if (inp !== conf) { setErr("암호가 서로 달라요."); return; }
-    try { await sb.from('settings').upsert({ key: 'manage_pin', value: inp }); } catch(e) {}
-    onSuccess(inp);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <h2 style={{fontSize:18,fontWeight:700}}>{mode === "setup" ? "관리자 암호 설정" : "관리자 접속"}</h2>
-          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
-        </div>
-        <p style={{fontSize:13,color:"#64748B",marginBottom:12}}>
-          {mode === "setup" ? "처음 사용 시 관리자 암호를 설정해주세요." : "암호를 입력하면 관리자 모드로 전환돼요."}
-        </p>
-        <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>{mode === "unlock" ? "암호" : "새 암호"}</label>
-        <input type="password" autoFocus value={inp} onChange={e => setInp(e.target.value)}
-          className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,marginBottom:12,outline:"none"}}/>
-        {mode !== "unlock" && <>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>암호 확인</label>
-          <input type="password" value={conf} onChange={e => setConf(e.target.value)}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,marginBottom:12,outline:"none"}}/>
-        </>}
-        {err && <p style={{fontSize:12,color:"#EF4444",marginBottom:8}}>{err}</p>}
-        <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-          <button type="submit" style={{padding:"8px 16px",background:"#1E293B",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer"}}>
-            {mode === "unlock" ? "접속" : "설정 후 접속"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 /* ═══════════ WORK RECORD MODAL (Add / Edit) ═══════════ */
 function WorkModal({record, onClose, onSave}) {
@@ -460,9 +412,6 @@ function SetupGuide() {
 /* ═══════════ MAIN APP ═══════════ */
 function App() {
   const [tab, setTab]         = useState("work");
-  const [mode, setMode]       = useState("view");
-  const [pin, setPin]         = useState(undefined);
-  const [showPin, setShowPin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Work state
@@ -479,16 +428,9 @@ function App() {
   const [orderFilter, setOrderFilter] = useState({ store: "all", month: "" });
   const [orderSort, setOrderSort] = useState({ key: "orderedAt", dir: "desc" });
 
-  const isAdmin = mode === "admin";
-
   /* load */
   useEffect(() => {
     (async () => {
-      try {
-        const { data: pin_data } = await sb.from('settings').select('value').eq('key','manage_pin').maybeSingle();
-        setPin(pin_data ? pin_data.value : null);
-      } catch(e) { setPin(null); }
-
       try {
         const { data } = await sb.from('work_records').select('*').order('start_at', {ascending:false}).limit(500);
         setWorks((data||[]).map(r => ({
@@ -631,39 +573,25 @@ function App() {
       <style>{CSS}</style>
 
       {/* header */}
-      <div style={{background:isAdmin?"#0F172A":"#1E293B",padding:"20px 24px 0"}}>
+      <div style={{background:"#1E293B",padding:"20px 24px 0"}}>
         <div style={{display:"flex",flexWrap:"wrap",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:12}}>
           <div>
-            <div className="ml-mono" style={{fontSize:11,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8",display:"flex",alignItems:"center",gap:8}}>
+            <div className="ml-mono" style={{fontSize:11,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>
               업무 관리
-              {isAdmin && <span style={{background:"#2563EB",color:"#fff",padding:"1px 8px",borderRadius:4,fontSize:10,fontWeight:700}}>관리자</span>}
             </div>
             <h1 style={{fontSize:22,fontWeight:700,color:"#F8FAFC",marginTop:2}}>미플+아카이브</h1>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {isAdmin ? (
-              <>
-                {tab === "work" && (
-                  <button onClick={() => { setEditWork(null); setShowWork(true); }}
-                    style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
-                    <Plus size={13}/> 근무 등록
-                  </button>
-                )}
-                {tab === "order" && (
-                  <button onClick={() => { setEditOrder(null); setShowOrder(true); }}
-                    style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
-                    <Plus size={13}/> 주문 등록
-                  </button>
-                )}
-                <button onClick={() => setMode("view")}
-                  style={{padding:"7px 14px",background:"rgba(255,255,255,.08)",color:"#CBD5E1",borderRadius:6,fontSize:13,border:"none",cursor:"pointer"}}>
-                  관리자 종료
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setShowPin(true)} disabled={pin===undefined}
-                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"rgba(255,255,255,.08)",color:pin===undefined?"#4B5563":"#CBD5E1",borderRadius:6,fontSize:13,border:"none",cursor:pin===undefined?"not-allowed":"pointer"}}>
-                <Lock size={13}/> 관리자
+            {tab === "work" && (
+              <button onClick={() => { setEditWork(null); setShowWork(true); }}
+                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
+                <Plus size={13}/> 근무 등록
+              </button>
+            )}
+            {tab === "order" && (
+              <button onClick={() => { setEditOrder(null); setShowOrder(true); }}
+                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
+                <Plus size={13}/> 주문 등록
               </button>
             )}
           </div>
@@ -714,7 +642,7 @@ function App() {
             {loading ? (
               <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
             ) : filteredWorks.length === 0 ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요.{isAdmin?" 위에서 등록해주세요.":""}</div>
+              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요. 위에서 등록해주세요.</div>
             ) : (
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead>
@@ -729,7 +657,7 @@ function App() {
                     <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>퇴근</th>
                     <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무 시간</th>
                     <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
-                    {isAdmin && <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>}
+                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -758,8 +686,7 @@ function App() {
                             : <span style={{color:"#94A3B8",fontSize:12}}>—</span>}
                         </td>
                         <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{w.memo||""}</td>
-                        {isAdmin && (
-                          <td style={{padding:"9px 14px",textAlign:"center"}}>
+                        <td style={{padding:"9px 14px",textAlign:"center"}}>
                             <div style={{display:"inline-flex",gap:6}}>
                               <button onClick={() => { setEditWork(w); setShowWork(true); }}
                                 style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer",fontSize:12}}>
@@ -771,7 +698,6 @@ function App() {
                               </button>
                             </div>
                           </td>
-                        )}
                       </tr>
                     );
                   })}
@@ -808,7 +734,7 @@ function App() {
             {loading ? (
               <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
             ) : filteredOrders.length === 0 ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>주문 기록이 없어요.{isAdmin?" 위에서 등록해주세요.":""}</div>
+              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>주문 기록이 없어요. 위에서 등록해주세요.</div>
             ) : (
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                 <thead>
@@ -823,7 +749,7 @@ function App() {
                     <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>수량</th>
                     <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>금액</th>
                     <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
-                    {isAdmin && <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>}
+                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -845,20 +771,18 @@ function App() {
                             : <span style={{color:"#94A3B8",fontSize:12}}>—</span>}
                         </td>
                         <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{o.memo||""}</td>
-                        {isAdmin && (
-                          <td style={{padding:"9px 14px",textAlign:"center"}}>
-                            <div style={{display:"inline-flex",gap:6}}>
-                              <button onClick={() => { setEditOrder(o); setShowOrder(true); }}
-                                style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer",fontSize:12}}>
-                                <Pencil size={12}/>
-                              </button>
-                              <button onClick={() => handleDeleteOrder(o)}
-                                style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer",fontSize:12}}>
-                                <Trash2 size={12}/>
-                              </button>
-                            </div>
-                          </td>
-                        )}
+                        <td style={{padding:"9px 14px",textAlign:"center"}}>
+                          <div style={{display:"inline-flex",gap:6}}>
+                            <button onClick={() => { setEditOrder(o); setShowOrder(true); }}
+                              style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer",fontSize:12}}>
+                              <Pencil size={12}/>
+                            </button>
+                            <button onClick={() => handleDeleteOrder(o)}
+                              style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer",fontSize:12}}>
+                              <Trash2 size={12}/>
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -870,7 +794,6 @@ function App() {
       )}
 
       {/* modals */}
-      {showPin && <PinModal pin={pin} onSuccess={newPin => { setPin(newPin); setMode("admin"); setShowPin(false); }} onClose={() => setShowPin(false)}/>}
       {(showWork || editWork) && <WorkModal record={editWork} onClose={() => { setShowWork(false); setEditWork(null); }} onSave={handleSaveWork}/>}
       {(showOrder || editOrder) && <OrderModal record={editOrder} onClose={() => { setShowOrder(false); setEditOrder(null); }} onSave={handleSaveOrder}/>}
     </div>
