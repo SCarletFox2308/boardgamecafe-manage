@@ -7,827 +7,887 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script>
-  window.require = window.require || function () { return undefined; };
-</script>
+<script>window.require = window.require || function(){return undefined;};</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  #root { height: 100%; }
-  #root:empty::before {
-    content: "불러오는 중입니다. 화면이 계속 비어 있다면 새로고침 해주세요.";
-    display: block; padding: 40px; text-align: center; color: #64748B; font-family: sans-serif; font-size: 14px;
-  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  #root{height:100%;}
+  #root:empty::before{content:"불러오는 중입니다. 화면이 계속 비어 있다면 새로고침 해주세요.";display:block;padding:40px;text-align:center;color:#64748B;font-family:sans-serif;font-size:14px;}
 </style>
 </head>
 <body style="height:100%">
 <div id="root"></div>
 <script id="app-source" type="text/plain">
-const { useState, useEffect, useMemo, Fragment } = React;
-const iconBase = { fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round" };
+const { useState, useEffect, useMemo, useCallback, Fragment } = React;
+const iconBase = {fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
 function Plus({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M5 12h14M12 5v14"}));}
 function Pencil({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"}),React.createElement("path",{d:"m15 5 4 4"}));}
 function Trash2({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M3 6h18"}),React.createElement("path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}),React.createElement("path",{d:"M10 11v6"}),React.createElement("path",{d:"M14 11v6"}));}
 function X({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M18 6 6 18M6 6l12 12"}));}
-
-function Clock({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("circle",{cx:"12",cy:"12",r:"10"}),React.createElement("path",{d:"M12 6v6l4 2"}));}
-function Package({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m7.5 4.27 9 5.15"}),React.createElement("path",{d:"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"}),React.createElement("path",{d:"m3.3 7 8.7 5 8.7-5"}),React.createElement("path",{d:"M12 22V12"}));}
+function ChevronLeft({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m15 18-6-6 6-6"}));}
+function ChevronRight({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m9 18 6-6-6-6"}));}
 function ChevronDown({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m6 9 6 6 6-6"}));}
 function ChevronUp({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m18 15-6-6-6 6"}));}
+function Clock({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("circle",{cx:"12",cy:"12",r:"10"}),React.createElement("path",{d:"M12 6v6l4 2"}));}
+function Package({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m7.5 4.27 9 5.15"}),React.createElement("path",{d:"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"}),React.createElement("path",{d:"m3.3 7 8.7 5 8.7-5"}),React.createElement("path",{d:"M12 22V12"}));}
+function List({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("line",{x1:"8",y1:"6",x2:"21",y2:"6"}),React.createElement("line",{x1:"8",y1:"12",x2:"21",y2:"12"}),React.createElement("line",{x1:"8",y1:"18",x2:"21",y2:"18"}),React.createElement("line",{x1:"3",y1:"6",x2:"3.01",y2:"6"}),React.createElement("line",{x1:"3",y1:"12",x2:"3.01",y2:"12"}),React.createElement("line",{x1:"3",y1:"18",x2:"3.01",y2:"18"}));}
+function CalIcon({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("rect",{x:"3",y:"4",width:"18",height:"18",rx:"2"}),React.createElement("line",{x1:"16",y1:"2",x2:"16",y2:"6"}),React.createElement("line",{x1:"8",y1:"2",x2:"8",y2:"6"}),React.createElement("line",{x1:"3",y1:"10",x2:"21",y2:"10"}));}
 
-/* ══════════════════════════════════════════════════════════
-   ★ 매장 설정 ★
-══════════════════════════════════════════════════════════ */
+/* ══ 매장 설정 ══ */
 const STORES = [
-  { id: "미플", label: "미플보드게임", badge: { bg: "#FEF3C7", color: "#92400E" } },
-  { id: "아카이브", label: "보드게임 아카이브", badge: { bg: "#DBEAFE", color: "#1E40AF" } },
+  { id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"} },
+  { id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"} },
 ];
 
-/* ══════════════════════════════════════════════════════════
-   ★ 직원 목록 — 이름과 색상을 여기서 관리합니다 ★
-══════════════════════════════════════════════════════════ */
+/* ══ 직원 목록 ★ 여기서 수정 ★ ══ */
 const STAFF = [
-  { id: "staff1", name: "직원1", color: "#6D28D9" },
-  { id: "staff2", name: "직원2", color: "#0369A1" },
-  { id: "staff3", name: "직원3", color: "#065F46" },
-  { id: "staff4", name: "직원4", color: "#9A3412" },
+  { id:"staff1", name:"직원1", color:"#7C3AED" },
+  { id:"staff2", name:"직원2", color:"#0369A1" },
+  { id:"staff3", name:"직원3", color:"#059669" },
+  { id:"staff4", name:"직원4", color:"#DC2626" },
 ];
 
-/* helpers */
-function uid() {
-  return typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `r-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-function toLocalISO(date) {
-  const d = date || new Date();
-  const pad = n => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function fmtDate(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}`;
-}
-function fmtDateTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${fmtDate(iso)} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-}
-function calcHours(start, end) {
-  if (!start || !end) return null;
-  const diff = (new Date(end) - new Date(start)) / 3600000;
-  return diff > 0 ? diff : null;
-}
-function fmtHours(h) {
-  if (h == null) return "—";
-  const hr = Math.floor(h);
-  const min = Math.round((h - hr) * 60);
-  return min === 0 ? `${hr}시간` : `${hr}시간 ${min}분`;
-}
-function storeBadge(sid) {
-  const s = STORES.find(x => x.id === sid);
-  return s ? s.badge : { bg: "#F3F4F6", color: "#374151" };
-}
-function staffColor(staffId) {
-  const s = STAFF.find(x => x.id === staffId);
-  return s ? s.color : "#6B7280";
-}
-function staffName(staffId) {
-  const s = STAFF.find(x => x.id === staffId);
-  return s ? s.name : staffId || "—";
+/* ══ helpers ══ */
+function uid(){return typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():`r-${Date.now()}-${Math.random().toString(16).slice(2)}`;}
+function pad(n){return String(n).padStart(2,"0");}
+function toLocalISO(d){d=d||new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function dateStr(d){d=d||new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function fmtDate(iso){if(!iso)return"";const d=new Date(iso);return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;}
+function fmtTime(iso){if(!iso)return"";const d=new Date(iso);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;}
+function fmtDateTime(iso){if(!iso)return"";return `${fmtDate(iso)} ${fmtTime(iso)}`;}
+function calcHours(s,e){if(!s||!e)return null;const d=(new Date(e)-new Date(s))/3600000;return d>0?d:null;}
+function fmtHours(h){if(h==null)return"—";const hr=Math.floor(h),min=Math.round((h-hr)*60);return min===0?`${hr}시간`:`${hr}시간 ${min}분`;}
+function storeBadge(sid){const s=STORES.find(x=>x.id===sid);return s?s.badge:{bg:"#F3F4F6",color:"#374151"};}
+function staffColor(sid){const s=STAFF.find(x=>x.id===sid);return s?s.color:"#6B7280";}
+function staffName(sid){const s=STAFF.find(x=>x.id===sid);return s?s.name:sid||"—";}
+
+/* ══ 공휴일 캐시 ══ */
+const holidayCache = {};
+async function fetchHolidays(year){
+  if(holidayCache[year]!==undefined)return holidayCache[year];
+  try{
+    // Google Calendar API (한국 공휴일, API키 불필요 iCal)
+    const url=`https://www.googleapis.com/calendar/v3/calendars/ko.south_korea%23holiday%40group.v.calendar.google.com/events?key=AIzaSyB6_HCHduvd5dxQEr2-2yXPDUoJmXHOZ4c&timeMin=${year}-01-01T00:00:00Z&timeMax=${year}-12-31T23:59:59Z&singleEvents=true&maxResults=50`;
+    const r=await fetch(url);
+    if(!r.ok)throw new Error();
+    const d=await r.json();
+    const map={};
+    (d.items||[]).forEach(ev=>{
+      const dt=(ev.start?.date||"").slice(0,10);
+      if(dt)map[dt]=ev.summary||"공휴일";
+    });
+    holidayCache[year]=map;
+    return map;
+  }catch(e){
+    // fallback: 고정 공휴일만
+    const fixed={
+      [`${year}-01-01`]:"신정",
+      [`${year}-03-01`]:"삼일절",
+      [`${year}-05-05`]:"어린이날",
+      [`${year}-06-06`]:"현충일",
+      [`${year}-08-15`]:"광복절",
+      [`${year}-10-03`]:"개천절",
+      [`${year}-10-09`]:"한글날",
+      [`${year}-12-25`]:"크리스마스",
+    };
+    holidayCache[year]=fixed;
+    return fixed;
+  }
 }
 
-const TABS = [
-  { id: "work", label: "근무 시간" },
-  { id: "order", label: "재고 주문" },
-];
-
-const CSS = `
+const CSS=`
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  .ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;}
-  .ml-content{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+  .ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#F1F5F9;}
   .ml-mono{font-family:"IBM Plex Mono",monospace;}
-  .ml-row:hover td{background:#EFF6FF!important;}
-  .ml-row.even td{background:#FAFAFA;} .ml-row.odd td{background:#fff;}
-  .ml-inp:focus,.ml-btn:focus-visible,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
-  th{position:sticky;top:0;z-index:2;background:#334155;}
-  .tbl-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;}
-  .sort-btn{cursor:pointer;user-select:none;}
+  .ml-inp:focus,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
-  .modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+  .modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);}
   .fade-in{animation:fadeIn .18s ease;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+  .cal-day{border-radius:8px;cursor:pointer;transition:background .12s;}
+  .cal-day:hover{background:#EFF6FF!important;}
+  .tbl-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;}
+  .ml-row:hover td{background:#EFF6FF!important;}
+  .ml-row.even td{background:#FAFAFA;}.ml-row.odd td{background:#fff;}
+  th{position:sticky;top:0;z-index:2;background:#334155;}
+  .sort-btn{cursor:pointer;user-select:none;}
+  .sum-row td{position:sticky;background:#1E293B!important;color:#E2E8F0;}
 `;
 
-
-
-/* ═══════════ WORK RECORD MODAL (Add / Edit) ═══════════ */
-function WorkModal({record, onClose, onSave}) {
-  const isEdit = !!record;
-  const now = new Date();
-  const [form, setForm] = useState(isEdit ? {
-    staffId: record.staffId,
-    storeId: record.storeId,
-    startAt: record.startAt ? toLocalISO(new Date(record.startAt)) : "",
-    endAt:   record.endAt   ? toLocalISO(new Date(record.endAt))   : "",
-    memo:    record.memo || "",
-  } : {
-    staffId: STAFF[0]?.id || "",
-    storeId: STORES[0]?.id || "",
-    startAt: toLocalISO(now),
-    endAt: "",
-    memo: "",
+/* ══════════════════════════════════
+   WORK MODAL (날짜 클릭 or 수정)
+══════════════════════════════════ */
+function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
+  const isEdit=!!record;
+  const now=new Date();
+  const initDate=defaultDate||dateStr(now);
+  const [form,setForm]=useState(isEdit?{
+    staffId:record.staffId, storeId:record.storeId,
+    startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
+    endAt:record.endAt?toLocalISO(new Date(record.endAt)):"",
+    memo:record.memo||"",
+  }:{
+    staffId:STAFF[0]?.id||"",
+    storeId:STORES[0]?.id||"",
+    startAt:`${initDate}T09:00`,
+    endAt:`${initDate}T18:00`,
+    memo:"",
   });
-  const [err, setErr] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [err,setErr]=useState({});
+  const [saving,setSaving]=useState(false);
+  const hours=calcHours(form.startAt,form.endAt);
 
-  const hours = calcHours(form.startAt, form.endAt);
-
-  async function submit(e) {
+  async function submit(e){
     e.preventDefault();
-    const er = {};
-    if (!form.staffId) er.staffId = "직원을 선택해주세요.";
-    if (!form.storeId) er.storeId = "매장을 선택해주세요.";
-    if (!form.startAt) er.startAt = "시작 시간을 입력해주세요.";
-    if (form.endAt && form.startAt && new Date(form.endAt) <= new Date(form.startAt)) er.endAt = "종료 시간이 시작보다 빠릅니다.";
-    if (Object.keys(er).length) { setErr(er); return; }
+    const er={};
+    if(!form.staffId)er.staffId="직원을 선택해주세요.";
+    if(!form.storeId)er.storeId="매장을 선택해주세요.";
+    if(!form.startAt)er.startAt="출근 시간을 입력해주세요.";
+    if(form.endAt&&form.startAt&&new Date(form.endAt)<=new Date(form.startAt))er.endAt="종료 시간이 시작보다 빠릅니다.";
+    if(Object.keys(er).length){setErr(er);return;}
     setSaving(true);
-    await onSave({
-      ...form,
-      startAt: form.startAt ? new Date(form.startAt).toISOString() : null,
-      endAt:   form.endAt   ? new Date(form.endAt).toISOString()   : null,
+    await onSave({...form,
+      startAt:form.startAt?new Date(form.startAt).toISOString():null,
+      endAt:form.endAt?new Date(form.endAt).toISOString():null,
     });
     setSaving(false);
   }
 
-  const field = (label, key, content, errKey) => (
-    <div style={{marginBottom:14}}>
-      <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>{label}</label>
-      {content}
-      {err[errKey||key] && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err[errKey||key]}</p>}
-    </div>
-  );
-
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit ? "근무 기록 수정" : "근무 시간 등록"}</h2>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"근무 기록 수정":"근무 일정 등록"}</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
 
-        {field("직원 *", "staffId",
-          <select value={form.staffId} onChange={e => setForm({...form, staffId: e.target.value})}
-            className="ml-sel" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.staffId?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none",background:"#fff"}}>
-            <option value="">— 선택 —</option>
-            {STAFF.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-        )}
-
-        {field("매장 *", "storeId",
-          <div style={{display:"flex",gap:16}}>
-            {STORES.map(s => (
-              <label key={s.id} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer"}}>
-                <input type="radio" name="storeId" value={s.id} checked={form.storeId === s.id}
-                  onChange={() => setForm({...form, storeId: s.id})}/>
-                {s.label}
-              </label>
+        {/* 직원 */}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 <span style={{color:"#EF4444"}}>*</span></label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {STAFF.map(s=>(
+              <button key={s.id} type="button"
+                onClick={()=>setForm({...form,staffId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
+                  background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#374151",cursor:"pointer",transition:"all .12s"}}>
+                {s.name}
+              </button>
             ))}
           </div>
-        )}
+          {err.staffId&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.staffId}</p>}
+        </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>출근 시간 *</label>
-            <input type="datetime-local" value={form.startAt} onChange={e => setForm({...form, startAt: e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.startAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
-            {err.startAt && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
-          </div>
-          <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>퇴근 시간</label>
-            <input type="datetime-local" value={form.endAt} onChange={e => setForm({...form, endAt: e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.endAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
-            {err.endAt && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.endAt}</p>}
+        {/* 매장 */}
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 <span style={{color:"#EF4444"}}>*</span></label>
+          <div style={{display:"flex",gap:10}}>
+            {STORES.map(s=>{const b=s.badge;return(
+              <button key={s.id} type="button"
+                onClick={()=>setForm({...form,storeId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
+                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
+                  background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer",transition:"all .12s"}}>
+                {s.id}
+              </button>
+            );})}
           </div>
         </div>
 
-        {hours != null && (
-          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#14532D",fontWeight:600}}>
+        {/* 시간 */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>출근 시간 <span style={{color:"#EF4444"}}>*</span></label>
+            <input type="datetime-local" value={form.startAt} onChange={e=>setForm({...form,startAt:e.target.value})}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.startAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
+            {err.startAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>퇴근 시간</label>
+            <input type="datetime-local" value={form.endAt} onChange={e=>setForm({...form,endAt:e.target.value})}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.endAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
+            {err.endAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.endAt}</p>}
+          </div>
+        </div>
+
+        {hours!=null&&(
+          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#14532D",fontWeight:600}}>
             ⏱ 근무 시간: {fmtHours(hours)}
           </div>
         )}
 
-        {field("메모", "memo",
-          <input value={form.memo} onChange={e => setForm({...form, memo: e.target.value})}
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
+          <input value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="특이사항, 업무 내용 등"/>
-        )}
+            placeholder="특이사항 등"/>
+        </div>
 
-        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
-          <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-          <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
-            {saving ? "저장 중…" : (isEdit ? "수정" : "등록")}
-          </button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={()=>onDelete(record)}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose}
+              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving}
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              {saving?"저장 중…":(isEdit?"수정":"등록")}
+            </button>
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-/* ═══════════ ORDER RECORD MODAL ═══════════ */
-function OrderModal({record, onClose, onSave}) {
-  const isEdit = !!record;
-  const [form, setForm] = useState(isEdit ? {
-    storeId:  record.storeId,
-    itemName: record.itemName,
-    qty:      String(record.qty || ""),
-    unit:     record.unit || "개",
-    price:    record.price != null ? String(record.price) : "",
-    orderedAt: record.orderedAt ? record.orderedAt.slice(0,10) : new Date().toISOString().slice(0,10),
-    memo:     record.memo || "",
-  } : {
-    storeId: STORES[0]?.id || "",
-    itemName: "",
-    qty: "",
-    unit: "개",
-    price: "",
-    orderedAt: new Date().toISOString().slice(0,10),
-    memo: "",
+/* ══════════════════════════════════
+   ORDER MODAL
+══════════════════════════════════ */
+function OrderModal({record,onClose,onSave,onDelete}){
+  const isEdit=!!record;
+  const [form,setForm]=useState(isEdit?{
+    storeId:record.storeId, itemName:record.itemName,
+    qty:String(record.qty||""), unit:record.unit||"개",
+    price:record.price!=null?String(record.price):"",
+    orderedAt:record.orderedAt?record.orderedAt.slice(0,10):new Date().toISOString().slice(0,10),
+    memo:record.memo||"",
+  }:{
+    storeId:STORES[0]?.id||"", itemName:"", qty:"", unit:"개", price:"",
+    orderedAt:new Date().toISOString().slice(0,10), memo:"",
   });
-  const [err, setErr] = useState({});
-  const [saving, setSaving] = useState(false);
+  const [err,setErr]=useState({});
+  const [saving,setSaving]=useState(false);
 
-  async function submit(e) {
+  async function submit(e){
     e.preventDefault();
-    const er = {};
-    if (!form.storeId)     er.storeId = "매장을 선택해주세요.";
-    if (!form.itemName.trim()) er.itemName = "품목명을 입력해주세요.";
-    if (!form.qty || isNaN(Number(form.qty))) er.qty = "수량을 입력해주세요.";
-    if (!form.orderedAt) er.orderedAt = "날짜를 입력해주세요.";
-    if (Object.keys(er).length) { setErr(er); return; }
+    const er={};
+    if(!form.storeId)er.storeId="매장을 선택해주세요.";
+    if(!form.itemName.trim())er.itemName="품목명을 입력해주세요.";
+    if(!form.qty||isNaN(Number(form.qty)))er.qty="수량을 입력해주세요.";
+    if(!form.orderedAt)er.orderedAt="날짜를 입력해주세요.";
+    if(Object.keys(er).length){setErr(er);return;}
     setSaving(true);
-    await onSave({
-      ...form,
-      qty: Number(form.qty),
-      price: form.price !== "" && !isNaN(Number(form.price)) ? Number(form.price) : null,
-    });
+    await onSave({...form,qty:Number(form.qty),price:form.price!==""&&!isNaN(Number(form.price))?Number(form.price):null});
     setSaving(false);
   }
 
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit ? "주문 기록 수정" : "재고 주문 등록"}</h2>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"주문 기록 수정":"재고 주문 등록"}</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>매장 *</label>
-          <div style={{display:"flex",gap:16}}>
-            {STORES.map(s => (
-              <label key={s.id} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,cursor:"pointer"}}>
-                <input type="radio" name="oStoreId" value={s.id} checked={form.storeId === s.id}
-                  onChange={() => setForm({...form, storeId: s.id})}/>
-                {s.label}
-              </label>
-            ))}
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 <span style={{color:"#EF4444"}}>*</span></label>
+          <div style={{display:"flex",gap:10}}>
+            {STORES.map(s=>{const b=s.badge;return(
+              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
+                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
+                  background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer"}}>
+                {s.id}
+              </button>
+            );})}
           </div>
-          {err.storeId && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.storeId}</p>}
         </div>
-
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 *</label>
-          <input value={form.itemName} onChange={e => setForm({...form, itemName: e.target.value})}
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 <span style={{color:"#EF4444"}}>*</span></label>
+          <input value={form.itemName} onChange={e=>setForm({...form,itemName:e.target.value})}
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.itemName?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
             placeholder="예: 음료수, 컵, 영수증지"/>
-          {err.itemName && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.itemName}</p>}
+          {err.itemName&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.itemName}</p>}
         </div>
-
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:14}}>
           <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>수량 *</label>
-            <input type="number" value={form.qty} onChange={e => setForm({...form, qty: e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.qty?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
-              placeholder="0" min="0"/>
-            {err.qty && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.qty}</p>}
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>수량 <span style={{color:"#EF4444"}}>*</span></label>
+            <input type="number" value={form.qty} onChange={e=>setForm({...form,qty:e.target.value})}
+              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.qty?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}} min="0"/>
+            {err.qty&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.qty}</p>}
           </div>
           <div>
             <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>단위</label>
-            <select value={form.unit} onChange={e => setForm({...form, unit: e.target.value})}
+            <select value={form.unit} onChange={e=>setForm({...form,unit:e.target.value})}
               className="ml-sel" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",background:"#fff"}}>
-              {["개","박스","봉","병","롤","세트","kg","L"].map(u => <option key={u} value={u}>{u}</option>)}
+              {["개","박스","봉","병","롤","세트","kg","L"].map(u=><option key={u} value={u}>{u}</option>)}
             </select>
           </div>
         </div>
-
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
           <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>금액 (원, 선택)</label>
-            <input type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-              placeholder="0" min="0"/>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>금액 (원)</label>
+            <input type="number" value={form.price} onChange={e=>setForm({...form,price:e.target.value})}
+              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} min="0"/>
           </div>
           <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 날짜 *</label>
-            <input type="date" value={form.orderedAt} onChange={e => setForm({...form, orderedAt: e.target.value})}
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 날짜 <span style={{color:"#EF4444"}}>*</span></label>
+            <input type="date" value={form.orderedAt} onChange={e=>setForm({...form,orderedAt:e.target.value})}
               className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err.orderedAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
-            {err.orderedAt && <p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.orderedAt}</p>}
           </div>
         </div>
-
         <div style={{marginBottom:20}}>
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
-          <input value={form.memo} onChange={e => setForm({...form, memo: e.target.value})}
+          <input value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
             placeholder="배송 정보, 담당자 등"/>
         </div>
-
-        <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-          <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-          <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
-            {saving ? "저장 중…" : (isEdit ? "수정" : "등록")}
-          </button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={()=>onDelete(record)}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              {saving?"저장 중…":(isEdit?"수정":"등록")}
+            </button>
+          </div>
         </div>
       </form>
     </div>
   );
 }
 
-/* ═══════════ SETUP GUIDE ═══════════ */
-function SetupGuide() {
-  return (
-    <div style={{maxWidth:680,margin:"0 auto",padding:"28px 20px 48px"}}>
-      <div style={{background:"#fff",borderRadius:12,padding:24,boxShadow:"0 1px 4px rgba(0,0,0,.06)",border:"1px solid #E2E8F0",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:700,letterSpacing:".1em",textTransform:"uppercase",color:"#94A3B8",marginBottom:10}}>Supabase 테이블 설정</div>
-        <p style={{fontSize:13,color:"#475569",lineHeight:1.7,marginBottom:14}}>
-          이 사이트는 Supabase와 연동됩니다. 아래 세 개의 테이블을 만들어주세요.
-        </p>
-        {[
-          { name:"work_records", desc:"근무 기록 테이블", cols:[
-            "id text primary key",
-            "staff_id text",
-            "store_id text",
-            "start_at timestamptz",
-            "end_at timestamptz",
-            "memo text",
-            "created_at timestamptz default now()",
-          ]},
-          { name:"order_records", desc:"재고 주문 기록 테이블", cols:[
-            "id text primary key",
-            "store_id text",
-            "item_name text",
-            "qty numeric",
-            "unit text",
-            "price numeric",
-            "ordered_at date",
-            "memo text",
-            "created_at timestamptz default now()",
-          ]},
-          { name:"settings", desc:"설정 (PIN 등)", cols:[
-            "key text primary key",
-            "value text",
-          ]},
-        ].map(t => (
-          <div key={t.name} style={{marginBottom:20}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#1E293B",marginBottom:4}}>📋 {t.name} <span style={{fontSize:11,fontWeight:400,color:"#64748B"}}>— {t.desc}</span></div>
-            <div style={{background:"#1E293B",borderRadius:8,padding:"12px 16px",fontFamily:"IBM Plex Mono, monospace",fontSize:12,color:"#E2E8F0",lineHeight:1.7}}>
-              <span style={{color:"#93C5FD"}}>create table</span> {t.name} (<br/>
-              {t.cols.map((c,i) => <span key={i}>&nbsp;&nbsp;{c}{i<t.cols.length-1?",":" "}<br/></span>)}
-              );
-            </div>
+/* ══════════════════════════════════
+   CALENDAR VIEW
+══════════════════════════════════ */
+function CalendarView({works, onDayClick}){
+  const today=new Date();
+  const [year,setYear]=useState(today.getFullYear());
+  const [month,setMonth]=useState(today.getMonth());
+  const [holidays,setHolidays]=useState({});
+
+  useEffect(()=>{
+    fetchHolidays(year).then(h=>setHolidays(h));
+  },[year]);
+
+  function prevMonth(){if(month===0){setYear(y=>y-1);setMonth(11);}else setMonth(m=>m-1);}
+  function nextMonth(){if(month===11){setYear(y=>y+1);setMonth(0);}else setMonth(m=>m+1);}
+
+  const firstDay=new Date(year,month,1).getDay(); // 0=일
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const todayStr=dateStr(today);
+
+  // 이달 근무 데이터: date -> {미플:[...], 아카이브:[...]}
+  const worksByDate=useMemo(()=>{
+    const map={};
+    works.forEach(w=>{
+      if(!w.startAt)return;
+      const d=w.startAt.slice(0,10);
+      const ym=d.slice(0,7);
+      if(ym!==`${year}-${pad(month+1)}`)return;
+      if(!map[d])map[d]={};
+      STORES.forEach(s=>{if(!map[d][s.id])map[d][s.id]=[];});
+      if(!map[d][w.storeId])map[d][w.storeId]=[];
+      map[d][w.storeId].push(w);
+    });
+    return map;
+  },[works,year,month]);
+
+  const DOW=["일","월","화","수","목","금","토"];
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++)cells.push(d);
+
+  return(
+    <div style={{padding:"16px 20px 32px",maxWidth:900,margin:"0 auto"}}>
+      {/* 월 네비 */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+        <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}>
+          <ChevronLeft size={16}/>
+        </button>
+        <h2 style={{fontSize:18,fontWeight:700,color:"#0F172A"}}>{year}년 {month+1}월</h2>
+        <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}>
+          <ChevronRight size={16}/>
+        </button>
+      </div>
+
+      {/* 요일 헤더 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+        {DOW.map((d,i)=>(
+          <div key={d} style={{textAlign:"center",fontSize:12,fontWeight:700,padding:"6px 0",
+            color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B"}}>
+            {d}
           </div>
         ))}
-        <div style={{background:"#FEF9C3",borderRadius:8,padding:"12px 16px",fontSize:13,color:"#713F12",border:"1px solid #FDE68A"}}>
-          ⚠️ 설정 후 이 파일의 <b>Supabase URL</b>과 <b>anon key</b>를 보드게임 목록 사이트와 같은 값으로 교체하거나, 새 프로젝트라면 새 값으로 입력해주세요.
-        </div>
+      </div>
+
+      {/* 날짜 그리드 */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+        {cells.map((day,idx)=>{
+          if(!day)return <div key={`empty-${idx}`}/>;
+          const ds=`${year}-${pad(month+1)}-${pad(day)}`;
+          const dow=(firstDay+day-1)%7;
+          const isToday=ds===todayStr;
+          const holiday=holidays[ds];
+          const isHoliday=!!holiday||dow===0;
+          const isSat=dow===6;
+          const dayWorks=worksByDate[ds]||{};
+          const hasWork=STORES.some(s=>(dayWorks[s.id]||[]).length>0);
+
+          return(
+            <div key={ds} className="cal-day"
+              onClick={()=>onDayClick(ds)}
+              style={{
+                minHeight:90,padding:"6px 7px",
+                background:isToday?"#EFF6FF":"#fff",
+                border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",
+                borderRadius:8,
+              }}>
+              {/* 날짜 숫자 */}
+              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
+                <span style={{
+                  fontSize:13,fontWeight:isToday?700:500,
+                  color:isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",
+                  width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",
+                  borderRadius:"50%",background:isToday?"#3B82F6":"transparent",
+                  color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",
+                }}>
+                  {day}
+                </span>
+                {holiday&&<span style={{fontSize:9,color:"#EF4444",fontWeight:600,lineHeight:1.2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{holiday}</span>}
+              </div>
+              {/* 매장별 근무자 */}
+              {STORES.map(s=>{
+                const ws=dayWorks[s.id]||[];
+                if(ws.length===0)return null;
+                const b=s.badge;
+                return(
+                  <div key={s.id} style={{marginBottom:3}}>
+                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,textTransform:"uppercase",letterSpacing:".04em"}}>{s.id}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
+                      {ws.map(w=>(
+                        <span key={w.id} style={{
+                          fontSize:10,fontWeight:600,padding:"1px 5px",borderRadius:4,
+                          background:staffColor(w.staffId)+"22",
+                          color:staffColor(w.staffId),
+                          border:`1px solid ${staffColor(w.staffId)}44`,
+                        }}>
+                          {staffName(w.staffId)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* 등록 안내 (빈 날) */}
+              {!hasWork&&(
+                <div style={{fontSize:10,color:"#CBD5E1",marginTop:2}}>+ 등록</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 범례 */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:16,padding:"12px 16px",background:"#fff",borderRadius:10,border:"1px solid #E2E8F0"}}>
+        <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",marginRight:4}}>직원</span>
+        {STAFF.map(s=>(
+          <span key={s.id} style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:`1px solid ${s.color}44`}}>
+            {s.name}
+          </span>
+        ))}
+        <span style={{fontSize:11,color:"#94A3B8",marginLeft:8}}>날짜 클릭 시 근무 등록</span>
       </div>
     </div>
   );
 }
 
-/* ═══════════ MAIN APP ═══════════ */
-function App() {
-  const [tab, setTab]         = useState("work");
-  const [loading, setLoading] = useState(true);
+/* ══════════════════════════════════
+   WORK LIST VIEW
+══════════════════════════════════ */
+function WorkListView({works,onEdit,onDelete}){
+  const today=new Date();
+  const curMonth=`${today.getFullYear()}-${pad(today.getMonth()+1)}`;
+  const [filter,setFilter]=useState({staff:"all",month:curMonth});
+  const [sort,setSort]=useState({key:"startAt",dir:"desc"});
 
-  // Work state
-  const [works, setWorks]         = useState([]);
-  const [showWork, setShowWork]   = useState(false);
-  const [editWork, setEditWork]   = useState(null);
-  const [workFilter, setWorkFilter] = useState({ staff: "all", store: "all", month: "" });
-  const [workSort, setWorkSort]   = useState({ key: "startAt", dir: "desc" });
+  const months=useMemo(()=>{
+    const s=new Set(works.map(w=>w.startAt?.slice(0,7)).filter(Boolean));
+    return [...s].sort().reverse();
+  },[works]);
 
-  // Order state
-  const [orders, setOrders]       = useState([]);
-  const [showOrder, setShowOrder] = useState(false);
-  const [editOrder, setEditOrder] = useState(null);
-  const [orderFilter, setOrderFilter] = useState({ store: "all", month: "" });
-  const [orderSort, setOrderSort] = useState({ key: "orderedAt", dir: "desc" });
+  const filtered=useMemo(()=>{
+    let l=[...works];
+    if(filter.staff!=="all")l=l.filter(w=>w.staffId===filter.staff);
+    if(filter.month)l=l.filter(w=>w.startAt?.slice(0,7)===filter.month);
+    return l.sort((a,b)=>{
+      const av=a[sort.key]||"",bv=b[sort.key]||"";
+      const c=av<bv?-1:av>bv?1:0;
+      return sort.dir==="asc"?c:-c;
+    });
+  },[works,filter,sort]);
 
-  /* load */
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await sb.from('work_records').select('*').order('start_at', {ascending:false}).limit(500);
-        setWorks((data||[]).map(r => ({
-          id: r.id, staffId: r.staff_id, storeId: r.store_id,
-          startAt: r.start_at, endAt: r.end_at, memo: r.memo||"",
-        })));
-      } catch(e) { setWorks([]); }
+  // 직원별 합계
+  const staffTotals=useMemo(()=>{
+    const map={};
+    STAFF.forEach(s=>{map[s.id]={name:s.name,color:s.color,hours:0,count:0};});
+    filtered.forEach(w=>{
+      if(!map[w.staffId])return;
+      const h=calcHours(w.startAt,w.endAt)||0;
+      map[w.staffId].hours+=h;
+      map[w.staffId].count+=1;
+    });
+    return Object.values(map).filter(x=>x.count>0);
+  },[filtered]);
 
-      try {
-        const { data } = await sb.from('order_records').select('*').order('ordered_at', {ascending:false}).limit(500);
-        setOrders((data||[]).map(r => ({
-          id: r.id, storeId: r.store_id, itemName: r.item_name,
-          qty: r.qty, unit: r.unit||"개", price: r.price,
-          orderedAt: r.ordered_at, memo: r.memo||"",
-        })));
-      } catch(e) { setOrders([]); }
+  function toggleSort(k){setSort(s=>s.key===k?{...s,dir:s.dir==="asc"?"desc":"asc"}:{key:k,dir:"desc"});}
+  function SI({k}){if(sort.key!==k)return React.createElement(ChevronDown,{size:11,style:{opacity:.3}});return sort.dir==="asc"?React.createElement(ChevronUp,{size:11}):React.createElement(ChevronDown,{size:11});}
 
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      {/* 필터 */}
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
+        <select value={filter.staff} onChange={e=>setFilter({...filter,staff:e.target.value})}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 직원</option>
+          {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <select value={filter.month} onChange={e=>setFilter({...filter,month:e.target.value})}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="">전체 기간</option>
+          {months.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8",marginLeft:"auto"}}>{filtered.length}건</span>
+      </div>
+
+      {/* 직원별 합계 고정 행 */}
+      {staffTotals.length>0&&(
+        <div style={{background:"#1E293B",padding:"10px 20px",display:"flex",flexWrap:"wrap",gap:10,flexShrink:0,borderBottom:"2px solid #334155"}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",alignSelf:"center",marginRight:4}}>합계</span>
+          {staffTotals.map(s=>(
+            <div key={s.name} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.07)",borderRadius:8,padding:"5px 12px"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block",flexShrink:0}}/>
+              <span style={{fontSize:12,fontWeight:600,color:"#F1F5F9"}}>{s.name}</span>
+              <span className="ml-mono" style={{fontSize:12,color:"#94A3B8"}}>·</span>
+              <span className="ml-mono" style={{fontSize:12,fontWeight:700,color:"#7DD3FC"}}>{fmtHours(s.hours)}</span>
+              <span style={{fontSize:11,color:"#64748B"}}>({s.count}일)</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 테이블 */}
+      <div className="tbl-wrap">
+        {filtered.length===0?(
+          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요.</div>
+        ):(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th className="sort-btn" onClick={()=>toggleSort("startAt")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
+                  <span style={{display:"inline-flex",alignItems:"center",gap:4}}>날짜 <SI k="startAt"/></span>
+                </th>
+                <th className="sort-btn" onClick={()=>toggleSort("staffId")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
+                  <span style={{display:"inline-flex",alignItems:"center",gap:4}}>직원 <SI k="staffId"/></span>
+                </th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>출근</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>퇴근</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무 시간</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((w,i)=>{
+                const hours=calcHours(w.startAt,w.endAt);
+                const sb2=storeBadge(w.storeId);
+                const sc=staffColor(w.staffId);
+                return(
+                  <tr key={w.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{w.startAt?w.startAt.slice(0,10):""}</td>
+                    <td style={{padding:"9px 14px"}}>
+                      <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
+                        <span style={{width:8,height:8,borderRadius:"50%",background:sc,display:"inline-block"}}/>
+                        <span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span>
+                      </span>
+                    </td>
+                    <td style={{padding:"9px 14px"}}>
+                      <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span>
+                    </td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{fmtTime(w.startAt)}</td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:w.endAt?"#374151":"#94A3B8"}}>
+                      {w.endAt?fmtTime(w.endAt):"미입력"}
+                    </td>
+                    <td style={{padding:"9px 14px",textAlign:"center"}}>
+                      {hours!=null
+                        ?<span style={{background:"#F0FDF4",color:"#15803D",padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:600}}>{fmtHours(hours)}</span>
+                        :<span style={{color:"#94A3B8",fontSize:12}}>—</span>}
+                    </td>
+                    <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{w.memo||""}</td>
+                    <td style={{padding:"9px 14px",textAlign:"center"}}>
+                      <div style={{display:"inline-flex",gap:6}}>
+                        <button onClick={()=>onEdit(w)}
+                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}>
+                          <Pencil size={12}/>
+                        </button>
+                        <button onClick={()=>onDelete(w)}
+                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}>
+                          <Trash2 size={12}/>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   MAIN APP
+══════════════════════════════════ */
+function App(){
+  const [tab,setTab]=useState("cal");       // cal | list | order
+  const [loading,setLoading]=useState(true);
+
+  const [works,setWorks]=useState([]);
+  const [workModal,setWorkModal]=useState(null); // null | {record?:w, date?:str}
+
+  const [orders,setOrders]=useState([]);
+  const [orderModal,setOrderModal]=useState(null);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const {data}=await sb.from('work_records').select('*').order('start_at',{ascending:false}).limit(1000);
+        setWorks((data||[]).map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo||""})));
+      }catch(e){setWorks([]);}
+      try{
+        const {data}=await sb.from('order_records').select('*').order('ordered_at',{ascending:false}).limit(500);
+        setOrders((data||[]).map(r=>({id:r.id,storeId:r.store_id,itemName:r.item_name,qty:r.qty,unit:r.unit||"개",price:r.price,orderedAt:r.ordered_at,memo:r.memo||""})));
+      }catch(e){setOrders([]);}
       setLoading(false);
     })();
-  }, []);
+  },[]);
 
-  /* work handlers */
-  async function handleSaveWork(form) {
-    const row = {
-      id: editWork ? editWork.id : uid(),
-      staff_id: form.staffId,
-      store_id: form.storeId,
-      start_at: form.startAt,
-      end_at: form.endAt || null,
-      memo: form.memo,
+  /* work CRUD */
+  async function handleSaveWork(form){
+    const isEdit=!!(workModal?.record);
+    const row={
+      id:isEdit?workModal.record.id:uid(),
+      staff_id:form.staffId, store_id:form.storeId,
+      start_at:form.startAt, end_at:form.endAt||null, memo:form.memo,
     };
-    try {
-      if (editWork) {
-        await sb.from('work_records').update(row).eq('id', row.id);
-        setWorks(prev => prev.map(w => w.id === row.id ? { id:row.id, staffId:row.staff_id, storeId:row.store_id, startAt:row.start_at, endAt:row.end_at, memo:row.memo } : w));
-      } else {
+    try{
+      if(isEdit){
+        await sb.from('work_records').update(row).eq('id',row.id);
+        setWorks(prev=>prev.map(w=>w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w));
+      }else{
         await sb.from('work_records').insert(row);
-        setWorks(prev => [{ id:row.id, staffId:row.staff_id, storeId:row.store_id, startAt:row.start_at, endAt:row.end_at, memo:row.memo }, ...prev]);
+        setWorks(prev=>[{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo},...prev]);
       }
-      setShowWork(false); setEditWork(null);
-    } catch(e) { alert("저장 실패: " + e.message); }
+      setWorkModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteWork(w) {
-    if (!window.confirm("이 근무 기록을 삭제할까요?")) return;
-    try {
-      await sb.from('work_records').delete().eq('id', w.id);
-      setWorks(prev => prev.filter(x => x.id !== w.id));
-    } catch(e) { alert("삭제 실패: " + e.message); }
+  async function handleDeleteWork(w){
+    if(!window.confirm("이 근무 기록을 삭제할까요?"))return;
+    try{
+      await sb.from('work_records').delete().eq('id',w.id);
+      setWorks(prev=>prev.filter(x=>x.id!==w.id));
+      setWorkModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
   }
 
-  /* order handlers */
-  async function handleSaveOrder(form) {
-    const row = {
-      id: editOrder ? editOrder.id : uid(),
-      store_id: form.storeId,
-      item_name: form.itemName,
-      qty: form.qty,
-      unit: form.unit,
-      price: form.price,
-      ordered_at: form.orderedAt,
-      memo: form.memo,
+  /* order CRUD */
+  async function handleSaveOrder(form){
+    const isEdit=!!(orderModal?.record);
+    const row={
+      id:isEdit?orderModal.record.id:uid(),
+      store_id:form.storeId, item_name:form.itemName, qty:form.qty,
+      unit:form.unit, price:form.price, ordered_at:form.orderedAt, memo:form.memo,
     };
-    try {
-      if (editOrder) {
-        await sb.from('order_records').update(row).eq('id', row.id);
-        setOrders(prev => prev.map(o => o.id === row.id ? { id:row.id, storeId:row.store_id, itemName:row.item_name, qty:row.qty, unit:row.unit, price:row.price, orderedAt:row.ordered_at, memo:row.memo } : o));
-      } else {
+    try{
+      if(isEdit){
+        await sb.from('order_records').update(row).eq('id',row.id);
+        setOrders(prev=>prev.map(o=>o.id===row.id?{id:row.id,storeId:row.store_id,itemName:row.item_name,qty:row.qty,unit:row.unit,price:row.price,orderedAt:row.ordered_at,memo:row.memo}:o));
+      }else{
         await sb.from('order_records').insert(row);
-        setOrders(prev => [{ id:row.id, storeId:row.store_id, itemName:row.item_name, qty:row.qty, unit:row.unit, price:row.price, orderedAt:row.ordered_at, memo:row.memo }, ...prev]);
+        setOrders(prev=>[{id:row.id,storeId:row.store_id,itemName:row.item_name,qty:row.qty,unit:row.unit,price:row.price,orderedAt:row.ordered_at,memo:row.memo},...prev]);
       }
-      setShowOrder(false); setEditOrder(null);
-    } catch(e) { alert("저장 실패: " + e.message); }
+      setOrderModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteOrder(o) {
-    if (!window.confirm("이 주문 기록을 삭제할까요?")) return;
-    try {
-      await sb.from('order_records').delete().eq('id', o.id);
-      setOrders(prev => prev.filter(x => x.id !== o.id));
-    } catch(e) { alert("삭제 실패: " + e.message); }
-  }
-
-  /* derived: work */
-  const filteredWorks = useMemo(() => {
-    let l = [...works];
-    if (workFilter.staff !== "all") l = l.filter(w => w.staffId === workFilter.staff);
-    if (workFilter.store !== "all") l = l.filter(w => w.storeId === workFilter.store);
-    if (workFilter.month) l = l.filter(w => w.startAt && w.startAt.slice(0,7) === workFilter.month);
-    return l.sort((a,b) => {
-      const av = a[workSort.key] || "", bv = b[workSort.key] || "";
-      const c = av < bv ? -1 : av > bv ? 1 : 0;
-      return workSort.dir === "asc" ? c : -c;
-    });
-  }, [works, workFilter, workSort]);
-
-  const workStats = useMemo(() => {
-    const totalHours = filteredWorks.reduce((sum,w) => sum + (calcHours(w.startAt,w.endAt)||0), 0);
-    return { count: filteredWorks.length, totalHours };
-  }, [filteredWorks]);
-
-  /* derived: orders */
-  const filteredOrders = useMemo(() => {
-    let l = [...orders];
-    if (orderFilter.store !== "all") l = l.filter(o => o.storeId === orderFilter.store);
-    if (orderFilter.month) l = l.filter(o => o.orderedAt && o.orderedAt.slice(0,7) === orderFilter.month);
-    return l.sort((a,b) => {
-      const av = a[orderSort.key] || "", bv = b[orderSort.key] || "";
-      const c = av < bv ? -1 : av > bv ? 1 : 0;
-      return orderSort.dir === "asc" ? c : -c;
-    });
-  }, [orders, orderFilter, orderSort]);
-
-  const orderStats = useMemo(() => {
-    const totalPrice = filteredOrders.reduce((sum,o) => sum + (o.price||0), 0);
-    return { count: filteredOrders.length, totalPrice };
-  }, [filteredOrders]);
-
-  function toggleWorkSort(k) {
-    setWorkSort(s => s.key === k ? {...s, dir: s.dir==="asc"?"desc":"asc"} : {key:k,dir:"desc"});
-  }
-  function toggleOrderSort(k) {
-    setOrderSort(s => s.key === k ? {...s, dir: s.dir==="asc"?"desc":"asc"} : {key:k,dir:"desc"});
-  }
-  function SortIcon({k, sort}) {
-    if (sort.key !== k) return React.createElement(ChevronDown, {size:11,style:{opacity:.3}});
-    return sort.dir === "asc" ? React.createElement(ChevronUp,{size:11}) : React.createElement(ChevronDown,{size:11});
+  async function handleDeleteOrder(o){
+    if(!window.confirm("이 주문 기록을 삭제할까요?"))return;
+    try{
+      await sb.from('order_records').delete().eq('id',o.id);
+      setOrders(prev=>prev.filter(x=>x.id!==o.id));
+      setOrderModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
   }
 
-  /* month options */
-  const workMonths = useMemo(() => {
-    const s = new Set(works.map(w => w.startAt?.slice(0,7)).filter(Boolean));
-    return [...s].sort().reverse();
-  }, [works]);
-  const orderMonths = useMemo(() => {
-    const s = new Set(orders.map(o => o.orderedAt?.slice(0,7)).filter(Boolean));
-    return [...s].sort().reverse();
-  }, [orders]);
+  const TABS=[
+    {id:"cal",   label:"근무 캘린더", icon:React.createElement(CalIcon,{size:13})},
+    {id:"list",  label:"근무 목록",   icon:React.createElement(List,{size:13})},
+    {id:"order", label:"재고 주문",   icon:React.createElement(Package,{size:13})},
+  ];
 
-  return (
-    <div className="ml-root" style={{background:"#F1F5F9"}}>
+  return(
+    <div className="ml-root">
       <style>{CSS}</style>
 
-      {/* header */}
-      <div style={{background:"#1E293B",padding:"20px 24px 0"}}>
-        <div style={{display:"flex",flexWrap:"wrap",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:12}}>
+      {/* ── 헤더 ── */}
+      <div style={{background:"#1E293B",padding:"16px 24px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
           <div>
-            <div className="ml-mono" style={{fontSize:11,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>
-              업무 관리
-            </div>
-            <h1 style={{fontSize:22,fontWeight:700,color:"#F8FAFC",marginTop:2}}>미플+아카이브</h1>
+            <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
+            <h1 style={{fontSize:20,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
           </div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {tab === "work" && (
-              <button onClick={() => { setEditWork(null); setShowWork(true); }}
-                style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
-                <Plus size={13}/> 근무 등록
-              </button>
-            )}
-            {tab === "order" && (
-              <button onClick={() => { setEditOrder(null); setShowOrder(true); }}
+          <div>
+            {tab==="order"&&(
+              <button onClick={()=>setOrderModal({})}
                 style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,fontWeight:500,border:"none",cursor:"pointer"}}>
                 <Plus size={13}/> 주문 등록
               </button>
             )}
           </div>
         </div>
-
-        {/* tabs */}
-        <div style={{display:"flex",gap:4}}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+        <div style={{display:"flex",gap:2}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
               style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:"20px 20px 0 0",fontSize:13,fontWeight:500,border:"none",cursor:"pointer",whiteSpace:"nowrap",
                 background:tab===t.id?"rgba(255,255,255,.1)":"transparent",
                 color:tab===t.id?"#F8FAFC":"#94A3B8",
                 borderBottom:tab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
-              {t.id==="work" ? React.createElement(Clock,{size:13}) : React.createElement(Package,{size:13})}
-              {t.label}
+              {t.icon}{t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ════ 근무 시간 탭 ════ */}
-      {tab === "work" && (
-        <div className="ml-content">
-          {/* filters */}
-          <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
-            <select value={workFilter.staff} onChange={e => setWorkFilter({...workFilter, staff:e.target.value})}
-              style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
-              <option value="all">전체 직원</option>
-              {STAFF.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <select value={workFilter.store} onChange={e => setWorkFilter({...workFilter, store:e.target.value})}
-              style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
-              <option value="all">전체 매장</option>
-              {STORES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            <select value={workFilter.month} onChange={e => setWorkFilter({...workFilter, month:e.target.value})}
-              style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
-              <option value="">전체 기간</option>
-              {workMonths.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <span className="ml-mono" style={{fontSize:11,color:"#94A3B8",marginLeft:"auto"}}>
-              {workStats.count}건 · 총 {fmtHours(workStats.totalHours)}
-            </span>
-          </div>
-
-          {/* table */}
-          <div className="tbl-wrap">
-            {loading ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
-            ) : filteredWorks.length === 0 ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요. 위에서 등록해주세요.</div>
-            ) : (
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead>
-                  <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                    <th className="sort-btn" onClick={() => toggleWorkSort("staffId")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:4}}>직원 <SortIcon k="staffId" sort={workSort}/></span>
-                    </th>
-                    <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
-                    <th className="sort-btn" onClick={() => toggleWorkSort("startAt")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:4}}>출근 <SortIcon k="startAt" sort={workSort}/></span>
-                    </th>
-                    <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>퇴근</th>
-                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무 시간</th>
-                    <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
-                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredWorks.map((w, i) => {
-                    const hours = calcHours(w.startAt, w.endAt);
-                    const sb2 = storeBadge(w.storeId);
-                    const sc = staffColor(w.staffId);
-                    return (
-                      <tr key={w.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
-                        <td style={{padding:"9px 14px"}}>
-                          <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
-                            <span style={{width:8,height:8,borderRadius:"50%",background:sc,flexShrink:0,display:"inline-block"}}/>
-                            <span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span>
-                          </span>
-                        </td>
-                        <td style={{padding:"9px 14px"}}>
-                          <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span>
-                        </td>
-                        <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{fmtDateTime(w.startAt)}</td>
-                        <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:w.endAt?"#374151":"#94A3B8"}}>
-                          {w.endAt ? fmtDateTime(w.endAt) : "미입력"}
-                        </td>
-                        <td style={{padding:"9px 14px",textAlign:"center"}}>
-                          {hours != null
-                            ? <span style={{background:"#F0FDF4",color:"#15803D",padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:600}}>{fmtHours(hours)}</span>
-                            : <span style={{color:"#94A3B8",fontSize:12}}>—</span>}
-                        </td>
-                        <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{w.memo||""}</td>
-                        <td style={{padding:"9px 14px",textAlign:"center"}}>
-                            <div style={{display:"inline-flex",gap:6}}>
-                              <button onClick={() => { setEditWork(w); setShowWork(true); }}
-                                style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer",fontSize:12}}>
-                                <Pencil size={12}/>
-                              </button>
-                              <button onClick={() => handleDeleteWork(w)}
-                                style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer",fontSize:12}}>
-                                <Trash2 size={12}/>
-                              </button>
-                            </div>
-                          </td>
+      {/* ── 콘텐츠 ── */}
+      {loading?(
+        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
+      ):(
+        <>
+          {tab==="cal"&&(
+            <div style={{flex:1,overflow:"auto"}}>
+              <CalendarView works={works} onDayClick={ds=>setWorkModal({date:ds})}/>
+            </div>
+          )}
+          {tab==="list"&&(
+            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+              <WorkListView works={works}
+                onEdit={w=>setWorkModal({record:w})}
+                onDelete={handleDeleteWork}/>
+            </div>
+          )}
+          {tab==="order"&&(
+            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+              <div className="tbl-wrap">
+                {orders.length===0?(
+                  <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>주문 기록이 없어요. 위에서 등록해주세요.</div>
+                ):(
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                    <thead>
+                      <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>날짜</th>
+                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>품목</th>
+                        <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>수량</th>
+                        <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>금액</th>
+                        <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
+                        <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+                    </thead>
+                    <tbody>
+                      {orders.map((o,i)=>{
+                        const sb2=storeBadge(o.storeId);
+                        return(
+                          <tr key={o.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
+                            <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{o.orderedAt||"—"}</td>
+                            <td style={{padding:"9px 14px"}}>
+                              <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{o.storeId}</span>
+                            </td>
+                            <td style={{padding:"9px 14px",fontWeight:500,color:"#1E293B"}}>{o.itemName}</td>
+                            <td style={{padding:"9px 14px",textAlign:"center"}}>
+                              <span className="ml-mono" style={{fontSize:12,color:"#374151"}}>{o.qty} {o.unit}</span>
+                            </td>
+                            <td style={{padding:"9px 14px",textAlign:"right"}}>
+                              {o.price!=null&&o.price!==""
+                                ?<span className="ml-mono" style={{fontSize:12,color:"#1E293B",fontWeight:500}}>{Number(o.price).toLocaleString()}원</span>
+                                :<span style={{color:"#94A3B8",fontSize:12}}>—</span>}
+                            </td>
+                            <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{o.memo||""}</td>
+                            <td style={{padding:"9px 14px",textAlign:"center"}}>
+                              <div style={{display:"inline-flex",gap:6}}>
+                                <button onClick={()=>setOrderModal({record:o})}
+                                  style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}>
+                                  <Pencil size={12}/>
+                                </button>
+                                <button onClick={()=>handleDeleteOrder(o)}
+                                  style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}>
+                                  <Trash2 size={12}/>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
-      {/* ════ 재고 주문 탭 ════ */}
-      {tab === "order" && (
-        <div className="ml-content">
-          {/* filters */}
-          <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
-            <select value={orderFilter.store} onChange={e => setOrderFilter({...orderFilter, store:e.target.value})}
-              style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
-              <option value="all">전체 매장</option>
-              {STORES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-            <select value={orderFilter.month} onChange={e => setOrderFilter({...orderFilter, month:e.target.value})}
-              style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
-              <option value="">전체 기간</option>
-              {orderMonths.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <span className="ml-mono" style={{fontSize:11,color:"#94A3B8",marginLeft:"auto"}}>
-              {orderStats.count}건
-              {orderStats.totalPrice > 0 && ` · 총 ${orderStats.totalPrice.toLocaleString()}원`}
-            </span>
-          </div>
-
-          {/* table */}
-          <div className="tbl-wrap">
-            {loading ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
-            ) : filteredOrders.length === 0 ? (
-              <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>주문 기록이 없어요. 위에서 등록해주세요.</div>
-            ) : (
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <thead>
-                  <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                    <th className="sort-btn" onClick={() => toggleOrderSort("orderedAt")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:4}}>날짜 <SortIcon k="orderedAt" sort={orderSort}/></span>
-                    </th>
-                    <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
-                    <th className="sort-btn" onClick={() => toggleOrderSort("itemName")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:4}}>품목 <SortIcon k="itemName" sort={orderSort}/></span>
-                    </th>
-                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>수량</th>
-                    <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>금액</th>
-                    <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
-                    <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((o, i) => {
-                    const sb2 = storeBadge(o.storeId);
-                    return (
-                      <tr key={o.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
-                        <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{o.orderedAt||"—"}</td>
-                        <td style={{padding:"9px 14px"}}>
-                          <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{o.storeId}</span>
-                        </td>
-                        <td style={{padding:"9px 14px",fontWeight:500,color:"#1E293B"}}>{o.itemName}</td>
-                        <td style={{padding:"9px 14px",textAlign:"center"}}>
-                          <span className="ml-mono" style={{fontSize:12,color:"#374151"}}>{o.qty} {o.unit}</span>
-                        </td>
-                        <td style={{padding:"9px 14px",textAlign:"right"}}>
-                          {o.price != null && o.price !== ""
-                            ? <span className="ml-mono" style={{fontSize:12,color:"#1E293B",fontWeight:500}}>{Number(o.price).toLocaleString()}원</span>
-                            : <span style={{color:"#94A3B8",fontSize:12}}>—</span>}
-                        </td>
-                        <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{o.memo||""}</td>
-                        <td style={{padding:"9px 14px",textAlign:"center"}}>
-                          <div style={{display:"inline-flex",gap:6}}>
-                            <button onClick={() => { setEditOrder(o); setShowOrder(true); }}
-                              style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer",fontSize:12}}>
-                              <Pencil size={12}/>
-                            </button>
-                            <button onClick={() => handleDeleteOrder(o)}
-                              style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer",fontSize:12}}>
-                              <Trash2 size={12}/>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
+      {/* ── 모달 ── */}
+      {workModal!==null&&(
+        <WorkModal
+          record={workModal.record||null}
+          defaultDate={workModal.date||null}
+          onClose={()=>setWorkModal(null)}
+          onSave={handleSaveWork}
+          onDelete={handleDeleteWork}
+        />
       )}
-
-      {/* modals */}
-      {(showWork || editWork) && <WorkModal record={editWork} onClose={() => { setShowWork(false); setEditWork(null); }} onSave={handleSaveWork}/>}
-      {(showOrder || editOrder) && <OrderModal record={editOrder} onClose={() => { setShowOrder(false); setEditOrder(null); }} onSave={handleSaveOrder}/>}
+      {orderModal!==null&&(
+        <OrderModal
+          record={orderModal.record||null}
+          onClose={()=>setOrderModal(null)}
+          onSave={handleSaveOrder}
+          onDelete={handleDeleteOrder}
+        />
+      )}
     </div>
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
 </script>
 <script>
-(function () {
-  function showError(title, detail) {
-    document.getElementById('root').innerHTML =
-      '<div style="padding:24px;font-family:sans-serif;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;">'
-      + '<b>' + title + '</b><br>' + detail + '</div>';
+(function(){
+  function showError(title,detail){
+    document.getElementById('root').innerHTML=
+      '<div style="padding:24px;font-family:sans-serif;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;"><b>'+title+'</b><br>'+detail+'</div>';
   }
-  window.onerror = function (msg, src, line) {
-    showError('오류가 발생했어요:', msg + ' (line ' + line + ')');
-  };
-  try {
-    const sb = window.supabase.createClient(
+  window.onerror=function(msg,src,line){showError('오류가 발생했어요:',msg+' (line '+line+')');};
+  try{
+    const sb=window.supabase.createClient(
       "https://kgtopbstibqdixgdntds.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndG9wYnN0aWJxZGl4Z2RudGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMyNTQsImV4cCI6MjA5ODE3OTI1NH0.y3Fm7oM6Zn66JgSblCTol1C28NWLk7ypvOjzltxkM4Y"
     );
-    window.sb = sb;
-    const source = document.getElementById('app-source').textContent;
-    const transformed = Babel.transform(source, {
-      presets: [['react', { runtime: 'classic' }]],
-      sourceType: 'script'
-    }).code;
-    (function (sb) { eval(transformed); })(sb);
-  } catch (e) {
-    showError('초기화 중 오류가 발생했어요:', (e && e.message) ? e.message : String(e));
-  }
+    window.sb=sb;
+    const source=document.getElementById('app-source').textContent;
+    const transformed=Babel.transform(source,{presets:[['react',{runtime:'classic'}]],sourceType:'script'}).code;
+    (function(sb){eval(transformed);})(sb);
+  }catch(e){showError('초기화 중 오류가 발생했어요:',(e&&e.message)?e.message:String(e));}
 })();
 </script>
 </body>
