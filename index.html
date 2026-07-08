@@ -42,10 +42,10 @@ const STORES = [
 
 /* ══ 직원 목록 ★ 여기서 수정 ★ ══ */
 const STAFF = [
-  { id:"staff1", name:"직원1", color:"#7C3AED" },
-  { id:"staff2", name:"직원2", color:"#0369A1" },
-  { id:"staff3", name:"직원3", color:"#059669" },
-  { id:"staff4", name:"직원4", color:"#DC2626" },
+  { id:"staff1", name:"이세창", color:"#7C3AED" },
+  { id:"staff2", name:"김정명", color:"#0369A1" },
+  { id:"staff3", name:"남선우", color:"#059669" },
+  { id:"staff4", name:"박보은", color:"#DC2626" },
 ];
 
 /* ══ helpers ══ */
@@ -694,9 +694,9 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
     const m={};
     STORES.forEach(s=>{
       m[s.id]=(history||[])
-        .filter(h=>h.itemId===item.id&&h.storeId===s.id&&h.status==="배송완료")
+        .filter(h=>h.itemId===item.id&&h.storeId===s.id)
         .sort((a,b)=>b.changedAt>a.changedAt?1:-1)
-        .slice(0,5);
+        .slice(0,8);
     });
     return m;
   },[history,item.id]);
@@ -761,10 +761,10 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
           </div>
         )}
 
-        {/* 배송완료 이력 */}
+        {/* 상태 변경 이력 */}
         {!isNew&&(
           <div style={{marginBottom:20,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>배송완료 이력</div>
+            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>상태 변경 이력</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               {STORES.map(s=>{
                 const b=s.badge;
@@ -774,11 +774,19 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
                     <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:6,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
                     {rows.length===0
                       ?<p style={{fontSize:11,color:"#CBD5E1"}}>이력 없음</p>
-                      :rows.map(h=>(
-                        <div key={h.id} className="ml-mono" style={{fontSize:11,color:"#64748B",padding:"2px 0"}}>
-                          {h.changedAt?h.changedAt.slice(0,10):"—"}
-                        </div>
-                      ))}
+                      :rows.map(h=>{
+                        const cfg=statusCfg(h.status);
+                        return(
+                          <div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0"}}>
+                            <span style={{width:52,flexShrink:0,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:cfg.bg,color:cfg.color,textAlign:"center"}}>
+                              {h.status}
+                            </span>
+                            <span className="ml-mono" style={{fontSize:11,color:"#64748B"}}>
+                              {h.changedAt?fmtDateTime(h.changedAt):"—"}
+                            </span>
+                          </div>
+                        );
+                      })}
                   </div>
                 );
               })}
@@ -817,13 +825,14 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
   const [checked,setChecked]=useState(new Set());
   const [bulkStore,setBulkStore]=useState("all");
 
-  // 품목별 최신 상태 (매장별)
-  function latestStatus(itemId,storeId){
+  // 품목별 최신 상태+시각 (매장별)
+  function latestEntry(itemId,storeId){
     const h=(history||[])
       .filter(x=>x.itemId===itemId&&x.storeId===storeId)
       .sort((a,b)=>b.changedAt>a.changedAt?1:-1);
-    return h[0]?.status||"구매요청";
+    return h[0]||{status:"구매요청",changedAt:null};
   }
+  function latestStatus(itemId,storeId){return latestEntry(itemId,storeId).status;}
 
   const filtered=useMemo(()=>{
     let l=items;
@@ -976,20 +985,26 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
                       )}
                     </td>
                     {STORES.map(s=>{
-                      const st=latestStatus(item.id,s.id);
+                      const entry=latestEntry(item.id,s.id);
+                      const st=entry.status;
                       const cfg=statusCfg(st);
                       const nextCfg=statusCfg(cfg.next);
                       return(
                         <td key={s.id} style={{padding:"8px 14px",textAlign:"center"}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
                             <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>
                               {st}
                             </span>
+                            {entry.changedAt&&(
+                              <span className="ml-mono" style={{fontSize:9,color:"#94A3B8",whiteSpace:"nowrap"}}>
+                                {fmtDateTime(entry.changedAt)}
+                              </span>
+                            )}
                             <button onClick={()=>{
                               if(window.confirm(`"${item.name}"을(를)\n[${s.id}] 기준으로 "${cfg.next}"(으)로 변경할까요?`))
                                 onStatusChange(item.id,s.id,cfg.next);
                             }}
-                              style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:`1.5px solid ${nextCfg.dot}`,
+                              style={{marginTop:2,padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:`1.5px solid ${nextCfg.dot}`,
                                 background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
                               → {cfg.next}
                             </button>
