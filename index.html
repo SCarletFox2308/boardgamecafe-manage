@@ -488,6 +488,7 @@ function CalendarView({works, onDayClick, onWorkClick, filterStaff="all", filter
                 background:isToday?"#EFF6FF":"#fff",
                 border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",
                 borderRadius:8,
+                overflow:"hidden",
               }}>
               {/* 날짜 숫자 */}
               <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
@@ -515,11 +516,13 @@ function CalendarView({works, onDayClick, onWorkClick, filterStaff="all", filter
                         <button key={w.id}
                           onClick={e=>{e.stopPropagation();onWorkClick(w);}}
                           style={{
-                            fontSize:10,fontWeight:600,padding:"1px 5px",borderRadius:4,
+                            fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,
                             background:staffColor(w.staffId)+"22",
                             color:staffColor(w.staffId),
                             border:`1px solid ${staffColor(w.staffId)}44`,
                             cursor:"pointer",
+                            whiteSpace:"nowrap",
+                            lineHeight:1.3,
                           }}>
                           {staffName(w.staffId)}
                         </button>
