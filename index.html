@@ -510,7 +510,7 @@ function CalendarView({works, onDayClick, onWorkClick, filterStaff="all", filter
                 const b=s.badge;
                 return(
                   <div key={s.id} style={{marginBottom:3}}>
-                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,textTransform:"uppercase",letterSpacing:".04em"}}>{s.id}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,textTransform:"uppercase",letterSpacing:".04em",whiteSpace:"nowrap"}}>{s.id}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
                       {ws.map(w=>(
                         <button key={w.id}
