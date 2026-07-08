@@ -368,15 +368,40 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
 }
 
 /* ══════════════════════════════════
+   CALENDAR FILTER BAR (고정)
+══════════════════════════════════ */
+function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore}){
+  return(
+    <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
+      <span style={{fontSize:11,fontWeight:700,color:"#94A3B8"}}>필터</span>
+      <select value={filterStaff} onChange={e=>setFilterStaff(e.target.value)}
+        style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <option value="all">전체 직원</option>
+        {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+      <select value={filterStore} onChange={e=>setFilterStore(e.target.value)}
+        style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <option value="all">전체 매장</option>
+        {STORES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+      </select>
+      {(filterStaff!=="all"||filterStore!=="all")&&(
+        <button onClick={()=>{setFilterStaff("all");setFilterStore("all");}}
+          style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,color:"#64748B",background:"#fff",cursor:"pointer"}}>
+          초기화
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
    CALENDAR VIEW
 ══════════════════════════════════ */
-function CalendarView({works, onDayClick, onWorkClick}){
+function CalendarView({works, onDayClick, onWorkClick, filterStaff="all", filterStore="all"}){
   const today=new Date();
   const [year,setYear]=useState(today.getFullYear());
   const [month,setMonth]=useState(today.getMonth());
   const [holidays,setHolidays]=useState({});
-  const [filterStaff,setFilterStaff]=useState("all");
-  const [filterStore,setFilterStore]=useState("all");
 
   useEffect(()=>{
     fetchHolidays(year).then(h=>setHolidays(h));
@@ -406,7 +431,6 @@ function CalendarView({works, onDayClick, onWorkClick}){
         if(!map[d][w.storeId])map[d][w.storeId]=[];
         map[d][w.storeId].push(w);
       });
-    // 각 날짜·매장 내에서 시작시간 오름차순 정렬
     Object.values(map).forEach(byStore=>{
       Object.keys(byStore).forEach(sid=>{
         byStore[sid].sort((a,b)=>(a.startAt||"")>(b.startAt||"")?1:-1);
@@ -421,9 +445,9 @@ function CalendarView({works, onDayClick, onWorkClick}){
   for(let d=1;d<=daysInMonth;d++)cells.push(d);
 
   return(
-    <div style={{padding:"16px 20px 32px",maxWidth:900,margin:"0 auto"}}>
+    <div style={{padding:"16px 20px 32px",maxWidth:960,margin:"0 auto"}}>
       {/* 월 네비 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}>
           <ChevronLeft size={16}/>
         </button>
@@ -1053,6 +1077,8 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
 function App(){
   const [tab,setTab]=useState("cal");
   const [loading,setLoading]=useState(true);
+  const [calFilterStaff,setCalFilterStaff]=useState("all");
+  const [calFilterStore,setCalFilterStore]=useState("all");
 
   const [works,setWorks]=useState([]);
   const [workModal,setWorkModal]=useState(null);
@@ -1191,8 +1217,18 @@ function App(){
       ):(
         <>
           {tab==="cal"&&(
-            <div style={{flex:1,overflow:"auto"}}>
-              <CalendarView works={works} onDayClick={ds=>setWorkModal({date:ds})} onWorkClick={w=>setWorkModal({record:w})}/>
+            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+              {/* 캘린더 필터 고정 바 */}
+              <CalendarFilterBar
+                filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff}
+                filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
+              <div style={{flex:1,overflow:"auto"}}>
+                <CalendarView works={works}
+                  onDayClick={ds=>setWorkModal({date:ds})}
+                  onWorkClick={w=>setWorkModal({record:w})}
+                  filterStaff={calFilterStaff}
+                  filterStore={calFilterStore}/>
+              </div>
             </div>
           )}
           {tab==="list"&&(
