@@ -375,6 +375,8 @@ function CalendarView({works, onDayClick, onWorkClick}){
   const [year,setYear]=useState(today.getFullYear());
   const [month,setMonth]=useState(today.getMonth());
   const [holidays,setHolidays]=useState({});
+  const [filterStaff,setFilterStaff]=useState("all");
+  const [filterStore,setFilterStore]=useState("all");
 
   useEffect(()=>{
     fetchHolidays(year).then(h=>setHolidays(h));
@@ -383,25 +385,35 @@ function CalendarView({works, onDayClick, onWorkClick}){
   function prevMonth(){if(month===0){setYear(y=>y-1);setMonth(11);}else setMonth(m=>m-1);}
   function nextMonth(){if(month===11){setYear(y=>y+1);setMonth(0);}else setMonth(m=>m+1);}
 
-  const firstDay=new Date(year,month,1).getDay(); // 0=일
+  const firstDay=new Date(year,month,1).getDay();
   const daysInMonth=new Date(year,month+1,0).getDate();
   const todayStr=dateStr(today);
 
-  // 이달 근무 데이터: date -> {미플:[...], 아카이브:[...]}
+  // 이달 근무 데이터: date -> {매장id:[...]} — 필터 + 시작시간 정렬
   const worksByDate=useMemo(()=>{
     const map={};
-    works.forEach(w=>{
-      if(!w.startAt)return;
-      const d=w.startAt.slice(0,10);
-      const ym=d.slice(0,7);
-      if(ym!==`${year}-${pad(month+1)}`)return;
-      if(!map[d])map[d]={};
-      STORES.forEach(s=>{if(!map[d][s.id])map[d][s.id]=[];});
-      if(!map[d][w.storeId])map[d][w.storeId]=[];
-      map[d][w.storeId].push(w);
+    works
+      .filter(w=>{
+        if(!w.startAt)return false;
+        if(filterStaff!=="all"&&w.staffId!==filterStaff)return false;
+        if(filterStore!=="all"&&w.storeId!==filterStore)return false;
+        return true;
+      })
+      .forEach(w=>{
+        const d=w.startAt.slice(0,10);
+        if(d.slice(0,7)!==`${year}-${pad(month+1)}`)return;
+        if(!map[d])map[d]={};
+        if(!map[d][w.storeId])map[d][w.storeId]=[];
+        map[d][w.storeId].push(w);
+      });
+    // 각 날짜·매장 내에서 시작시간 오름차순 정렬
+    Object.values(map).forEach(byStore=>{
+      Object.keys(byStore).forEach(sid=>{
+        byStore[sid].sort((a,b)=>(a.startAt||"")>(b.startAt||"")?1:-1);
+      });
     });
     return map;
-  },[works,year,month]);
+  },[works,year,month,filterStaff,filterStore]);
 
   const DOW=["일","월","화","수","목","금","토"];
   const cells=[];
