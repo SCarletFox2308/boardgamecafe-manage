@@ -357,7 +357,7 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
             <button type="button" onClick={onClose}
               style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
             <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
               {saving?"저장 중…":isEdit?"수정":repeat&&previewCount>1?`${previewCount}일 등록`:"등록"}
             </button>
           </div>
@@ -874,7 +874,7 @@ function ItemDetailModal({item, history, onClose, onSave, onDelete}){
             <button type="button" onClick={onClose}
               style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
             <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
               {saving?"저장 중…":isNew?"추가":"저장"}
             </button>
           </div>
@@ -1319,7 +1319,7 @@ function TodoModal({todo,onClose,onSave,onDelete}){
             <button type="button" onClick={onClose}
               style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
             <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
               {saving?"저장 중…":isEdit?"수정":"추가"}
             </button>
           </div>
