@@ -892,11 +892,11 @@ function LoginScreen({onLogin}){
     if(!pin.trim()){setErr("PIN을 입력해주세요.");return;}
     setLoading(true);setErr("");
     try{
-      var r=await sb.from("staff_pins").select("pin,is_admin").eq("staff_id",selectedStaff.id).single();
-      if(!r.data){setErr("직원 정보를 찾을 수 없어요.");setLoading(false);return;}
-      if(r.data.pin!==pin.trim()){setErr("PIN이 틀렸어요.");setLoading(false);setPin("");return;}
-      onLogin({...selectedStaff,isAdmin:r.data.is_admin});
-    }catch(e){setErr("오류가 발생했어요: "+e.message);setLoading(false);}
+      var r=await sb.from("staff_pins").select("pin,is_admin").eq("staff_id",selectedStaff.id).maybeSingle();
+      if(!r||!r.data){setErr("직원 PIN 정보가 없어요. 관리자에게 문의하세요.");setLoading(false);return;}
+      if(String(r.data.pin)!==pin.trim()){setErr("PIN이 틀렸어요.");setLoading(false);setPin("");return;}
+      onLogin({id:selectedStaff.id,name:selectedStaff.name,color:selectedStaff.color,isAdmin:!!r.data.is_admin});
+    }catch(ex){setErr("오류: "+(ex&&ex.message?ex.message:String(ex)));setLoading(false);}
   }
 
   return(
@@ -955,6 +955,17 @@ function App(){
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
 
+  useEffect(function(){
+    if(!currentUser)return; // 로그인 후에만 데이터 로드
+    (async function(){
+      try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
+      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
+      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrderHistory((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,changedAt:x.changed_at};}).reverse().reverse());}catch(e){setOrderHistory([]);}
+      try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
+      setLoading(false);
+    })();
+  },[currentUser]);
+
   if(!currentUser){
     return(
       <div className="ml-root">
@@ -964,15 +975,8 @@ function App(){
     );
   }
 
-  useEffect(function(){
-    (async function(){
-      try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
-      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
-      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrderHistory((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,changedAt:x.changed_at};}).reverse().reverse());}catch(e){setOrderHistory([]);}
-      try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
-      setLoading(false);
-    })();
-  },[]);
+  var isAdmin=currentUser.isAdmin;
+  var myId=currentUser.id;
 
   async function handleSaveWork(rows){
     var isEdit=rows.length===1&&!!(workModal&&workModal.record);
@@ -1052,7 +1056,7 @@ function App(){
               {t.icon}{t.label}
             </button>
           );})}
-          <button onClick={function(){setWorkModal({date:null,forceStaffId:currentUser.isAdmin?null:currentUser.id});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
+          <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
         </div>
       )}
       {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
@@ -1062,9 +1066,9 @@ function App(){
               <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
               <div style={{flex:1,overflow:"auto"}}>
                 <CalendarView works={works}
-                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:currentUser.isAdmin?null:currentUser.id});}}
+                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId});}}
                   onWorkClick={function(w){
-                    if(currentUser.isAdmin||w.staffId===currentUser.id)setWorkModal({record:w});
+                    if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                     else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                   }}
                   filterStaff={calFilterStaff} filterStore={calFilterStore}/>
@@ -1075,7 +1079,7 @@ function App(){
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
               <WorkListView works={works} currentUser={currentUser}
                 onEdit={function(w){
-                  if(currentUser.isAdmin||w.staffId===currentUser.id)setWorkModal({record:w});
+                  if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                   else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                 }}
                 onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
