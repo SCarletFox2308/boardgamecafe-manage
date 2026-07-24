@@ -1261,7 +1261,7 @@ function App(){
               {t.icon}{t.label}
             </button>
           );})}
-          <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
+          <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
         </div>
       )}
       {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
@@ -1271,7 +1271,7 @@ function App(){
               <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
               <div style={{flex:1,overflow:"auto"}}>
                 <CalendarView works={works}
-                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId});}}
+                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}}
                   onWorkClick={function(w){
                     if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                     else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
@@ -1294,7 +1294,7 @@ function App(){
           {mainTab==="todo"&&<TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>}
         </>
       )}
-      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
+      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orderHistory} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
