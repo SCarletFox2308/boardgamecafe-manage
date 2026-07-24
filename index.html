@@ -7,358 +7,276 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script>window.require = window.require || function(){return undefined;};</script>
+<script>window.require=window.require||function(){return undefined;};</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{height:100%;}
-  #root{height:100%;}
-  #root:empty::before{content:"불러오는 중입니다. 화면이 계속 비어 있다면 새로고침 해주세요.";display:block;padding:40px;text-align:center;color:#64748B;font-family:sans-serif;font-size:14px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+#root{height:100%;}
+#root:empty::before{content:"불러오는 중입니다.";display:block;padding:40px;text-align:center;color:#64748B;font-family:sans-serif;}
 </style>
 </head>
 <body style="height:100%">
 <div id="root"></div>
 <script id="app-source" type="text/plain">
-const { useState, useEffect, useMemo, useCallback, Fragment } = React;
-const iconBase = {fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
-function Plus({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M5 12h14M12 5v14"}));}
-function Pencil({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"}),React.createElement("path",{d:"m15 5 4 4"}));}
-function Trash2({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M3 6h18"}),React.createElement("path",{d:"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}),React.createElement("path",{d:"M10 11v6"}),React.createElement("path",{d:"M14 11v6"}));}
-function X({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"M18 6 6 18M6 6l12 12"}));}
-function ChevronLeft({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m15 18-6-6 6-6"}));}
-function ChevronRight({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m9 18 6-6-6-6"}));}
-function ChevronDown({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m6 9 6 6 6-6"}));}
-function ChevronUp({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m18 15-6-6-6 6"}));}
-function Clock({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("circle",{cx:"12",cy:"12",r:"10"}),React.createElement("path",{d:"M12 6v6l4 2"}));}
-function Package({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("path",{d:"m7.5 4.27 9 5.15"}),React.createElement("path",{d:"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"}),React.createElement("path",{d:"m3.3 7 8.7 5 8.7-5"}),React.createElement("path",{d:"M12 22V12"}));}
-function List({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("line",{x1:"8",y1:"6",x2:"21",y2:"6"}),React.createElement("line",{x1:"8",y1:"12",x2:"21",y2:"12"}),React.createElement("line",{x1:"8",y1:"18",x2:"21",y2:"18"}),React.createElement("line",{x1:"3",y1:"6",x2:"3.01",y2:"6"}),React.createElement("line",{x1:"3",y1:"12",x2:"3.01",y2:"12"}),React.createElement("line",{x1:"3",y1:"18",x2:"3.01",y2:"18"}));}
-function CalIcon({size=16,...p}){return React.createElement("svg",{width:size,height:size,viewBox:"0 0 24 24",...iconBase,...p},React.createElement("rect",{x:"3",y:"4",width:"18",height:"18",rx:"2"}),React.createElement("line",{x1:"16",y1:"2",x2:"16",y2:"6"}),React.createElement("line",{x1:"8",y1:"2",x2:"8",y2:"6"}),React.createElement("line",{x1:"3",y1:"10",x2:"21",y2:"10"}));}
 
-/* ══ 매장 설정 ══ */
-const STORES = [
-  { id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"} },
-  { id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"} },
+const {useState,useEffect,useMemo,Fragment}=React;
+const IB={fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
+const svg=(p,w,h,v,...c)=>React.createElement("svg",{width:w||16,height:h||16,viewBox:v||"0 0 24 24",...IB,...p},...c);
+const path=(d)=>React.createElement("path",{d});
+const circle=(cx,cy,r)=>React.createElement("circle",{cx,cy,r});
+const rect=(x,y,w,h,rx)=>React.createElement("rect",{x,y,width:w,height:h,rx});
+const line=(x1,y1,x2,y2)=>React.createElement("line",{x1,y1,x2,y2});
+function Plus(p){return svg(p,16,16,"0 0 24 24",path("M5 12h14M12 5v14"));}
+function Pencil(p){return svg(p,16,16,"0 0 24 24",path("M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"),path("m15 5 4 4"));}
+function Trash2(p){return svg(p,16,16,"0 0 24 24",path("M3 6h18"),path("M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"),path("M10 11v6"),path("M14 11v6"));}
+function X(p){return svg(p,16,16,"0 0 24 24",path("M18 6 6 18M6 6l12 12"));}
+function CL(p){return svg(p,16,16,"0 0 24 24",path("m15 18-6-6 6-6"));}
+function CR(p){return svg(p,16,16,"0 0 24 24",path("m9 18 6-6-6-6"));}
+function CD(p){return svg(p,16,16,"0 0 24 24",path("m6 9 6 6 6-6"));}
+function CU(p){return svg(p,16,16,"0 0 24 24",path("m18 15-6-6-6 6"));}
+function ListIcon(p){return svg(p,16,16,"0 0 24 24",line(8,6,21,6),line(8,12,21,12),line(8,18,21,18),line(3,6,3.01,6),line(3,12,3.01,12),line(3,18,3.01,18));}
+function CalIcon(p){return svg(p,16,16,"0 0 24 24",rect(3,4,18,18,2),line(16,2,16,6),line(8,2,8,6),line(3,10,21,10));}
+function PkgIcon(p){return svg(p,16,16,"0 0 24 24",path("m7.5 4.27 9 5.15"),path("M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"),path("m3.3 7 8.7 5 8.7-5"),path("M12 22V12"));}
+
+// ── 설정 ──
+const STORES=[
+  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
+  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
 ];
-
-/* ══ 직원 목록 ★ 여기서 수정 ★ ══ */
-const STAFF = [
-  { id:"staff1", name:"이세창", color:"#7C3AED" },
-  { id:"staff2", name:"김정명", color:"#0369A1" },
-  { id:"staff3", name:"남선우", color:"#059669" },
-  { id:"staff4", name:"박보은", color:"#DC2626" },
+const TODO_STORES=[
+  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
+  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
+  {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
 ];
+const STAFF=[
+  {id:"staff1",name:"이세창",color:"#7C3AED"},
+  {id:"staff2",name:"김정명",color:"#0369A1"},
+  {id:"staff3",name:"남선우",color:"#059669"},
+  {id:"staff4",name:"박보은",color:"#DC2626"},
+];
+const CATEGORIES=[
+  {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
+  {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
+  {id:"직원",     bg:"#F3E8FF",color:"#6B21A8"},
+  {id:"게임관리", bg:"#DCFCE7",color:"#14532D"},
+  {id:"잡화",     bg:"#F1F5F9",color:"#475569"},
+];
+const STATUSES=[
+  {id:"구매요청",next:"주문완료",bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
+  {id:"주문완료",next:"배송완료",bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
+  {id:"배송완료",next:"구매요청",bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
+];
+const DOW_LABELS=["일","월","화","수","목","금","토"];
 
-/* ══ helpers ══ */
-function uid(){return typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():`r-${Date.now()}-${Math.random().toString(16).slice(2)}`;}
+// ── helpers ──
+function uid(){return typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"r-"+Date.now()+"-"+Math.random().toString(16).slice(2);}
 function pad(n){return String(n).padStart(2,"0");}
-function toLocalISO(d){d=d||new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
-function dateStr(d){d=d||new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
-function fmtDate(iso){if(!iso)return"";const d=new Date(iso);return `${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;}
-function fmtTime(iso){if(!iso)return"";const d=new Date(iso);return `${pad(d.getHours())}:${pad(d.getMinutes())}`;}
-function fmtDateTime(iso){if(!iso)return"";return `${fmtDate(iso)} ${fmtTime(iso)}`;}
-function calcHours(s,e){if(!s||!e)return null;const d=(new Date(e)-new Date(s))/3600000;return d>0?d:null;}
-function fmtHours(h){if(h==null)return"—";const hr=Math.floor(h),min=Math.round((h-hr)*60);return min===0?`${hr}시간`:`${hr}시간 ${min}분`;}
-function storeBadge(sid){const s=STORES.find(x=>x.id===sid);return s?s.badge:{bg:"#F3F4F6",color:"#374151"};}
-function staffColor(sid){const s=STAFF.find(x=>x.id===sid);return s?s.color:"#6B7280";}
-function staffName(sid){const s=STAFF.find(x=>x.id===sid);return s?s.name:sid||"—";}
-
-/* ══ 공휴일 캐시 ══ */
-const holidayCache = {};
-async function fetchHolidays(year){
-  if(holidayCache[year]!==undefined)return holidayCache[year];
-  try{
-    // Google Calendar API (한국 공휴일, API키 불필요 iCal)
-    const url=`https://www.googleapis.com/calendar/v3/calendars/ko.south_korea%23holiday%40group.v.calendar.google.com/events?key=AIzaSyB6_HCHduvd5dxQEr2-2yXPDUoJmXHOZ4c&timeMin=${year}-01-01T00:00:00Z&timeMax=${year}-12-31T23:59:59Z&singleEvents=true&maxResults=50`;
-    const r=await fetch(url);
-    if(!r.ok)throw new Error();
-    const d=await r.json();
-    const map={};
-    (d.items||[]).forEach(ev=>{
-      const dt=(ev.start?.date||"").slice(0,10);
-      if(dt)map[dt]=ev.summary||"공휴일";
-    });
-    holidayCache[year]=map;
-    return map;
-  }catch(e){
-    // fallback: 고정 공휴일만
-    const fixed={
-      [`${year}-01-01`]:"신정",
-      [`${year}-03-01`]:"삼일절",
-      [`${year}-05-05`]:"어린이날",
-      [`${year}-06-06`]:"현충일",
-      [`${year}-08-15`]:"광복절",
-      [`${year}-10-03`]:"개천절",
-      [`${year}-10-09`]:"한글날",
-      [`${year}-12-25`]:"크리스마스",
-    };
-    holidayCache[year]=fixed;
-    return fixed;
-  }
+function dateStr(d){d=d||new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function toLocalISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());}
+function fmtDate(iso){if(!iso)return"";var d=new Date(iso);return d.getFullYear()+"."+pad(d.getMonth()+1)+"."+pad(d.getDate());}
+function fmtTime(iso){if(!iso)return"";var d=new Date(iso);return pad(d.getHours())+":"+pad(d.getMinutes());}
+function fmtDateTime(iso){if(!iso)return"";return fmtDate(iso)+" "+fmtTime(iso);}
+function calcHours(s,e){if(!s||!e)return null;var d=(new Date(e)-new Date(s))/3600000;return d>0?d:null;}
+function fmtHours(h){if(h==null)return"—";var hr=Math.floor(h),min=Math.round((h-hr)*60);return min===0?hr+"시간":hr+"시간 "+min+"분";}
+function storeBadge(sid){var s=STORES.find(function(x){return x.id===sid;});return s?s.badge:{bg:"#F3F4F6",color:"#374151"};}
+function staffColor(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.color:"#6B7280";}
+function staffName(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.name:sid||"—";}
+function statusCfg(s){return STATUSES.find(function(x){return x.id===s;})||STATUSES[1];}
+function catCfg(c){return CATEGORIES.find(function(x){return x.id===c;})||{bg:"#F1F5F9",color:"#475569"};}
+function todoBadge(sid){var s=TODO_STORES.find(function(x){return x.id===sid;});return s?s.badge:{bg:"#F1F5F9",color:"#475569"};}
+function getDow(ds){return new Date(ds+"T12:00:00").getDay();}
+function getDatesForDows(startDs,endDs,dows){
+  var result=[],cur=new Date(startDs+"T12:00:00"),end=new Date(endDs+"T12:00:00");
+  while(cur<=end){if(dows.indexOf(cur.getDay())>=0)result.push(dateStr(cur));cur.setDate(cur.getDate()+1);}
+  return result;
+}
+var holidayCache={};
+function fetchHolidays(year){
+  if(holidayCache[year]!==undefined)return Promise.resolve(holidayCache[year]);
+  var url="https://www.googleapis.com/calendar/v3/calendars/ko.south_korea%23holiday%40group.v.calendar.google.com/events?key=AIzaSyB6_HCHduvd5dxQEr2-2yXPDUoJmXHOZ4c&timeMin="+year+"-01-01T00:00:00Z&timeMax="+year+"-12-31T23:59:59Z&singleEvents=true&maxResults=50";
+  return fetch(url).then(function(r){return r.ok?r.json():Promise.reject();}).then(function(d){
+    var map={};
+    (d.items||[]).forEach(function(ev){var dt=(ev.start&&ev.start.date||"").slice(0,10);if(dt)map[dt]=ev.summary||"공휴일";});
+    holidayCache[year]=map;return map;
+  }).catch(function(){
+    var fixed={};
+    [[1,1,"신정"],[3,1,"삼일절"],[5,5,"어린이날"],[6,6,"현충일"],[8,15,"광복절"],[10,3,"개천절"],[10,9,"한글날"],[12,25,"크리스마스"]].forEach(function(x){fixed[year+"-"+pad(x[0])+"-"+pad(x[1])]=x[2];});
+    holidayCache[year]=fixed;return fixed;
+  });
 }
 
 const CSS=`
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  .ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#F1F5F9;}
-  .ml-mono{font-family:"IBM Plex Mono",monospace;}
-  .ml-inp:focus,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
-  .modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);}
-  .fade-in{animation:fadeIn .18s ease;}
-  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
-  .cal-day{border-radius:8px;cursor:pointer;transition:background .12s;}
-  .cal-day:hover{background:#EFF6FF!important;}
-  .tbl-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;}
-  .ml-row:hover td{background:#EFF6FF!important;}
-  .ml-row.even td{background:#FAFAFA;}.ml-row.odd td{background:#fff;}
-  th{position:sticky;top:0;z-index:2;background:#334155;}
-  .sort-btn{cursor:pointer;user-select:none;}
-  .sum-row td{position:sticky;background:#1E293B!important;color:#E2E8F0;}
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+.ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#F1F5F9;}
+.ml-mono{font-family:"IBM Plex Mono",monospace;}
+.ml-inp:focus,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
+.modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+.fade-in{animation:fadeIn .18s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+.cal-day{border-radius:8px;cursor:pointer;transition:background .12s;}
+.cal-day:hover{background:#EFF6FF!important;}
+.tbl-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;}
+.ml-row:hover td{background:#EFF6FF!important;}
+.ml-row.even td{background:#FAFAFA;}.ml-row.odd td{background:#fff;}
+th{position:sticky;top:0;z-index:2;background:#334155;}
+.sort-btn{cursor:pointer;user-select:none;}
 `;
 
-/* ══════════════════════════════════
-   WORK MODAL (날짜 클릭 or 수정)
-══════════════════════════════════ */
-const DOW_LABELS=["일","월","화","수","목","금","토"];
-
-// 날짜 문자열(YYYY-MM-DD)에서 요일(0=일) 반환
-function getDow(ds){return new Date(ds+"T12:00:00").getDay();}
-
-// startDate~endDate 사이에서 특정 요일들에 해당하는 날짜 배열 반환
-function getDatesForDows(startDs, endDs, dows){
-  const result=[];
-  const cur=new Date(startDs+"T12:00:00");
-  const end=new Date(endDs+"T12:00:00");
-  while(cur<=end){
-    if(dows.includes(cur.getDay()))result.push(dateStr(cur));
-    cur.setDate(cur.getDate()+1);
-  }
-  return result;
-}
-
-function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
-  const isEdit=!!record;
-  const now=new Date();
-  const initDate=defaultDate||dateStr(now);
-
-  const [form,setForm]=useState(isEdit?{
-    staffId:record.staffId, storeId:record.storeId,
+// ── WorkModal ──
+function WorkModal({record,defaultDate,onClose,onSave,onDelete}){
+  var isEdit=!!record;
+  var now=new Date();
+  var initDate=defaultDate||dateStr(now);
+  var [form,setForm]=useState(isEdit?{
+    staffId:record.staffId,storeId:record.storeId,
     startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
     endAt:record.endAt?toLocalISO(new Date(record.endAt)):"",
     memo:record.memo||"",
-  }:{
-    staffId:STAFF[0]?.id||"",
-    storeId:STORES[0]?.id||"",
-    startAt:`${initDate}T14:00`,
-    endAt:`${initDate}T23:00`,
-    memo:"",
-  });
+  }:{staffId:STAFF[0]?STAFF[0].id:"",storeId:STORES[0]?STORES[0].id:"",startAt:initDate+"T14:00",endAt:initDate+"T23:00",memo:""});
+  var [repeat,setRepeat]=useState(false);
+  var initDow=getDow(initDate);
+  var [repeatDows,setRepeatDows]=useState([initDow]);
+  var [repeatEnd,setRepeatEnd]=useState(function(){var d=new Date(initDate+"T12:00:00");d.setDate(d.getDate()+27);return dateStr(d);});
+  var [previewCount,setPreviewCount]=useState(0);
+  var [err,setErr]=useState({});
+  var [saving,setSaving]=useState(false);
+  var hours=calcHours(form.startAt,form.endAt);
 
-  // 반복 설정 (신규 등록 전용)
-  const initDow=getDow(initDate);
-  const [repeat,setRepeat]=useState(false);
-  const [repeatDows,setRepeatDows]=useState([initDow]); // 선택된 요일 배열
-  const [repeatEnd,setRepeatEnd]=useState(()=>{
-    // 기본 종료일: 4주 후
-    const d=new Date(initDate+"T12:00:00");
-    d.setDate(d.getDate()+27);
-    return dateStr(d);
-  });
-  const [previewCount,setPreviewCount]=useState(0);
-
-  // 반복 미리보기 날짜 수 계산
-  useEffect(()=>{
+  useEffect(function(){
     if(!repeat||repeatDows.length===0){setPreviewCount(0);return;}
-    const startDs=form.startAt.slice(0,10)||initDate;
-    const dates=getDatesForDows(startDs,repeatEnd,repeatDows);
-    setPreviewCount(dates.length);
+    var startDs=form.startAt.slice(0,10)||initDate;
+    setPreviewCount(getDatesForDows(startDs,repeatEnd,repeatDows).length);
   },[repeat,repeatDows,repeatEnd,form.startAt]);
 
-  const [err,setErr]=useState({});
-  const [saving,setSaving]=useState(false);
-  const hours=calcHours(form.startAt,form.endAt);
+  function toggleDow(d){setRepeatDows(function(prev){return prev.indexOf(d)>=0?prev.filter(function(x){return x!==d;}):[...prev,d].sort();});}
 
-  function toggleDow(d){
-    setRepeatDows(prev=>prev.includes(d)?prev.filter(x=>x!==d):[...prev,d].sort());
-  }
-
-  async function submit(e){
+  function submit(e){
     e.preventDefault();
-    const er={};
+    var er={};
     if(!form.staffId)er.staffId="직원을 선택해주세요.";
     if(!form.storeId)er.storeId="매장을 선택해주세요.";
     if(!form.startAt)er.startAt="출근 시간을 입력해주세요.";
     if(form.endAt&&form.startAt&&new Date(form.endAt)<=new Date(form.startAt))er.endAt="종료 시간이 시작보다 빠릅니다.";
-    if(repeat&&repeatDows.length===0)er.repeat="반복할 요일을 선택해주세요.";
+    if(repeat&&repeatDows.length===0)er.repeat="요일을 선택해주세요.";
     if(Object.keys(er).length){setErr(er);return;}
     setSaving(true);
-
-    const startTime=form.startAt.slice(11); // "14:00"
-    const endTime=form.endAt?form.endAt.slice(11):"";
-
+    var startTime=form.startAt.slice(11);
+    var endTime=form.endAt?form.endAt.slice(11):"";
+    var rows=[];
     if(!isEdit&&repeat&&repeatDows.length>0){
-      // 반복 등록: 해당 요일들의 날짜마다 각각 생성
-      const startDs=form.startAt.slice(0,10);
-      const dates=getDatesForDows(startDs,repeatEnd,repeatDows);
-      // 시작 날짜가 선택 요일에 없으면 첫 날짜만 단일 등록
-      const allDates=dates.length>0?dates:[startDs];
-      const rows=allDates.map(ds=>({
-        id:uid(),
-        staffId:form.staffId, storeId:form.storeId,
-        startAt:new Date(`${ds}T${startTime}`).toISOString(),
-        endAt:endTime?new Date(`${ds}T${endTime}`).toISOString():null,
-        memo:form.memo,
-      }));
-      await onSave(rows); // 배열로 전달
+      var startDs=form.startAt.slice(0,10);
+      var dates=getDatesForDows(startDs,repeatEnd,repeatDows);
+      var allDates=dates.length>0?dates:[startDs];
+      rows=allDates.map(function(ds){return{id:uid(),staffId:form.staffId,storeId:form.storeId,startAt:new Date(ds+"T"+startTime).toISOString(),endAt:endTime?new Date(ds+"T"+endTime).toISOString():null,memo:form.memo};});
     } else {
-      await onSave([{
-        id:isEdit?record.id:uid(),
-        staffId:form.staffId, storeId:form.storeId,
-        startAt:new Date(form.startAt).toISOString(),
-        endAt:form.endAt?new Date(form.endAt).toISOString():null,
-        memo:form.memo,
-      }]);
+      rows=[{id:isEdit?record.id:uid(),staffId:form.staffId,storeId:form.storeId,startAt:new Date(form.startAt).toISOString(),endAt:form.endAt?new Date(form.endAt).toISOString():null,memo:form.memo}];
     }
-    setSaving(false);
+    onSave(rows).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
-  return(
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+  return (
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
           <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"근무 기록 수정":"근무 일정 등록"}</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-
-        {/* 직원 */}
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 <span style={{color:"#EF4444"}}>*</span></label>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 *</label>
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            {STAFF.map(s=>(
-              <button key={s.id} type="button" onClick={()=>setForm({...form,staffId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
-                  border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
-                  background:form.staffId===s.id?s.color:"#fff",
-                  color:form.staffId===s.id?"#fff":"#374151",cursor:"pointer",transition:"all .12s"}}>
+            {STAFF.map(function(s){return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,staffId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,border:"2px solid "+(form.staffId===s.id?s.color:"#E2E8F0"),background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#374151",cursor:"pointer"}}>
                 {s.name}
               </button>
-            ))}
+            );})}
           </div>
           {err.staffId&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.staffId}</p>}
         </div>
-
-        {/* 매장 */}
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 <span style={{color:"#EF4444"}}>*</span></label>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 *</label>
           <div style={{display:"flex",gap:10}}>
-            {STORES.map(s=>{const b=s.badge;return(
-              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
-                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
-                  background:form.storeId===s.id?b.bg:"#fff",
-                  color:form.storeId===s.id?b.color:"#374151",cursor:"pointer",transition:"all .12s"}}>
+            {STORES.map(function(s){var b=s.badge;return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,border:"2px solid "+(form.storeId===s.id?b.color:"#E2E8F0"),background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer"}}>
                 {s.id}
               </button>
             );})}
           </div>
         </div>
-
-        {/* 시간 */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
           <div>
-            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>
-              {repeat?"시작일 + 출근 *":"출근 시간 *"}
-            </label>
-            <input type="datetime-local" value={form.startAt} onChange={e=>setForm({...form,startAt:e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.startAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>{repeat?"시작일+출근 *":"출근 시간 *"}</label>
+            <input type="datetime-local" value={form.startAt} onChange={function(e){setForm({...form,startAt:e.target.value});}}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.startAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}}/>
             {err.startAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
           </div>
           <div>
             <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>퇴근 시간</label>
-            <input type="datetime-local" value={form.endAt} onChange={e=>setForm({...form,endAt:e.target.value})}
-              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:`1px solid ${err.endAt?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}/>
+            <input type="datetime-local" value={form.endAt} onChange={function(e){setForm({...form,endAt:e.target.value});}}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.endAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}}/>
             {err.endAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.endAt}</p>}
           </div>
         </div>
-
         {hours!=null&&(
           <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#14532D",fontWeight:600}}>
-            ⏱ 1일 근무 시간: {fmtHours(hours)}
+            ⏱ 1일 근무: {fmtHours(hours)}
           </div>
         )}
-
-        {/* ── 반복 설정 (신규 등록만) ── */}
         {!isEdit&&(
           <div style={{marginBottom:14,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
             <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:repeat?12:0}}>
-              <input type="checkbox" checked={repeat} onChange={e=>setRepeat(e.target.checked)}
-                style={{width:16,height:16,accentColor:"#2563EB",cursor:"pointer"}}/>
+              <input type="checkbox" checked={repeat} onChange={function(e){setRepeat(e.target.checked);}} style={{width:16,height:16,accentColor:"#2563EB",cursor:"pointer"}}/>
               <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>반복 등록</span>
               <span style={{fontSize:11,color:"#94A3B8"}}>매주 특정 요일에 반복</span>
             </label>
-
             {repeat&&(
               <>
-                {/* 요일 선택 */}
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 요일</div>
                   <div style={{display:"flex",gap:6}}>
-                    {DOW_LABELS.map((label,idx)=>{
-                      const sel=repeatDows.includes(idx);
-                      const isHol=idx===0||idx===6;
-                      return(
-                        <button key={idx} type="button" onClick={()=>toggleDow(idx)}
-                          style={{width:36,height:36,borderRadius:"50%",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",transition:"all .12s",
-                            background:sel?"#2563EB":"#fff",
-                            color:sel?"#fff":isHol?(idx===0?"#EF4444":"#3B82F6"):"#374151",
-                            boxShadow:sel?"0 0 0 2px #2563EB":"0 0 0 1.5px #CBD5E1"}}>
-                          {label}
-                        </button>
-                      );
-                    })}
+                    {DOW_LABELS.map(function(label,idx){var sel=repeatDows.indexOf(idx)>=0;var isHol=idx===0||idx===6;return(
+                      <button key={idx} type="button" onClick={function(){toggleDow(idx);}}
+                        style={{width:36,height:36,borderRadius:"50%",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",background:sel?"#2563EB":"#fff",color:sel?"#fff":isHol?(idx===0?"#EF4444":"#3B82F6"):"#374151",boxShadow:sel?"0 0 0 2px #2563EB":"0 0 0 1.5px #CBD5E1"}}>
+                        {label}
+                      </button>
+                    );})}
                   </div>
                   {err.repeat&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.repeat}</p>}
                 </div>
-
-                {/* 종료일 */}
                 <div>
                   <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 종료일</div>
-                  <input type="date" value={repeatEnd} onChange={e=>setRepeatEnd(e.target.value)}
+                  <input type="date" value={repeatEnd} onChange={function(e){setRepeatEnd(e.target.value);}}
                     className="ml-inp" style={{padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",width:"100%"}}/>
                 </div>
-
-                {/* 미리보기 */}
                 {previewCount>0&&(
                   <div style={{marginTop:10,background:"#EFF6FF",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#1D4ED8",fontWeight:600}}>
-                    📅 총 {previewCount}일 등록 예정
-                    {" · "}{fmtHours((hours||0)*previewCount)} 합산
+                    📅 총 {previewCount}일 등록 예정 · {fmtHours((hours||0)*previewCount)} 합산
                   </div>
                 )}
               </>
             )}
           </div>
         )}
-
         <div style={{marginBottom:20}}>
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
-          <input value={form.memo} onChange={e=>setForm({...form,memo:e.target.value})}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="특이사항 등"/>
+          <input value={form.memo} onChange={function(e){setForm({...form,memo:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="특이사항 등"/>
         </div>
-
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           {isEdit?(
-            <button type="button" onClick={()=>onDelete(record)}
+            <button type="button" onClick={function(){onDelete(record);}}
               style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
               <Trash2 size={13}/> 삭제
             </button>
           ):<span/>}
           <div style={{display:"flex",gap:8}}>
-            <button type="button" onClick={onClose}
-              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-            <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
-              {saving?"저장 중…":isEdit?"수정":repeat&&previewCount>1?`${previewCount}일 등록`:"등록"}
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":repeat&&previewCount>1?previewCount+"일 등록":"등록"}
             </button>
           </div>
         </div>
@@ -367,353 +285,400 @@ function WorkModal({record, defaultDate, onClose, onSave, onDelete}){
   );
 }
 
-/* ══════════════════════════════════
-   CALENDAR FILTER BAR (고정)
-══════════════════════════════════ */
+// ── ItemDetailModal ──
+function ItemDetailModal({item,history,onClose,onSave,onDelete}){
+  var isNew=!item.id;
+  var [name,setName]=useState(item.name||"");
+  var [category,setCategory]=useState(item.category||"");
+  var [link,setLink]=useState(item.link||"");
+  var [memo,setMemo]=useState(item.memo||"");
+  var [saving,setSaving]=useState(false);
+  var [err,setErr]=useState("");
+
+  var histByStore=useMemo(function(){
+    var m={};
+    STORES.forEach(function(s){
+      m[s.id]=(history||[]).filter(function(h){return h.itemId===item.id&&h.storeId===s.id;}).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,8);
+    });
+    return m;
+  },[history,item.id]);
+
+  function submit(e){
+    e.preventDefault();
+    if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:item.id||uid(),name:name.trim(),category:category,link:link.trim(),memo:memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isNew?"품목 추가":"품목 상세"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 *</label>
+          <input value={name} onChange={function(e){setName(e.target.value);setErr("");}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="예: 음료수, 컵"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>카테고리</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {CATEGORIES.map(function(c){return(
+              <button key={c.id} type="button" onClick={function(){setCategory(category===c.id?"":c.id);}}
+                style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(category===c.id?c.color:"#E2E8F0"),background:category===c.id?c.bg:"#fff",color:category===c.id?c.color:"#94A3B8"}}>
+                {c.id}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 링크</label>
+          <input value={link} onChange={function(e){setLink(e.target.value);}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="https://..."/>
+        </div>
+        {link&&<div style={{marginBottom:12}}><a href={link} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:"#2563EB",textDecoration:"underline"}}>🔗 주문 링크 열기</a></div>}
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>특이사항</label>
+          <input value={memo} onChange={function(e){setMemo(e.target.value);}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="용량, 규격, 주의사항 등"/>
+        </div>
+        {!isNew&&(
+          <div style={{marginBottom:20,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>상태 변경 이력</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {STORES.map(function(s){var b=s.badge;var rows=histByStore[s.id]||[];return(
+                <div key={s.id}>
+                  <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:6,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+                  {rows.length===0?<p style={{fontSize:11,color:"#CBD5E1"}}>이력 없음</p>:rows.map(function(h){var cfg=statusCfg(h.status);return(
+                    <div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0"}}>
+                      <span style={{width:52,flexShrink:0,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:cfg.bg,color:cfg.color,textAlign:"center"}}>{h.status}</span>
+                      <span className="ml-mono" style={{fontSize:11,color:"#64748B"}}>{fmtDateTime(h.changedAt)}</span>
+                    </div>
+                  );})}
+                </div>
+              );})}
+            </div>
+          </div>
+        )}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {!isNew?(
+            <button type="button" onClick={function(){onDelete(item);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isNew?"추가":"저장"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── TodoModal ──
+function TodoModal({todo,onClose,onSave,onDelete}){
+  var isEdit=!!(todo&&todo.id);
+  var [form,setForm]=useState({
+    title:todo&&todo.title||"",storeId:todo&&todo.storeId||"미플",staffId:todo&&todo.staffId||"",detail:todo&&todo.detail||"",
+  });
+  var [err,setErr]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submit(e){
+    e.preventDefault();
+    if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"할 일 수정":"할 일 추가"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 *</label>
+          <input value={form.title} onChange={function(e){setForm({...form,title:e.target.value});setErr("");}}
+            className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="할 일 내용을 입력하세요"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당 매장</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TODO_STORES.map(function(s){var b=s.badge;return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.storeId===s.id?b.color:"#E2E8F0"),background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#94A3B8"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당자</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            <button type="button" onClick={function(){setForm({...form,staffId:""});}}
+              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===""?"#334155":"#E2E8F0"),background:form.staffId===""?"#334155":"#fff",color:form.staffId===""?"#fff":"#94A3B8"}}>
+              미정
+            </button>
+            {STAFF.map(function(s){return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,staffId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===s.id?s.color:"#E2E8F0"),background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#94A3B8"}}>
+                {s.name}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>세부 내용</label>
+          <textarea value={form.detail} onChange={function(e){setForm({...form,detail:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:80}} placeholder="상세 설명, 참고사항 등"/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={function(){onDelete(todo);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":"추가"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── CalendarFilterBar ──
 function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore}){
   return(
     <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
       <span style={{fontSize:11,fontWeight:700,color:"#94A3B8"}}>필터</span>
-      <select value={filterStaff} onChange={e=>setFilterStaff(e.target.value)}
+      <select value={filterStaff} onChange={function(e){setFilterStaff(e.target.value);}}
         style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
         <option value="all">전체 직원</option>
-        {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
       </select>
-      <select value={filterStore} onChange={e=>setFilterStore(e.target.value)}
+      <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);}}
         style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
         <option value="all">전체 매장</option>
-        {STORES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+        {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
       </select>
       {(filterStaff!=="all"||filterStore!=="all")&&(
-        <button onClick={()=>{setFilterStaff("all");setFilterStore("all");}}
-          style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,color:"#64748B",background:"#fff",cursor:"pointer"}}>
-          초기화
-        </button>
+        <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
+          style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
       )}
     </div>
   );
 }
 
-/* ══════════════════════════════════
-   CALENDAR VIEW
-══════════════════════════════════ */
-function CalendarView({works, onDayClick, onWorkClick, filterStaff="all", filterStore="all"}){
-  const today=new Date();
-  const [year,setYear]=useState(today.getFullYear());
-  const [month,setMonth]=useState(today.getMonth());
-  const [holidays,setHolidays]=useState({});
-
-  useEffect(()=>{
-    fetchHolidays(year).then(h=>setHolidays(h));
-  },[year]);
-
-  function prevMonth(){if(month===0){setYear(y=>y-1);setMonth(11);}else setMonth(m=>m-1);}
-  function nextMonth(){if(month===11){setYear(y=>y+1);setMonth(0);}else setMonth(m=>m+1);}
-
-  const firstDay=new Date(year,month,1).getDay();
-  const daysInMonth=new Date(year,month+1,0).getDate();
-  const todayStr=dateStr(today);
-
-  // 이달 근무 데이터: date -> {매장id:[...]} — 필터 + 시작시간 정렬
-  const worksByDate=useMemo(()=>{
-    const map={};
-    works
-      .filter(w=>{
-        if(!w.startAt)return false;
-        if(filterStaff!=="all"&&w.staffId!==filterStaff)return false;
-        if(filterStore!=="all"&&w.storeId!==filterStore)return false;
-        return true;
-      })
-      .forEach(w=>{
-        const d=w.startAt.slice(0,10);
-        if(d.slice(0,7)!==`${year}-${pad(month+1)}`)return;
-        if(!map[d])map[d]={};
-        if(!map[d][w.storeId])map[d][w.storeId]=[];
-        map[d][w.storeId].push(w);
-      });
-    Object.values(map).forEach(byStore=>{
-      Object.keys(byStore).forEach(sid=>{
-        byStore[sid].sort((a,b)=>(a.startAt||"")>(b.startAt||"")?1:-1);
-      });
+// ── CalendarView ──
+var holidayCache2={};
+function CalendarView({works,onDayClick,onWorkClick,filterStaff,filterStore}){
+  filterStaff=filterStaff||"all";filterStore=filterStore||"all";
+  var today=new Date();
+  var [year,setYear]=useState(today.getFullYear());
+  var [month,setMonth]=useState(today.getMonth());
+  var [holidays,setHolidays]=useState({});
+  useEffect(function(){fetchHolidays(year).then(function(h){setHolidays(h);});;},[year]);
+  function prevMonth(){if(month===0){setYear(function(y){return y-1;});setMonth(11);}else setMonth(function(m){return m-1;});}
+  function nextMonth(){if(month===11){setYear(function(y){return y+1;});setMonth(0);}else setMonth(function(m){return m+1;});}
+  var firstDay=new Date(year,month,1).getDay();
+  var daysInMonth=new Date(year,month+1,0).getDate();
+  var todayStr=dateStr(today);
+  var worksByDate=useMemo(function(){
+    var map={};
+    works.filter(function(w){
+      if(!w.startAt)return false;
+      if(filterStaff!=="all"&&w.staffId!==filterStaff)return false;
+      if(filterStore!=="all"&&w.storeId!==filterStore)return false;
+      return true;
+    }).forEach(function(w){
+      var d=w.startAt.slice(0,10);
+      if(d.slice(0,7)!==year+"-"+pad(month+1))return;
+      if(!map[d])map[d]={};
+      if(!map[d][w.storeId])map[d][w.storeId]=[];
+      map[d][w.storeId].push(w);
+    });
+    Object.values(map).forEach(function(byStore){
+      Object.keys(byStore).forEach(function(sid){byStore[sid].sort(function(a,b){return(a.startAt||"")>(b.startAt||"")?1:-1;});});
     });
     return map;
   },[works,year,month,filterStaff,filterStore]);
 
-  const DOW=["일","월","화","수","목","금","토"];
-  const cells=[];
-  for(let i=0;i<firstDay;i++)cells.push(null);
-  for(let d=1;d<=daysInMonth;d++)cells.push(d);
+  var DOW=["일","월","화","수","목","금","토"];
+  var cells=[];
+  for(var i=0;i<firstDay;i++)cells.push(null);
+  for(var d=1;d<=daysInMonth;d++)cells.push(d);
 
   return(
     <div style={{padding:"16px 20px 32px",maxWidth:960,margin:"0 auto"}}>
-      {/* 월 네비 */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}>
-          <ChevronLeft size={16}/>
-        </button>
+        <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}><CL size={16}/></button>
         <h2 style={{fontSize:18,fontWeight:700,color:"#0F172A"}}>{year}년 {month+1}월</h2>
-        <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}>
-          <ChevronRight size={16}/>
-        </button>
+        <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}><CR size={16}/></button>
       </div>
-
-      {/* 요일 헤더 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
-        {DOW.map((d,i)=>(
-          <div key={d} style={{textAlign:"center",fontSize:12,fontWeight:700,padding:"6px 0",
-            color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B"}}>
-            {d}
-          </div>
-        ))}
+        {DOW.map(function(d,i){return(
+          <div key={d} style={{textAlign:"center",fontSize:12,fontWeight:700,padding:"6px 0",color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B"}}>{d}</div>
+        );})}
       </div>
-
-      {/* 날짜 그리드 */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
-        {cells.map((day,idx)=>{
-          if(!day)return <div key={`empty-${idx}`}/>;
-          const ds=`${year}-${pad(month+1)}-${pad(day)}`;
-          const dow=(firstDay+day-1)%7;
-          const isToday=ds===todayStr;
-          const holiday=holidays[ds];
-          const isHoliday=!!holiday||dow===0;
-          const isSat=dow===6;
-          const dayWorks=worksByDate[ds]||{};
-          const hasWork=STORES.some(s=>(dayWorks[s.id]||[]).length>0);
-
+        {cells.map(function(day,idx){
+          if(!day)return <div key={"e"+idx}/>;
+          var ds=year+"-"+pad(month+1)+"-"+pad(day);
+          var dow=(firstDay+day-1)%7;
+          var isToday=ds===todayStr;
+          var holiday=holidays[ds];
+          var isHoliday=!!holiday||dow===0;
+          var isSat=dow===6;
+          var dayWorks=worksByDate[ds]||{};
+          var hasWork=STORES.some(function(s){return(dayWorks[s.id]||[]).length>0;});
           return(
-            <div key={ds} className="cal-day"
-              onClick={()=>onDayClick(ds)}
-              style={{
-                minHeight:90,padding:"6px 7px",
-                background:isToday?"#EFF6FF":"#fff",
-                border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",
-                borderRadius:8,
-                overflow:"hidden",
-              }}>
-              {/* 날짜 숫자 */}
+            <div key={ds} className="cal-day" onClick={function(){onDayClick(ds);}}
+              style={{minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
               <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
-                <span style={{
-                  fontSize:13,fontWeight:isToday?700:500,
-                  color:isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",
-                  width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",
-                  borderRadius:"50%",background:isToday?"#3B82F6":"transparent",
-                  color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",
-                }}>
+                <span style={{fontSize:13,fontWeight:isToday?700:500,color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",background:isToday?"#3B82F6":"transparent"}}>
                   {day}
                 </span>
-                {holiday&&<span style={{fontSize:9,color:"#EF4444",fontWeight:600,lineHeight:1.2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{holiday}</span>}
+                {holiday&&<span style={{fontSize:9,color:"#EF4444",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{holiday}</span>}
               </div>
-              {/* 매장별 근무자 */}
-              {STORES.map(s=>{
-                const ws=dayWorks[s.id]||[];
+              {STORES.map(function(s){
+                var ws=dayWorks[s.id]||[];
                 if(ws.length===0)return null;
-                const b=s.badge;
+                var b=s.badge;
                 return(
                   <div key={s.id} style={{marginBottom:3}}>
-                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,textTransform:"uppercase",letterSpacing:".04em",whiteSpace:"nowrap"}}>{s.id}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,whiteSpace:"nowrap"}}>{s.id}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
-                      {ws.map(w=>(
-                        <button key={w.id}
-                          onClick={e=>{e.stopPropagation();onWorkClick(w);}}
-                          style={{
-                            fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,
-                            background:staffColor(w.staffId)+"22",
-                            color:staffColor(w.staffId),
-                            border:`1px solid ${staffColor(w.staffId)}44`,
-                            cursor:"pointer",
-                            whiteSpace:"nowrap",
-                            lineHeight:1.3,
-                          }}>
+                      {ws.map(function(w){return(
+                        <button key={w.id} onClick={function(e){e.stopPropagation();onWorkClick(w);}}
+                          style={{fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3}}>
                           {staffName(w.staffId)}
                         </button>
-                      ))}
+                      );})}
                     </div>
                   </div>
                 );
               })}
-              {/* 등록 안내 (빈 날) */}
-              {!hasWork&&(
-                <div style={{fontSize:10,color:"#CBD5E1",marginTop:2}}>+ 등록</div>
-              )}
+              {!hasWork&&<div style={{fontSize:10,color:"#CBD5E1",marginTop:2}}>+ 등록</div>}
             </div>
           );
         })}
       </div>
-
-      {/* 범례 */}
       <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:16,padding:"12px 16px",background:"#fff",borderRadius:10,border:"1px solid #E2E8F0"}}>
         <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",marginRight:4}}>직원</span>
-        {STAFF.map(s=>(
-          <span key={s.id} style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:`1px solid ${s.color}44`}}>
-            {s.name}
-          </span>
-        ))}
+        {STAFF.map(function(s){return(
+          <span key={s.id} style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:"1px solid "+s.color+"44"}}>{s.name}</span>
+        );})}
         <span style={{fontSize:11,color:"#94A3B8",marginLeft:8}}>날짜 클릭 시 근무 등록</span>
       </div>
     </div>
   );
 }
 
-/* ══════════════════════════════════
-   WORK LIST VIEW
-══════════════════════════════════ */
+// ── WorkListView ──
 function WorkListView({works,onEdit,onDelete,onBulkDelete}){
-  const today=new Date();
-  const curMonth=`${today.getFullYear()}-${pad(today.getMonth()+1)}`;
-  const [filter,setFilter]=useState({staff:"all",month:curMonth});
-  const [sort,setSort]=useState({key:"startAt",dir:"desc"});
-  const [checked,setChecked]=useState(new Set());
-
-  const months=useMemo(()=>{
-    const s=new Set(works.map(w=>w.startAt?.slice(0,7)).filter(Boolean));
-    return [...s].sort().reverse();
-  },[works]);
-
-  const filtered=useMemo(()=>{
-    let l=[...works];
-    if(filter.staff!=="all")l=l.filter(w=>w.staffId===filter.staff);
-    if(filter.month)l=l.filter(w=>w.startAt?.slice(0,7)===filter.month);
-    return l.sort((a,b)=>{
-      const av=a[sort.key]||"",bv=b[sort.key]||"";
-      const c=av<bv?-1:av>bv?1:0;
-      return sort.dir==="asc"?c:-c;
-    });
+  var today=new Date();
+  var curMonth=today.getFullYear()+"-"+pad(today.getMonth()+1);
+  var [filter,setFilter]=useState({staff:"all",month:curMonth});
+  var [sort,setSort]=useState({key:"startAt",dir:"desc"});
+  var [checked,setChecked]=useState(new Set());
+  var months=useMemo(function(){var s=new Set(works.map(function(w){return w.startAt&&w.startAt.slice(0,7);}).filter(Boolean));return [...s].sort().reverse();},[works]);
+  var filtered=useMemo(function(){
+    var l=[...works];
+    if(filter.staff!=="all")l=l.filter(function(w){return w.staffId===filter.staff;});
+    if(filter.month)l=l.filter(function(w){return w.startAt&&w.startAt.slice(0,7)===filter.month;});
+    return l.sort(function(a,b){var av=a[sort.key]||"",bv=b[sort.key]||"";var c=av<bv?-1:av>bv?1:0;return sort.dir==="asc"?c:-c;});
   },[works,filter,sort]);
-
-  const staffTotals=useMemo(()=>{
-    const map={};
-    STAFF.forEach(s=>{map[s.id]={name:s.name,color:s.color,hours:0,count:0};});
-    filtered.forEach(w=>{
-      if(!map[w.staffId])return;
-      const h=calcHours(w.startAt,w.endAt)||0;
-      map[w.staffId].hours+=h;
-      map[w.staffId].count+=1;
-    });
-    return Object.values(map).filter(x=>x.count>0);
+  var staffTotals=useMemo(function(){
+    var map={};
+    STAFF.forEach(function(s){map[s.id]={name:s.name,color:s.color,hours:0,count:0};});
+    filtered.forEach(function(w){if(!map[w.staffId])return;var h=calcHours(w.startAt,w.endAt)||0;map[w.staffId].hours+=h;map[w.staffId].count+=1;});
+    return Object.values(map).filter(function(x){return x.count>0;});
   },[filtered]);
-
-  function toggleSort(k){setSort(s=>s.key===k?{...s,dir:s.dir==="asc"?"desc":"asc"}:{key:k,dir:"desc"});}
-  function SI({k}){if(sort.key!==k)return React.createElement(ChevronDown,{size:11,style:{opacity:.3}});return sort.dir==="asc"?React.createElement(ChevronUp,{size:11}):React.createElement(ChevronDown,{size:11});}
-
-  function toggleCheck(id){setChecked(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
-  function toggleAll(){checked.size===filtered.length?setChecked(new Set()):setChecked(new Set(filtered.map(w=>w.id)));}
-
-  function handleBulkDelete(){
-    if(checked.size===0)return;
-    if(!window.confirm(`선택한 ${checked.size}건의 근무 기록을 삭제할까요?`))return;
-    onBulkDelete([...checked]);
-    setChecked(new Set());
-  }
-
+  function toggleSort(k){setSort(function(s){return s.key===k?{...s,dir:s.dir==="asc"?"desc":"asc"}:{key:k,dir:"desc"};});}
+  function SI({k}){if(sort.key!==k)return <CD size={11} style={{opacity:0.3}}/>;return sort.dir==="asc"?<CU size={11}/>:<CD size={11}/>;}
+  function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function toggleAll(){checked.size===filtered.length?setChecked(new Set()):setChecked(new Set(filtered.map(function(w){return w.id;})));}
+  function handleBulkDelete(){if(checked.size===0)return;if(!window.confirm("선택한 "+checked.size+"건의 근무 기록을 삭제할까요?"))return;onBulkDelete([...checked]);setChecked(new Set());}
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      {/* 필터 */}
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
-        <select value={filter.staff} onChange={e=>setFilter({...filter,staff:e.target.value})}
-          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <select value={filter.staff} onChange={function(e){setFilter({...filter,staff:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="all">전체 직원</option>
-          {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
         </select>
-        <select value={filter.month} onChange={e=>setFilter({...filter,month:e.target.value})}
-          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <select value={filter.month} onChange={function(e){setFilter({...filter,month:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="">전체 기간</option>
-          {months.map(m=><option key={m} value={m}>{m}</option>)}
+          {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
         </select>
         <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}건</span>
-        {/* 일괄 삭제 */}
         {checked.size>0&&(
-          <button onClick={handleBulkDelete}
-            style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",
-              background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+          <button onClick={handleBulkDelete} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer"}}>
             <Trash2 size={12}/> {checked.size}건 삭제
           </button>
         )}
       </div>
-
-      {/* 직원별 합계 고정 행 */}
       {staffTotals.length>0&&(
         <div style={{background:"#1E293B",padding:"10px 20px",display:"flex",flexWrap:"wrap",gap:10,flexShrink:0,borderBottom:"2px solid #334155"}}>
           <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",alignSelf:"center",marginRight:4}}>합계</span>
-          {staffTotals.map(s=>(
+          {staffTotals.map(function(s){return(
             <div key={s.name} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.07)",borderRadius:8,padding:"5px 12px"}}>
-              <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block",flexShrink:0}}/>
+              <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}/>
               <span style={{fontSize:12,fontWeight:600,color:"#F1F5F9"}}>{s.name}</span>
               <span className="ml-mono" style={{fontSize:12,color:"#94A3B8"}}>·</span>
               <span className="ml-mono" style={{fontSize:12,fontWeight:700,color:"#7DD3FC"}}>{fmtHours(s.hours)}</span>
               <span style={{fontSize:11,color:"#64748B"}}>({s.count}일)</span>
             </div>
-          ))}
+          );})}
         </div>
       )}
-
-      {/* 테이블 */}
       <div className="tbl-wrap">
-        {filtered.length===0?(
-          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요.</div>
-        ):(
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요.</div>:(
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                <th style={{padding:"10px 10px",textAlign:"center",width:36}}>
-                  <input type="checkbox" checked={checked.size===filtered.length&&filtered.length>0}
-                    onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-                </th>
-                <th className="sort-btn" onClick={()=>toggleSort("startAt")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                  <span style={{display:"inline-flex",alignItems:"center",gap:4}}>날짜 <SI k="startAt"/></span>
-                </th>
-                <th className="sort-btn" onClick={()=>toggleSort("staffId")} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>
-                  <span style={{display:"inline-flex",alignItems:"center",gap:4}}>직원 <SI k="staffId"/></span>
-                </th>
+                <th style={{padding:"10px 10px",textAlign:"center",width:36}}><input type="checkbox" checked={checked.size===filtered.length&&filtered.length>0} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></th>
+                <th className="sort-btn" onClick={function(){toggleSort("startAt");}} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>날짜 <SI k="startAt"/></span></th>
+                <th className="sort-btn" onClick={function(){toggleSort("staffId");}} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>직원 <SI k="staffId"/></span></th>
                 <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
                 <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>출근</th>
                 <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>퇴근</th>
-                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무 시간</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무시간</th>
                 <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
                 <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((w,i)=>{
-                const hours=calcHours(w.startAt,w.endAt);
-                const sb2=storeBadge(w.storeId);
-                const sc=staffColor(w.staffId);
-                const isCk=checked.has(w.id);
+              {filtered.map(function(w,i){
+                var hours=calcHours(w.startAt,w.endAt);var sb2=storeBadge(w.storeId);var sc=staffColor(w.staffId);var isCk=checked.has(w.id);
                 return(
-                  <tr key={w.id} className={`ml-row ${i%2===0?"even":"odd"}`}>
-                    <td style={{padding:"9px 10px",textAlign:"center"}}>
-                      <input type="checkbox" checked={isCk} onChange={()=>toggleCheck(w.id)}
-                        style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-                    </td>
+                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                    <td style={{padding:"9px 10px",textAlign:"center"}}><input type="checkbox" checked={isCk} onChange={function(){toggleCheck(w.id);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></td>
                     <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{w.startAt?w.startAt.slice(0,10):""}</td>
-                    <td style={{padding:"9px 14px"}}>
-                      <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
-                        <span style={{width:8,height:8,borderRadius:"50%",background:sc,display:"inline-block"}}/>
-                        <span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span>
-                      </span>
-                    </td>
-                    <td style={{padding:"9px 14px"}}>
-                      <span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span>
-                    </td>
+                    <td style={{padding:"9px 14px"}}><span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:8,height:8,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span></span></td>
+                    <td style={{padding:"9px 14px"}}><span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span></td>
                     <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{fmtTime(w.startAt)}</td>
-                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:w.endAt?"#374151":"#94A3B8"}}>
-                      {w.endAt?fmtTime(w.endAt):"미입력"}
-                    </td>
-                    <td style={{padding:"9px 14px",textAlign:"center"}}>
-                      {hours!=null
-                        ?<span style={{background:"#F0FDF4",color:"#15803D",padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:600}}>{fmtHours(hours)}</span>
-                        :<span style={{color:"#94A3B8",fontSize:12}}>—</span>}
-                    </td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:w.endAt?"#374151":"#94A3B8"}}>{w.endAt?fmtTime(w.endAt):"미입력"}</td>
+                    <td style={{padding:"9px 14px",textAlign:"center"}}>{hours!=null?<span style={{background:"#F0FDF4",color:"#15803D",padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:600}}>{fmtHours(hours)}</span>:<span style={{color:"#94A3B8",fontSize:12}}>—</span>}</td>
                     <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{w.memo||""}</td>
                     <td style={{padding:"9px 14px",textAlign:"center"}}>
                       <div style={{display:"inline-flex",gap:6}}>
-                        <button onClick={()=>onEdit(w)}
-                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}>
-                          <Pencil size={12}/>
-                        </button>
-                        <button onClick={()=>onDelete(w)}
-                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}>
-                          <Trash2 size={12}/>
-                        </button>
+                        <button onClick={function(){onEdit(w);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}><Pencil size={12}/></button>
+                        <button onClick={function(){onDelete(w);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}><Trash2 size={12}/></button>
                       </div>
                     </td>
                   </tr>
@@ -727,300 +692,76 @@ function WorkListView({works,onEdit,onDelete,onBulkDelete}){
   );
 }
 
-/* ══════════════════════════════════
-   상태 설정
-══════════════════════════════════ */
-const STATUSES=[
-  {id:"구매요청", next:"주문완료", label:"주문완료로",  bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
-  {id:"주문완료", next:"배송완료", label:"배송완료로",  bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
-  {id:"배송완료", next:"구매요청", label:"구매요청으로", bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
-];
-function statusCfg(s){return STATUSES.find(x=>x.id===s)||STATUSES[1];}
-
-const CATEGORIES=[
-  {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
-  {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
-  {id:"직원",     bg:"#F3E8FF",color:"#6B21A8"},
-  {id:"게임관리", bg:"#DCFCE7",color:"#14532D"},
-  {id:"잡화",     bg:"#F1F5F9",color:"#475569"},
-];
-function catCfg(c){return CATEGORIES.find(x=>x.id===c)||{bg:"#F1F5F9",color:"#475569"};}
-
-/* ══════════════════════════════════
-   품목 상세 모달
-══════════════════════════════════ */
-function ItemDetailModal({item, history, onClose, onSave, onDelete}){
-  const isNew=!item.id;
-  const [name,setName]=useState(item.name||"");
-  const [category,setCategory]=useState(item.category||"");
-  const [link,setLink]=useState(item.link||"");
-  const [memo,setMemo]=useState(item.memo||"");
-  const [saving,setSaving]=useState(false);
-  const [err,setErr]=useState("");
-
-  // 배송완료 이력 매장별 최근 5건
-  const histByStore=useMemo(()=>{
-    const m={};
-    STORES.forEach(s=>{
-      m[s.id]=(history||[])
-        .filter(h=>h.itemId===item.id&&h.storeId===s.id)
-        .sort((a,b)=>b.changedAt>a.changedAt?1:-1)
-        .slice(0,8);
-    });
-    return m;
-  },[history,item.id]);
-
-  async function submit(e){
-    e.preventDefault();
-    if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
-    setSaving(true);
-    await onSave({id:item.id||uid(),name:name.trim(),category,link:link.trim(),memo:memo.trim()});
-    setSaving(false);
-  }
-
-  return(
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <h2 style={{fontSize:17,fontWeight:700}}>{isNew?"품목 추가":"품목 상세"}</h2>
-          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
-        </div>
-
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 *</label>
-          <input value={name} onChange={e=>{setName(e.target.value);setErr("");}}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:`1px solid ${err?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="예: 음료수, 컵, 영수증지"/>
-          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
-        </div>
-
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>카테고리</label>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {CATEGORIES.map(c=>(
-              <button key={c.id} type="button" onClick={()=>setCategory(category===c.id?"":c.id)}
-                style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
-                  border:`1.5px solid ${category===c.id?c.color:"#E2E8F0"}`,
-                  background:category===c.id?c.bg:"#fff",
-                  color:category===c.id?c.color:"#94A3B8"}}>
-                {c.id}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 링크</label>
-          <input value={link} onChange={e=>setLink(e.target.value)}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="https://..."/>
-        </div>
-
-        <div style={{marginBottom:link?4:16}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>특이사항</label>
-          <input value={memo} onChange={e=>setMemo(e.target.value)}
-            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="용량, 규격, 주의사항 등"/>
-        </div>
-
-        {link&&(
-          <div style={{marginBottom:16}}>
-            <a href={link} target="_blank" rel="noopener noreferrer"
-              style={{fontSize:12,color:"#2563EB",textDecoration:"underline"}}>🔗 주문 링크 열기</a>
-          </div>
-        )}
-
-        {/* 상태 변경 이력 */}
-        {!isNew&&(
-          <div style={{marginBottom:20,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>상태 변경 이력</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {STORES.map(s=>{
-                const b=s.badge;
-                const rows=histByStore[s.id]||[];
-                return(
-                  <div key={s.id}>
-                    <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:6,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
-                    {rows.length===0
-                      ?<p style={{fontSize:11,color:"#CBD5E1"}}>이력 없음</p>
-                      :rows.map(h=>{
-                        const cfg=statusCfg(h.status);
-                        return(
-                          <div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0"}}>
-                            <span style={{width:52,flexShrink:0,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:cfg.bg,color:cfg.color,textAlign:"center"}}>
-                              {h.status}
-                            </span>
-                            <span className="ml-mono" style={{fontSize:11,color:"#64748B"}}>
-                              {h.changedAt?fmtDateTime(h.changedAt):"—"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          {!isNew?(
-            <button type="button" onClick={()=>onDelete(item)}
-              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
-              <Trash2 size={13}/> 삭제
-            </button>
-          ):<span/>}
-          <div style={{display:"flex",gap:8}}>
-            <button type="button" onClick={onClose}
-              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-            <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
-              {saving?"저장 중…":isNew?"추가":"저장"}
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════
-   재고 주문 뷰
-══════════════════════════════════ */
+// ── OrderView ──
 function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkStatus}){
-  const [filterStore,setFilterStore]=useState("all");
-  const [filterCat,setFilterCat]=useState("all");
-  const [search,setSearch]=useState("");
-  const [checked,setChecked]=useState(new Set());
-  const [bulkStore,setBulkStore]=useState("all");
+  var [filterStore,setFilterStore]=useState("all");
+  var [filterCat,setFilterCat]=useState("all");
+  var [search,setSearch]=useState("");
+  var [checked,setChecked]=useState(new Set());
+  var [bulkStore,setBulkStore]=useState("all");
 
-  // 품목별 최신 상태+시각 (매장별)
   function latestEntry(itemId,storeId){
-    const h=(history||[])
-      .filter(x=>x.itemId===itemId&&x.storeId===storeId)
-      .sort((a,b)=>b.changedAt>a.changedAt?1:-1);
-    return h[0]||{status:"구매요청",changedAt:null};
+    var h=(history||[]).filter(function(x){return x.itemId===itemId&&x.storeId===storeId;}).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
+    return h[0]||{status:"주문완료",changedAt:null};
   }
   function latestStatus(itemId,storeId){return latestEntry(itemId,storeId).status;}
 
-  const filtered=useMemo(()=>{
-    let l=items;
-    if(search.trim())l=l.filter(it=>it.name.toLowerCase().includes(search.trim().toLowerCase()));
-    if(filterCat!=="all")l=l.filter(it=>it.category===filterCat);
-    if(filterStore!=="all"){
-      l=l.filter(it=>{
-        const s=latestStatus(it.id,filterStore);
-        return s==="구매요청"||s==="주문완료";
-      });
-    }
+  var filtered=useMemo(function(){
+    var l=items;
+    if(search.trim())l=l.filter(function(it){return it.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
+    if(filterCat!=="all")l=l.filter(function(it){return it.category===filterCat;});
+    if(filterStore!=="all")l=l.filter(function(it){var s=latestStatus(it.id,filterStore);return s==="구매요청"||s==="주문완료";});
     return l;
   },[items,search,filterCat,filterStore,history]);
 
-  function toggleCheck(id){
-    setChecked(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});
-  }
-  function toggleAll(){
-    if(checked.size===filtered.length)setChecked(new Set());
-    else setChecked(new Set(filtered.map(i=>i.id)));
-  }
-
+  function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function toggleAll(){checked.size===filtered.length?setChecked(new Set()):setChecked(new Set(filtered.map(function(i){return i.id;})));}
   function bulkChange(status){
     if(checked.size===0){alert("품목을 선택해주세요.");return;}
-    const storeLabel=bulkStore==="all"?"양쪽 매장":bulkStore;
-    if(!window.confirm(`선택한 ${checked.size}개 품목을 [${storeLabel}] 기준으로\n"${status}"(으)로 변경할까요?`))return;
-    const stores=bulkStore==="all"?STORES.map(s=>s.id):[bulkStore];
-    onBulkStatus([...checked],stores,status);
-    setChecked(new Set());
+    var storeLabel=bulkStore==="all"?"양쪽 매장":bulkStore;
+    if(!window.confirm("선택한 "+checked.size+"개 품목을 ["+storeLabel+"] 기준으로 \""+status+"\"(으)로 변경할까요?"))return;
+    var stores=bulkStore==="all"?STORES.map(function(s){return s.id;}):[bulkStore];
+    onBulkStatus([...checked],stores,status);setChecked(new Set());
   }
-
-  const checkedCount=checked.size;
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      {/* 필터 + 일괄버튼 */}
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",flexShrink:0}}>
         <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",marginBottom:8}}>
-          <input value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="품목명 검색…"
-            style={{padding:"6px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:160}}/>
-          <select value={filterStore} onChange={e=>{setFilterStore(e.target.value);setChecked(new Set());}}
-            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…" style={{padding:"6px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:160}}/>
+          <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);setChecked(new Set());}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
             <option value="all">전체 매장</option>
-            {STORES.map(s=><option key={s.id} value={s.id}>{s.label} (미완료만)</option>)}
+            {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label} (미완료만)</option>;})}
           </select>
-          {/* 카테고리 필터 */}
           <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-            <button onClick={()=>setFilterCat("all")}
-              style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",
-                borderColor:filterCat==="all"?"#334155":"#E2E8F0",
-                background:filterCat==="all"?"#334155":"#fff",
-                color:filterCat==="all"?"#fff":"#94A3B8"}}>
-              전체
-            </button>
-            {CATEGORIES.map(c=>(
-              <button key={c.id} onClick={()=>setFilterCat(filterCat===c.id?"all":c.id)}
-                style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",transition:"all .1s",
-                  borderColor:filterCat===c.id?c.color:"#E2E8F0",
-                  background:filterCat===c.id?c.bg:"#fff",
-                  color:filterCat===c.id?c.color:"#94A3B8"}}>
-                {c.id}
-              </button>
-            ))}
+            <button onClick={function(){setFilterCat("all");}} style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat==="all"?"#334155":"#E2E8F0",background:filterCat==="all"?"#334155":"#fff",color:filterCat==="all"?"#fff":"#94A3B8"}}>전체</button>
+            {CATEGORIES.map(function(c){return(
+              <button key={c.id} onClick={function(){setFilterCat(filterCat===c.id?"all":c.id);}} style={{padding:"4px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat===c.id?c.color:"#E2E8F0",background:filterCat===c.id?c.bg:"#fff",color:filterCat===c.id?c.color:"#94A3B8"}}>{c.id}</button>
+            );})}
           </div>
           <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}개</span>
-          <button onClick={onAddItem}
-            style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
-            <Plus size={12}/> 품목 추가
-          </button>
+          <button onClick={onAddItem} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 품목 추가</button>
         </div>
-        {/* 일괄 상태변경 */}
         <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:11,color:"#94A3B8"}}>
-            {checkedCount>0?`${checkedCount}개 선택됨`:"체크박스로 선택 후 일괄 변경"}
-          </span>
-          {/* 일괄변경 매장 선택 */}
-          <select value={bulkStore} onChange={e=>setBulkStore(e.target.value)}
-            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",
-              background:checkedCount>0?"#fff":"#F8FAFC",color:checkedCount>0?"#1E293B":"#CBD5E1",cursor:"pointer"}}>
+          <span style={{fontSize:11,color:"#94A3B8"}}>{checked.size>0?checked.size+"개 선택됨":"체크박스로 선택 후 일괄 변경"}</span>
+          <select value={bulkStore} onChange={function(e){setBulkStore(e.target.value);}} style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:checked.size>0?"#fff":"#F8FAFC",color:checked.size>0?"#1E293B":"#CBD5E1",cursor:"pointer"}}>
             <option value="all">양쪽 매장</option>
-            {STORES.map(s=><option key={s.id} value={s.id}>{s.id}만</option>)}
+            {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.id}만</option>;})}
           </select>
-          {["구매요청","주문완료","배송완료"].map(st=>{
-            const cfg=statusCfg(st);
-            return(
-              <button key={st} onClick={()=>bulkChange(st)}
-                style={{padding:"4px 12px",borderRadius:999,fontSize:11,fontWeight:700,border:`1.5px solid ${cfg.dot}`,
-                  background:checkedCount>0?cfg.bg:"#F8FAFC",color:checkedCount>0?cfg.color:"#CBD5E1",
-                  cursor:checkedCount>0?"pointer":"not-allowed",transition:"all .12s"}}>
-                일괄 {st}
-              </button>
-            );
-          })}
+          {["구매요청","주문완료","배송완료"].map(function(st){var cfg=statusCfg(st);return(
+            <button key={st} onClick={function(){bulkChange(st);}} style={{padding:"4px 12px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid "+cfg.dot,background:checked.size>0?cfg.bg:"#F8FAFC",color:checked.size>0?cfg.color:"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
+              일괄 {st}
+            </button>
+          );})}
         </div>
       </div>
-
-      {/* 테이블 */}
       <div className="tbl-wrap">
-        {filtered.length===0?(
-          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>
-            {items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}
-          </div>
-        ):(
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}</div>:(
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
-            <colgroup>
-              <col style={{width:36}}/>
-              <col style={{width:"22%"}}/>
-              <col/>
-              <col/>
-              <col style={{width:"20%"}}/>
-              <col style={{width:36}}/>
-            </colgroup>
+            <colgroup><col style={{width:36}}/><col style={{width:"22%"}}/><col/><col/><col style={{width:"20%"}}/><col style={{width:36}}/></colgroup>
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                <th style={{padding:"10px 10px",textAlign:"center"}}>
-                  <input type="checkbox" checked={checkedCount===filtered.length&&filtered.length>0}
-                    onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-                </th>
+                <th style={{padding:"10px 10px",textAlign:"center"}}><input type="checkbox" checked={checked.size===filtered.length&&filtered.length>0} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></th>
                 <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
                 <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>미플 상태</th>
                 <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>아카이브 상태</th>
@@ -1029,70 +770,35 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item,i)=>{
-                const isCk=checked.has(item.id);
-                return(
-                  <tr key={item.id} className={`ml-row ${i%2===0?"even":"odd"}`}
-                    style={{background:isCk?"#EFF6FF!important":""}}>
-                    <td style={{padding:"10px 10px",textAlign:"center"}}>
-                      <input type="checkbox" checked={isCk} onChange={()=>toggleCheck(item.id)}
-                        style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-                    </td>
-                    <td style={{padding:"10px 14px"}}>
-                      <button onClick={()=>onItemClick(item)}
-                        style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1",padding:0}}>
-                        {item.name}
-                      </button>
-                      {item.category&&(()=>{const c=catCfg(item.category);return(
-                        <span style={{display:"inline-block",marginLeft:6,padding:"1px 7px",borderRadius:999,fontSize:10,fontWeight:700,background:c.bg,color:c.color}}>{item.category}</span>
-                      );})()}
-                      {item.link&&(
-                        <a href={item.link} target="_blank" rel="noopener noreferrer"
-                          style={{display:"block",fontSize:10,color:"#3B82F6",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                          🔗 링크
-                        </a>
-                      )}
-                    </td>
-                    {STORES.map(s=>{
-                      const entry=latestEntry(item.id,s.id);
-                      const st=entry.status;
-                      const cfg=statusCfg(st);
-                      const nextCfg=statusCfg(cfg.next);
-                      return(
-                        <td key={s.id} style={{padding:"8px 14px",textAlign:"center"}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                            <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>
-                              {st}
-                            </span>
-                            {entry.changedAt&&(
-                              <span className="ml-mono" style={{fontSize:9,color:"#94A3B8",whiteSpace:"nowrap"}}>
-                                {fmtDateTime(entry.changedAt)}
-                              </span>
-                            )}
-                            <button onClick={()=>{
-                              if(window.confirm(`"${item.name}"을(를)\n[${s.id}] 기준으로 "${cfg.next}"(으)로 변경할까요?`))
-                                onStatusChange(item.id,s.id,cfg.next);
-                            }}
-                              style={{marginTop:2,padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:`1.5px solid ${nextCfg.dot}`,
-                                background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
-                              → {cfg.next}
-                            </button>
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td style={{padding:"10px 14px",fontSize:11,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {item.memo||""}
-                    </td>
-                    <td style={{padding:"10px 10px",textAlign:"center"}}>
-                      <button onClick={()=>onItemClick(item)}
-                        style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
-                        <Pencil size={12}/>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map(function(item,i){var isCk=checked.has(item.id);return(
+                <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                  <td style={{padding:"10px 10px",textAlign:"center"}}><input type="checkbox" checked={isCk} onChange={function(){toggleCheck(item.id);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></td>
+                  <td style={{padding:"10px 14px"}}>
+                    <button onClick={function(){onItemClick(item);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1",padding:0}}>{item.name}</button>
+                    {item.category&&(function(){var c=catCfg(item.category);return <span style={{display:"inline-block",marginLeft:6,padding:"1px 7px",borderRadius:999,fontSize:10,fontWeight:700,background:c.bg,color:c.color}}>{item.category}</span>;}())}
+                    {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:10,color:"#3B82F6",marginTop:2}}>🔗 링크</a>}
+                  </td>
+                  {STORES.map(function(s){
+                    var entry=latestEntry(item.id,s.id);var st=entry.status;var cfg=statusCfg(st);var nextCfg=statusCfg(cfg.next);
+                    return(
+                      <td key={s.id} style={{padding:"8px 14px",textAlign:"center"}}>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                          <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>{st}</span>
+                          {entry.changedAt&&<span className="ml-mono" style={{fontSize:9,color:"#94A3B8",whiteSpace:"nowrap"}}>{fmtDateTime(entry.changedAt)}</span>}
+                          <button onClick={function(){if(window.confirm("\""+item.name+"\"을(를)\n["+s.id+"] 기준으로 \""+cfg.next+"\"(으)로 변경할까요?"))onStatusChange(item.id,s.id,cfg.next);}}
+                            style={{marginTop:2,padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
+                            → {cfg.next}
+                          </button>
+                        </div>
+                      </td>
+                    );
+                  })}
+                  <td style={{padding:"10px 14px",fontSize:11,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.memo||""}</td>
+                  <td style={{padding:"10px 10px",textAlign:"center"}}>
+                    <button onClick={function(){onItemClick(item);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}><Pencil size={12}/></button>
+                  </td>
+                </tr>
+              );})}
             </tbody>
           </table>
         )}
@@ -1101,277 +807,33 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
   );
 }
 
-/* ══════════════════════════════════
-   MAIN APP
-══════════════════════════════════ */
-function App(){
-  const [mainTab,setMainTab]=useState("work");
-  const [workSubTab,setWorkSubTab]=useState("cal");
-  const [loading,setLoading]=useState(true);
-  const [calFilterStaff,setCalFilterStaff]=useState("all");
-  const [calFilterStore,setCalFilterStore]=useState("all");
-
-  const [works,setWorks]=useState([]);
-  const [workModal,setWorkModal]=useState(null);
-
-  // 재고 품목 + 이력
-  const [orderItems,setOrderItems]=useState([]);
-  const [orderHistory,setOrderHistory]=useState([]);
-  const [itemModal,setItemModal]=useState(null); // null | item obj (id없으면 신규)
-
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const {data}=await sb.from('work_records').select('*').order('start_at',{ascending:false}).limit(1000);
-        setWorks((data||[]).map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo||""})));
-      }catch(e){setWorks([]);}
-      try{
-        const {data}=await sb.from('order_items').select('*').order('created_at',{ascending:true});
-        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,category:r.category||"",link:r.link||"",memo:r.memo||""})));
-      }catch(e){setOrderItems([]);}
-      try{
-        const {data}=await sb.from('order_history').select('*').order('changed_at',{ascending:false}).limit(2000);
-        setOrderHistory((data||[]).map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})));
-      }catch(e){setOrderHistory([]);}
-      setLoading(false);
-    })();
-  },[]);
-
-  /* work CRUD */
-  async function handleSaveWork(rows){
-    const isEdit=rows.length===1&&!!(workModal?.record);
-    try{
-      if(isEdit){
-        const r=rows[0];
-        const row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};
-        await sb.from('work_records').update(row).eq('id',row.id);
-        setWorks(prev=>prev.map(w=>w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w));
-      }else{
-        const dbRows=rows.map(r=>({id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo}));
-        await sb.from('work_records').insert(dbRows);
-        const newWorks=dbRows.map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo}));
-        setWorks(prev=>[...newWorks,...prev]);
-      }
-      setWorkModal(null);
-    }catch(e){alert("저장 실패: "+e.message);}
-  }
-  async function handleDeleteWork(w){
-    if(!window.confirm("이 근무 기록을 삭제할까요?"))return;
-    try{
-      await sb.from('work_records').delete().eq('id',w.id);
-      setWorks(prev=>prev.filter(x=>x.id!==w.id));
-      setWorkModal(null);
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
-  async function handleBulkDeleteWork(ids){
-    try{
-      await sb.from('work_records').delete().in('id',ids);
-      setWorks(prev=>prev.filter(x=>!ids.includes(x.id)));
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
-
-  /* order item CRUD */
-  async function handleSaveItem(form){
-    const isNew=!form.id||!orderItems.find(x=>x.id===form.id);
-    try{
-      if(isNew){
-        await sb.from('order_items').insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});
-        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}]);
-      }else{
-        await sb.from('order_items').update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq('id',form.id);
-        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x));
-      }
-      setItemModal(null);
-    }catch(e){alert("저장 실패: "+e.message);}
-  }
-  async function handleDeleteItem(item){
-    if(!window.confirm(`"${item.name}" 품목을 삭제할까요? 이력도 모두 삭제됩니다.`))return;
-    try{
-      await sb.from('order_items').delete().eq('id',item.id);
-      setOrderItems(prev=>prev.filter(x=>x.id!==item.id));
-      setOrderHistory(prev=>prev.filter(x=>x.itemId!==item.id));
-      setItemModal(null);
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
-
-  /* 상태 변경 (단건) */
-  async function handleStatusChange(itemId,storeId,newStatus){
-    const row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};
-    try{
-      await sb.from('order_history').insert(row);
-      setOrderHistory(prev=>[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev]);
-    }catch(e){alert("상태 변경 실패: "+e.message);}
-  }
-
-  /* 일괄 상태 변경 */
-  async function handleBulkStatus(itemIds,storeIds,status){
-    const rows=[];
-    itemIds.forEach(itemId=>{
-      storeIds.forEach(storeId=>{
-        rows.push({id:uid(),item_id:itemId,store_id:storeId,status,changed_at:new Date().toISOString()});
-      });
-    });
-    try{
-      await sb.from('order_history').insert(rows);
-      setOrderHistory(prev=>[...rows.map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})),...prev]);
-    }catch(e){alert("일괄 변경 실패: "+e.message);}
-  }
-
-/* ══════════════════════════════════
-   TODO MODAL
-══════════════════════════════════ */
-const TODO_STORES=[
-  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
-  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
-  {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
-];
-function todoBadge(sid){const s=TODO_STORES.find(x=>x.id===sid);return s?s.badge:{bg:"#F1F5F9",color:"#475569"};}
-
-function TodoModal({todo,onClose,onSave,onDelete}){
-  const isEdit=!!(todo?.id);
-  const [form,setForm]=useState({
-    title:todo?.title||"",
-    storeId:todo?.storeId||"미플",
-    staffId:todo?.staffId||"",
-    detail:todo?.detail||"",
-  });
-  const [err,setErr]=useState("");
-  const [saving,setSaving]=useState(false);
-
-  async function submit(e){
-    e.preventDefault();
-    if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
-    setSaving(true);
-    await onSave({id:todo?.id||uid(),...form,title:form.title.trim(),detail:form.detail.trim()});
-    setSaving(false);
-  }
-
-  return(
-    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"할 일 수정":"할 일 추가"}</h2>
-          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 <span style={{color:"#EF4444"}}>*</span></label>
-          <input value={form.title} onChange={e=>{setForm({...form,title:e.target.value});setErr("");}}
-            className="ml-inp" autoFocus
-            style={{width:"100%",padding:"8px 12px",border:`1px solid ${err?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
-            placeholder="할 일 내용을 입력하세요"/>
-          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당 매장</label>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {TODO_STORES.map(s=>{const b=s.badge;return(
-              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
-                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
-                  background:form.storeId===s.id?b.bg:"#fff",
-                  color:form.storeId===s.id?b.color:"#94A3B8"}}>
-                {s.id}
-              </button>
-            );})}
-          </div>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당자</label>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            <button type="button" onClick={()=>setForm({...form,staffId:""})}
-              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
-                border:`2px solid ${form.staffId===""?"#334155":"#E2E8F0"}`,
-                background:form.staffId===""?"#334155":"#fff",
-                color:form.staffId===""?"#fff":"#94A3B8"}}>
-              미정
-            </button>
-            {STAFF.map(s=>(
-              <button key={s.id} type="button" onClick={()=>setForm({...form,staffId:s.id})}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
-                  border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
-                  background:form.staffId===s.id?s.color:"#fff",
-                  color:form.staffId===s.id?"#fff":"#94A3B8"}}>
-                {s.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{marginBottom:20}}>
-          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>세부 내용</label>
-          <textarea value={form.detail} onChange={e=>setForm({...form,detail:e.target.value})}
-            className="ml-inp"
-            style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:80}}
-            placeholder="상세 설명, 참고사항 등"/>
-        </div>
-
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          {isEdit?(
-            <button type="button" onClick={()=>onDelete(todo)}
-              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
-              <Trash2 size={13}/> 삭제
-            </button>
-          ):<span/>}
-          <div style={{display:"flex",gap:8}}>
-            <button type="button" onClick={onClose}
-              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-            <button type="submit" disabled={saving}
-              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
-              {saving?"저장 중…":isEdit?"수정":"추가"}
-            </button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════
-   TODO VIEW
-══════════════════════════════════ */
+// ── TodoView ──
 function TodoView({todos,onAdd,onItemClick}){
-  const [filterStore,setFilterStore]=useState("all");
-  const [filterStaff,setFilterStaff]=useState("all");
-
-  const filtered=useMemo(()=>{
-    let l=[...todos].sort((a,b)=>b.createdAt>a.createdAt?1:-1);
-    if(filterStore!=="all")l=l.filter(t=>t.storeId===filterStore);
-    if(filterStaff!=="all")l=l.filter(t=>t.staffId===filterStaff);
+  var [filterStore,setFilterStore]=useState("all");
+  var [filterStaff,setFilterStaff]=useState("all");
+  var filtered=useMemo(function(){
+    var l=[...todos].sort(function(a,b){return b.createdAt>a.createdAt?1:-1;});
+    if(filterStore!=="all")l=l.filter(function(t){return t.storeId===filterStore;});
+    if(filterStaff!=="all")l=l.filter(function(t){return t.staffId===filterStaff;});
     return l;
   },[todos,filterStore,filterStaff]);
-
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      {/* 필터 */}
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
-        <select value={filterStore} onChange={e=>setFilterStore(e.target.value)}
-          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="all">전체 매장</option>
-          {TODO_STORES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+          {TODO_STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
         </select>
-        <select value={filterStaff} onChange={e=>setFilterStaff(e.target.value)}
-          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <select value={filterStaff} onChange={function(e){setFilterStaff(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="all">전체 담당자</option>
           <option value="">미정</option>
-          {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
         </select>
         <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}건</span>
-        <button onClick={onAdd}
-          style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
-          <Plus size={12}/> 할 일 추가
-        </button>
+        <button onClick={onAdd} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 할 일 추가</button>
       </div>
-
-      {/* 목록 */}
       <div className="tbl-wrap">
-        {filtered.length===0?(
-          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>
-            {todos.length===0?"할 일을 추가해주세요.":"조건에 맞는 항목이 없어요."}
-          </div>
-        ):(
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{todos.length===0?"할 일을 추가해주세요.":"조건에 맞는 항목이 없어요."}</div>:(
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
@@ -1382,34 +844,17 @@ function TodoView({todos,onAdd,onItemClick}){
               </tr>
             </thead>
             <tbody>
-              {filtered.map((t,i)=>{
-                const b=todoBadge(t.storeId);
-                const sc=t.staffId?staffColor(t.staffId):null;
+              {filtered.map(function(t,i){
+                var b=todoBadge(t.storeId);var sc=t.staffId?staffColor(t.staffId):null;
                 return(
-                  <tr key={t.id} className={`ml-row ${i%2===0?"even":"odd"}`}
-                    onClick={()=>onItemClick(t)} style={{cursor:"pointer"}}>
+                  <tr key={t.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(t);}} style={{cursor:"pointer"}}>
                     <td style={{padding:"11px 16px"}}>
                       <div style={{fontWeight:600,color:"#1E293B",marginBottom:t.detail?3:0}}>{t.title}</div>
-                      {t.detail&&(
-                        <div style={{fontSize:11,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>
-                          {t.detail}
-                        </div>
-                      )}
+                      {t.detail&&<div style={{fontSize:11,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{t.detail}</div>}
                     </td>
-                    <td style={{padding:"11px 14px",textAlign:"center"}}>
-                      <span className="tag" style={{background:b.bg,color:b.color}}>{t.storeId||"—"}</span>
-                    </td>
-                    <td style={{padding:"11px 14px",textAlign:"center"}}>
-                      {t.staffId?(
-                        <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
-                          <span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block"}}/>
-                          <span style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{staffName(t.staffId)}</span>
-                        </span>
-                      ):<span style={{fontSize:12,color:"#94A3B8"}}>미정</span>}
-                    </td>
-                    <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:11,color:"#94A3B8",whiteSpace:"nowrap"}}>
-                      {t.createdAt?t.createdAt.slice(0,10):"—"}
-                    </td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{t.storeId||"—"}</span></td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}>{t.staffId?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{staffName(t.staffId)}</span></span>:<span style={{fontSize:12,color:"#94A3B8"}}>미정</span>}</td>
+                    <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:11,color:"#94A3B8",whiteSpace:"nowrap"}}>{t.createdAt?t.createdAt.slice(0,10):"—"}</td>
                   </tr>
                 );
               })}
@@ -1421,284 +866,146 @@ function TodoView({todos,onAdd,onItemClick}){
   );
 }
 
-/* ══════════════════════════════════
-   MAIN APP
-══════════════════════════════════ */
+// ── App ──
 function App(){
-  const [mainTab,setMainTab]=useState("work");  // work | order | todo
-  const [workSubTab,setWorkSubTab]=useState("cal"); // cal | list
-  const [loading,setLoading]=useState(true);
-  const [calFilterStaff,setCalFilterStaff]=useState("all");
-  const [calFilterStore,setCalFilterStore]=useState("all");
+  var [mainTab,setMainTab]=useState("work");
+  var [workSubTab,setWorkSubTab]=useState("cal");
+  var [loading,setLoading]=useState(true);
+  var [calFilterStaff,setCalFilterStaff]=useState("all");
+  var [calFilterStore,setCalFilterStore]=useState("all");
+  var [works,setWorks]=useState([]);
+  var [workModal,setWorkModal]=useState(null);
+  var [orderItems,setOrderItems]=useState([]);
+  var [orderHistory,setOrderHistory]=useState([]);
+  var [itemModal,setItemModal]=useState(null);
+  var [todos,setTodos]=useState([]);
+  var [todoModal,setTodoModal]=useState(null);
 
-  const [works,setWorks]=useState([]);
-  const [workModal,setWorkModal]=useState(null);
-
-  const [orderItems,setOrderItems]=useState([]);
-  const [orderHistory,setOrderHistory]=useState([]);
-  const [itemModal,setItemModal]=useState(null);
-
-  const [todos,setTodos]=useState([]);
-  const [todoModal,setTodoModal]=useState(null);
-
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const {data}=await sb.from('work_records').select('*').order('start_at',{ascending:false}).limit(1000);
-        setWorks((data||[]).map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo||""})));
-      }catch(e){setWorks([]);}
-      try{
-        const {data}=await sb.from('order_items').select('*').order('created_at',{ascending:true});
-        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,category:r.category||"",link:r.link||"",memo:r.memo||""})));
-      }catch(e){setOrderItems([]);}
-      try{
-        const {data}=await sb.from('order_history').select('*').order('changed_at',{ascending:false}).limit(2000);
-        setOrderHistory((data||[]).map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})));
-      }catch(e){setOrderHistory([]);}
-      try{
-        const {data}=await sb.from('todos').select('*').order('created_at',{ascending:false}).limit(500);
-        setTodos((data||[]).map(r=>({id:r.id,title:r.title,storeId:r.store_id||"",staffId:r.staff_id||"",detail:r.detail||"",createdAt:r.created_at})));
-      }catch(e){setTodos([]);}
+  useEffect(function(){
+    (async function(){
+      try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
+      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
+      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrderHistory((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,changedAt:x.changed_at};}).reverse().reverse());}catch(e){setOrderHistory([]);}
+      try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       setLoading(false);
     })();
   },[]);
 
-  /* work CRUD */
   async function handleSaveWork(rows){
-    const isEdit=rows.length===1&&!!(workModal?.record);
+    var isEdit=rows.length===1&&!!(workModal&&workModal.record);
     try{
-      if(isEdit){
-        const r=rows[0];
-        const row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};
-        await sb.from('work_records').update(row).eq('id',row.id);
-        setWorks(prev=>prev.map(w=>w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w));
-      }else{
-        const dbRows=rows.map(r=>({id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo}));
-        await sb.from('work_records').insert(dbRows);
-        const newWorks=dbRows.map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo}));
-        setWorks(prev=>[...newWorks,...prev]);
-      }
+      if(isEdit){var r=rows[0];var row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};await sb.from("work_records").update(row).eq("id",row.id);setWorks(function(prev){return prev.map(function(w){return w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w;});});}
+      else{var dbRows=rows.map(function(r){return{id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};});await sb.from("work_records").insert(dbRows);setWorks(function(prev){return[...dbRows.map(function(r){return{id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo};}),...prev];});}
       setWorkModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteWork(w){
-    if(!window.confirm("이 근무 기록을 삭제할까요?"))return;
-    try{
-      await sb.from('work_records').delete().eq('id',w.id);
-      setWorks(prev=>prev.filter(x=>x.id!==w.id));
-      setWorkModal(null);
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
-  async function handleBulkDeleteWork(ids){
-    try{
-      await sb.from('work_records').delete().in('id',ids);
-      setWorks(prev=>prev.filter(x=>!ids.includes(x.id)));
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
+  async function handleDeleteWork(w){if(!window.confirm("이 근무 기록을 삭제할까요?"))return;try{await sb.from("work_records").delete().eq("id",w.id);setWorks(function(prev){return prev.filter(function(x){return x.id!==w.id;});});setWorkModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+  async function handleBulkDeleteWork(ids){try{await sb.from("work_records").delete().in("id",ids);setWorks(function(prev){return prev.filter(function(x){return ids.indexOf(x.id)<0;});});}catch(e){alert("삭제 실패: "+e.message);}}
 
-  /* order item CRUD */
   async function handleSaveItem(form){
-    const isNew=!form.id||!orderItems.find(x=>x.id===form.id);
+    var isNew=!form.id||!orderItems.find(function(x){return x.id===form.id;});
     try{
-      if(isNew){
-        await sb.from('order_items').insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});
-        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}]);
-      }else{
-        await sb.from('order_items').update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq('id',form.id);
-        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x));
-      }
+      if(isNew){await sb.from("order_items").insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}];});}
+      else{await sb.from("order_items").update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x;});});}
       setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteItem(item){
-    if(!window.confirm(`"${item.name}" 품목을 삭제할까요? 이력도 모두 삭제됩니다.`))return;
-    try{
-      await sb.from('order_items').delete().eq('id',item.id);
-      setOrderItems(prev=>prev.filter(x=>x.id!==item.id));
-      setOrderHistory(prev=>prev.filter(x=>x.itemId!==item.id));
-      setItemModal(null);
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
-  async function handleStatusChange(itemId,storeId,newStatus){
-    const row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};
-    try{
-      await sb.from('order_history').insert(row);
-      setOrderHistory(prev=>[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev]);
-    }catch(e){alert("상태 변경 실패: "+e.message);}
-  }
-  async function handleBulkStatus(itemIds,storeIds,status){
-    const rows=[];
-    itemIds.forEach(itemId=>{storeIds.forEach(storeId=>{rows.push({id:uid(),item_id:itemId,store_id:storeId,status,changed_at:new Date().toISOString()});});});
-    try{
-      await sb.from('order_history').insert(rows);
-      setOrderHistory(prev=>[...rows.map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})),...prev]);
-    }catch(e){alert("일괄 변경 실패: "+e.message);}
-  }
+  async function handleDeleteItem(item){if(!window.confirm("\""+item.name+"\" 품목을 삭제할까요?"))return;try{await sb.from("order_items").delete().eq("id",item.id);setOrderItems(function(prev){return prev.filter(function(x){return x.id!==item.id;});});setOrderHistory(function(prev){return prev.filter(function(x){return x.itemId!==item.id;});});setItemModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+  async function handleStatusChange(itemId,storeId,newStatus){var row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};try{await sb.from("order_history").insert(row);setOrderHistory(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev];});}catch(e){alert("상태 변경 실패: "+e.message);}}
+  async function handleBulkStatus(itemIds,storeIds,status){var rows=[];itemIds.forEach(function(itemId){storeIds.forEach(function(storeId){rows.push({id:uid(),item_id:itemId,store_id:storeId,status:status,changed_at:new Date().toISOString()});});});try{await sb.from("order_history").insert(rows);setOrderHistory(function(prev){return[...rows.map(function(r){return{id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at};}), ...prev];});}catch(e){alert("일괄 변경 실패: "+e.message);}}
 
-  /* todo CRUD */
   async function handleSaveTodo(form){
-    const isEdit=!!(todoModal?.id);
+    var isEdit=!!(todoModal&&todoModal.id);
     try{
-      if(isEdit){
-        await sb.from('todos').update({title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail}).eq('id',form.id);
-        setTodos(prev=>prev.map(t=>t.id===form.id?{...t,title:form.title,storeId:form.storeId,staffId:form.staffId,detail:form.detail}:t));
-      }else{
-        const row={id:form.id,title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail,created_at:new Date().toISOString()};
-        await sb.from('todos').insert(row);
-        setTodos(prev=>[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id||"",detail:row.detail,createdAt:row.created_at},...prev]);
-      }
+      if(isEdit){await sb.from("todos").update({title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail}).eq("id",form.id);setTodos(function(prev){return prev.map(function(t){return t.id===form.id?{...t,title:form.title,storeId:form.storeId,staffId:form.staffId,detail:form.detail}:t;});});}
+      else{var row={id:form.id,title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail,created_at:new Date().toISOString()};await sb.from("todos").insert(row);setTodos(function(prev){return[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id||"",detail:row.detail,createdAt:row.created_at},...prev];});}
       setTodoModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteTodo(t){
-    if(!window.confirm(`"${t.title}"을(를) 삭제할까요?`))return;
-    try{
-      await sb.from('todos').delete().eq('id',t.id);
-      setTodos(prev=>prev.filter(x=>x.id!==t.id));
-      setTodoModal(null);
-    }catch(e){alert("삭제 실패: "+e.message);}
-  }
+  async function handleDeleteTodo(t){if(!window.confirm("\""+t.title+"\"을(를) 삭제할까요?"))return;try{await sb.from("todos").delete().eq("id",t.id);setTodos(function(prev){return prev.filter(function(x){return x.id!==t.id;});});setTodoModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
 
-  const MAIN_TABS=[
-    {id:"work",  label:"근무 관리",  icon:React.createElement(CalIcon,{size:13})},
-    {id:"order", label:"재고 주문",  icon:React.createElement(Package,{size:13})},
-    {id:"todo",  label:"할 일 목록", icon:React.createElement(List,{size:13})},
+  var MAIN_TABS=[
+    {id:"work",label:"근무 관리",icon:<CalIcon size={13}/>},
+    {id:"order",label:"재고 주문",icon:<PkgIcon size={13}/>},
+    {id:"todo",label:"할 일 목록",icon:<ListIcon size={13}/>},
   ];
-  const WORK_SUB_TABS=[
-    {id:"cal",  label:"캘린더", icon:React.createElement(CalIcon,{size:12})},
-    {id:"list", label:"목록",   icon:React.createElement(List,{size:12})},
+  var WORK_SUB=[
+    {id:"cal",label:"캘린더",icon:<CalIcon size={12}/>},
+    {id:"list",label:"목록",icon:<ListIcon size={12}/>},
   ];
 
   return(
     <div className="ml-root">
       <style>{CSS}</style>
-
-      {/* ── 헤더 ── */}
       <div style={{background:"#1E293B",padding:"14px 20px 0"}}>
         <div style={{marginBottom:10}}>
           <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
           <h1 style={{fontSize:19,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
         </div>
-        {/* 메인 탭 */}
         <div style={{display:"flex",gap:2}}>
-          {MAIN_TABS.map(t=>(
-            <button key={t.id} onClick={()=>setMainTab(t.id)}
-              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 16px",borderRadius:"16px 16px 0 0",fontSize:13,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",
-                background:mainTab===t.id?"rgba(255,255,255,.12)":"transparent",
-                color:mainTab===t.id?"#F8FAFC":"#64748B",
-                borderBottom:mainTab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
+          {MAIN_TABS.map(function(t){return(
+            <button key={t.id} onClick={function(){setMainTab(t.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 16px",borderRadius:"16px 16px 0 0",fontSize:13,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",background:mainTab===t.id?"rgba(255,255,255,.12)":"transparent",color:mainTab===t.id?"#F8FAFC":"#64748B",borderBottom:mainTab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
               {t.icon}{t.label}
             </button>
-          ))}
+          );})}
         </div>
       </div>
-
-      {/* ── 서브탭 (근무 관리만) ── */}
       {mainTab==="work"&&(
         <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center"}}>
-          {WORK_SUB_TABS.map(t=>(
-            <button key={t.id} onClick={()=>setWorkSubTab(t.id)}
-              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",
-                background:workSubTab===t.id?"#1E293B":"transparent",
-                color:workSubTab===t.id?"#F8FAFC":"#64748B"}}>
+          {WORK_SUB.map(function(t){return(
+            <button key={t.id} onClick={function(){setWorkSubTab(t.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:workSubTab===t.id?"#1E293B":"transparent",color:workSubTab===t.id?"#F8FAFC":"#64748B"}}>
               {t.icon}{t.label}
             </button>
-          ))}
-          {workSubTab==="cal"&&(
-            <button onClick={()=>setWorkModal({date:null})}
-              style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
-              <Plus size={12}/> 근무 등록
-            </button>
-          )}
+          );})}
+          <button onClick={function(){setWorkModal({date:null});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
         </div>
       )}
-
-      {/* ── 콘텐츠 ── */}
-      {loading?(
-        <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
-      ):(
+      {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
         <>
-          {/* 근무 관리 */}
           {mainTab==="work"&&workSubTab==="cal"&&(
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <CalendarFilterBar
-                filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff}
-                filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
+              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
               <div style={{flex:1,overflow:"auto"}}>
-                <CalendarView works={works}
-                  onDayClick={ds=>setWorkModal({date:ds})}
-                  onWorkClick={w=>setWorkModal({record:w})}
-                  filterStaff={calFilterStaff}
-                  filterStore={calFilterStore}/>
+                <CalendarView works={works} onDayClick={function(ds){setWorkModal({date:ds});}} onWorkClick={function(w){setWorkModal({record:w});}} filterStaff={calFilterStaff} filterStore={calFilterStore}/>
               </div>
             </div>
           )}
           {mainTab==="work"&&workSubTab==="list"&&(
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <WorkListView works={works}
-                onEdit={w=>setWorkModal({record:w})}
-                onDelete={handleDeleteWork}
-                onBulkDelete={handleBulkDeleteWork}/>
+              <WorkListView works={works} onEdit={function(w){setWorkModal({record:w});}} onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
             </div>
           )}
-
-          {/* 재고 주문 */}
-          {mainTab==="order"&&(
-            <OrderView
-              items={orderItems} history={orderHistory}
-              onItemClick={item=>setItemModal(item)}
-              onAddItem={()=>setItemModal({})}
-              onStatusChange={handleStatusChange}
-              onBulkStatus={handleBulkStatus}/>
-          )}
-
-          {/* 할 일 목록 */}
-          {mainTab==="todo"&&(
-            <TodoView
-              todos={todos}
-              onAdd={()=>setTodoModal({})}
-              onItemClick={t=>setTodoModal(t)}/>
-          )}
+          {mainTab==="order"&&<OrderView items={orderItems} history={orderHistory} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onStatusChange={handleStatusChange} onBulkStatus={handleBulkStatus}/>}
+          {mainTab==="todo"&&<TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>}
         </>
       )}
-
-      {/* ── 모달 ── */}
-      {workModal!==null&&(
-        <WorkModal record={workModal.record||null} defaultDate={workModal.date||null}
-          onClose={()=>setWorkModal(null)} onSave={handleSaveWork} onDelete={handleDeleteWork}/>
-      )}
-      {itemModal!==null&&(
-        <ItemDetailModal item={itemModal} history={orderHistory}
-          onClose={()=>setItemModal(null)} onSave={handleSaveItem} onDelete={handleDeleteItem}/>
-      )}
-      {todoModal!==null&&(
-        <TodoModal todo={todoModal} onClose={()=>setTodoModal(null)}
-          onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>
-      )}
+      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
+      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orderHistory} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
+      {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
     </div>
   );
 }
 
-const root=ReactDOM.createRoot(document.getElementById('root'));
+const root=ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
+
 </script>
 <script>
 (function(){
-  function showError(title,detail){
-    document.getElementById('root').innerHTML=
-      '<div style="padding:24px;font-family:sans-serif;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;"><b>'+title+'</b><br>'+detail+'</div>';
-  }
-  window.onerror=function(msg,src,line){showError('오류가 발생했어요:',msg+' (line '+line+')');};
+  function showError(t,d){document.getElementById("root").innerHTML="<div style='padding:24px;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;font-family:sans-serif'><b>"+t+"</b><br>"+d+"</div>";}
+  window.onerror=function(m,s,l){showError("오류가 발생했어요:",m+" (line "+l+")");}
   try{
-    const sb=window.supabase.createClient(
+    var sb=window.supabase.createClient(
       "https://kgtopbstibqdixgdntds.supabase.co",
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndG9wYnN0aWJxZGl4Z2RudGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMyNTQsImV4cCI6MjA5ODE3OTI1NH0.y3Fm7oM6Zn66JgSblCTol1C28NWLk7ypvOjzltxkM4Y"
     );
     window.sb=sb;
-    const source=document.getElementById('app-source').textContent;
-    const transformed=Babel.transform(source,{presets:[['react',{runtime:'classic'}]],sourceType:'script'}).code;
+    var source=document.getElementById("app-source").textContent;
+    var transformed=Babel.transform(source,{presets:[["react",{runtime:"classic"}]],sourceType:"script"}).code;
     (function(sb){eval(transformed);})(sb);
-  }catch(e){showError('초기화 중 오류가 발생했어요:',(e&&e.message)?e.message:String(e));}
+  }catch(e){showError("초기화 중 오류가 발생했어요:",(e&&e.message)?e.message:String(e));}
 })();
 </script>
 </body>
