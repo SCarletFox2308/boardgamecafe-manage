@@ -49,12 +49,8 @@ const TODO_STORES=[
   {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
   {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
 ];
-const STAFF=[
-  {id:"staff1",name:"이세창",color:"#7C3AED"},
-  {id:"staff2",name:"김정명",color:"#0369A1"},
-  {id:"staff3",name:"남선우",color:"#059669"},
-  {id:"staff4",name:"박보은",color:"#DC2626"},
-];
+const STAFF_COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#BE185D","#065F46"];
+var STAFF=[]; // DB에서 동적으로 로드됨
 const CATEGORIES=[
   {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
   {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
@@ -881,15 +877,14 @@ function TodoView({todos,onAdd,onItemClick}){
 }
 
 // ── StaffManageModal ──
-function StaffManageModal({onClose}){
-  var [staffList,setStaffList]=useState([]);
+function StaffManageModal({staffList,onStaffChange,onClose}){
   var [pins,setPins]=useState({}); // staffId -> {pin, isAdmin}
   var [loading,setLoading]=useState(true);
   var [saving,setSaving]=useState(false);
-  // 신규 직원 폼
   var [newName,setNewName]=useState("");
   var [newPin,setNewPin]=useState("");
   var [newIsAdmin,setNewIsAdmin]=useState(false);
+  var [newColor,setNewColor]=useState(STAFF_COLORS[0]);
   var [err,setErr]=useState("");
 
   useEffect(function(){
@@ -907,8 +902,10 @@ function StaffManageModal({onClose}){
   async function savePin(staffId,newPin,isAdmin){
     setSaving(true);
     try{
-      await sb.from("staff_pins").upsert({staff_id:staffId,pin:newPin,is_admin:isAdmin});
+      await sb.from("staff_pins").update({pin:newPin,is_admin:isAdmin}).eq("staff_id",staffId);
       setPins(function(prev){return{...prev,[staffId]:{pin:newPin,isAdmin:isAdmin}};});
+      // 관리자 권한 변경을 staffList에도 반영
+      onStaffChange(staffList.map(function(s){return s.id===staffId?{...s,isAdmin:isAdmin}:s;}));
     }catch(e){alert("저장 실패: "+e.message);}
     setSaving(false);
   }
@@ -917,19 +914,19 @@ function StaffManageModal({onClose}){
     e.preventDefault();
     if(!newName.trim()){setErr("이름을 입력해주세요.");return;}
     if(!newPin.trim()){setErr("PIN을 입력해주세요.");return;}
-    // staff_pins에 새 id 생성
     var newId="staff_"+Date.now();
     setSaving(true);
     try{
-      await sb.from("staff_pins").insert({staff_id:newId,pin:newPin.trim(),is_admin:newIsAdmin});
+      await sb.from("staff_pins").insert({staff_id:newId,name:newName.trim(),color:newColor,pin:newPin.trim(),is_admin:newIsAdmin});
+      var newStaff={id:newId,name:newName.trim(),color:newColor,isAdmin:newIsAdmin};
+      STAFF.push(newStaff);
+      var updated=[...staffList,newStaff];
+      onStaffChange(updated);
       setPins(function(prev){return{...prev,[newId]:{pin:newPin.trim(),isAdmin:newIsAdmin}};});
-      setNewName("");setNewPin("");setNewIsAdmin(false);setErr("");
-      alert("직원이 추가됐어요. 적용하려면 STAFF 배열에도 추가해주세요.\n\nid: "+newId+"\nname: "+newName.trim());
+      setNewName("");setNewPin("");setNewIsAdmin(false);setNewColor(STAFF_COLORS[updated.length%STAFF_COLORS.length]);setErr("");
     }catch(e){alert("추가 실패: "+e.message);}
     setSaving(false);
   }
-
-  var COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#7C3AED","#BE185D"];
 
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
@@ -941,18 +938,15 @@ function StaffManageModal({onClose}){
 
         {loading?<div style={{textAlign:"center",padding:20,color:"#94A3B8"}}>불러오는 중…</div>:(
           <>
-            {/* 기존 직원 목록 */}
             <div style={{marginBottom:24}}>
               <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>등록된 직원</div>
-              {STAFF.map(function(s){
+              {staffList.map(function(s){
                 var info=pins[s.id]||{pin:"",isAdmin:false};
-                return(
-                  <StaffRow key={s.id} staff={s} info={info} onSave={savePin} saving={saving}/>
-                );
+                return <StaffRow key={s.id} staff={s} info={info} onSave={savePin} saving={saving}/>;
               })}
+              {staffList.length===0&&<p style={{fontSize:12,color:"#94A3B8"}}>직원이 없어요.</p>}
             </div>
 
-            {/* 신규 직원 추가 */}
             <div style={{background:"#F8FAFC",borderRadius:10,padding:"16px",border:"1px solid #E2E8F0"}}>
               <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:12}}>신규 직원 추가</div>
               <form onSubmit={addStaff}>
@@ -968,14 +962,21 @@ function StaffManageModal({onClose}){
                       className="ml-inp" style={{width:"100%",padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="1234"/>
                   </div>
                 </div>
+                <div style={{marginBottom:10}}>
+                  <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>색상</label>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {STAFF_COLORS.map(function(c){return(
+                      <button key={c} type="button" onClick={function(){setNewColor(c);}}
+                        style={{width:28,height:28,borderRadius:"50%",background:c,border:newColor===c?"3px solid #1E293B":"2px solid transparent",cursor:"pointer"}}>
+                      </button>
+                    );})}
+                  </div>
+                </div>
                 <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",marginBottom:10}}>
                   <input type="checkbox" checked={newIsAdmin} onChange={function(e){setNewIsAdmin(e.target.checked);}} style={{accentColor:"#2563EB"}}/>
                   관리자 권한 부여
                 </label>
                 {err&&<p style={{fontSize:12,color:"#EF4444",marginBottom:8}}>{err}</p>}
-                <div style={{background:"#FEF9C3",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#713F12",marginBottom:10}}>
-                  ⚠️ 직원 추가 후 개발자에게 STAFF 배열 업데이트를 요청하세요.
-                </div>
                 <button type="submit" disabled={saving}
                   style={{width:"100%",padding:"8px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer",opacity:saving?0.6:1}}>
                   {saving?"추가 중…":"직원 추가"}
@@ -998,9 +999,7 @@ function StaffRow({staff,info,onSave,saving}){
     if(!pin.trim()){alert("PIN을 입력해주세요.");return;}
     onSave(staff.id,pin.trim(),isAdmin).then(function(){setEditing(false);}).catch(function(){});
   }
-
   return(
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #F1F5F9"}}>
       <span style={{width:10,height:10,borderRadius:"50%",background:staff.color,display:"inline-block",flexShrink:0}}/>
       <span style={{fontWeight:600,fontSize:13,flex:1}}>{staff.name}</span>
       {editing?(
@@ -1030,10 +1029,27 @@ function StaffRow({staff,info,onSave,saving}){
 
 // ── LoginScreen ──
 function LoginScreen({onLogin}){
+  var [staffOptions,setStaffOptions]=useState([]);
   var [selectedStaff,setSelectedStaff]=useState(null);
   var [pin,setPin]=useState("");
   var [err,setErr]=useState("");
   var [loading,setLoading]=useState(false);
+  var [loadingStaff,setLoadingStaff]=useState(true);
+
+  useEffect(function(){
+    (async function(){
+      try{
+        var r=await sb.from("staff_pins").select("staff_id,name,color,pin,is_admin").order("staff_id",{ascending:true});
+        var list=(r.data||[]).filter(function(x){return x.name;}).map(function(x,i){
+          return{id:x.staff_id,name:x.name,color:x.color||STAFF_COLORS[i%STAFF_COLORS.length],pin:x.pin,isAdmin:!!x.is_admin};
+        });
+        setStaffOptions(list);
+        // 전역 STAFF도 채워두기
+        STAFF.length=0;list.forEach(function(s){STAFF.push(s);});
+      }catch(e){setErr("직원 정보를 불러오지 못했어요.");}
+      setLoadingStaff(false);
+    })();
+  },[]);
 
   async function submit(e){
     e.preventDefault();
@@ -1041,10 +1057,8 @@ function LoginScreen({onLogin}){
     if(!pin.trim()){setErr("PIN을 입력해주세요.");return;}
     setLoading(true);setErr("");
     try{
-      var r=await sb.from("staff_pins").select("pin,is_admin").eq("staff_id",selectedStaff.id).maybeSingle();
-      if(!r||!r.data){setErr("직원 PIN 정보가 없어요. 관리자에게 문의하세요.");setLoading(false);return;}
-      if(String(r.data.pin)!==pin.trim()){setErr("PIN이 틀렸어요.");setLoading(false);setPin("");return;}
-      onLogin({id:selectedStaff.id,name:selectedStaff.name,color:selectedStaff.color,isAdmin:!!r.data.is_admin});
+      if(String(selectedStaff.pin)!==pin.trim()){setErr("PIN이 틀렸어요.");setLoading(false);setPin("");return;}
+      onLogin({id:selectedStaff.id,name:selectedStaff.name,color:selectedStaff.color,isAdmin:!!selectedStaff.isAdmin});
     }catch(ex){setErr("오류: "+(ex&&ex.message?ex.message:String(ex)));setLoading(false);}
   }
 
@@ -1057,14 +1071,18 @@ function LoginScreen({onLogin}){
         <form onSubmit={submit}>
           <div style={{marginBottom:16}}>
             <label style={{display:"block",fontSize:12,fontWeight:600,color:"#94A3B8",marginBottom:8}}>직원 선택</label>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {STAFF.map(function(s){var sel=selectedStaff&&selectedStaff.id===s.id;return(
-                <button key={s.id} type="button" onClick={function(){setSelectedStaff(s);setPin("");setErr("");}}
-                  style={{padding:"10px 8px",borderRadius:10,fontSize:13,fontWeight:700,border:"2px solid "+(sel?s.color:"rgba(255,255,255,.1)"),background:sel?s.color:"rgba(255,255,255,.05)",color:sel?"#fff":"#94A3B8",cursor:"pointer",transition:"all .15s"}}>
-                  {s.name}
-                </button>
-              );})}
-            </div>
+            {loadingStaff?(
+              <div style={{textAlign:"center",padding:12,color:"#64748B",fontSize:12}}>불러오는 중…</div>
+            ):(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {staffOptions.map(function(s){var sel=selectedStaff&&selectedStaff.id===s.id;return(
+                  <button key={s.id} type="button" onClick={function(){setSelectedStaff(s);setPin("");setErr("");}}
+                    style={{padding:"10px 8px",borderRadius:10,fontSize:13,fontWeight:700,border:"2px solid "+(sel?s.color:"rgba(255,255,255,.1)"),background:sel?s.color:"rgba(255,255,255,.05)",color:sel?"#fff":"#94A3B8",cursor:"pointer",transition:"all .15s"}}>
+                    {s.name}
+                  </button>
+                );})}
+              </div>
+            )}
           </div>
 
           {selectedStaff&&(
@@ -1101,13 +1119,25 @@ function App(){
   var [orderItems,setOrderItems]=useState([]);
   var [orderHistory,setOrderHistory]=useState([]);
   var [itemModal,setItemModal]=useState(null);
+  var [staffList,setStaffList]=useState([]); // 동적 직원 목록
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
   var [staffManageModal,setStaffManageModal]=useState(false);
 
   useEffect(function(){
-    if(!currentUser)return; // 로그인 후에만 데이터 로드
+    if(!currentUser)return;
     (async function(){
+      // 1. 직원 목록 먼저 로드 (전역 STAFF 갱신)
+      try{
+        var rs=await sb.from("staff_pins").select("staff_id,name,color,is_admin").order("staff_id",{ascending:true});
+        var loaded=(rs.data||[]).filter(function(x){return x.name;}).map(function(x,i){
+          return{id:x.staff_id,name:x.name,color:x.color||STAFF_COLORS[i%STAFF_COLORS.length],isAdmin:!!x.is_admin};
+        });
+        STAFF.length=0;
+        loaded.forEach(function(s){STAFF.push(s);});
+        setStaffList([...loaded]);
+      }catch(e){console.warn("staff load error",e);}
+      // 2. 나머지 데이터
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
       try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrderHistory((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,changedAt:x.changed_at};}).reverse().reverse());}catch(e){setOrderHistory([]);}
@@ -1246,7 +1276,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orderHistory} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
-      {staffManageModal&&<StaffManageModal onClose={function(){setStaffManageModal(false);}}/>}
+      {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
 }
