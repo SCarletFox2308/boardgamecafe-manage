@@ -1105,7 +1105,8 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
    MAIN APP
 ══════════════════════════════════ */
 function App(){
-  const [tab,setTab]=useState("cal");
+  const [mainTab,setMainTab]=useState("work");
+  const [workSubTab,setWorkSubTab]=useState("cal");
   const [loading,setLoading]=useState(true);
   const [calFilterStaff,setCalFilterStaff]=useState("all");
   const [calFilterStore,setCalFilterStore]=useState("all");
@@ -1216,10 +1217,356 @@ function App(){
     }catch(e){alert("일괄 변경 실패: "+e.message);}
   }
 
-  const TABS=[
-    {id:"cal",   label:"근무 캘린더", icon:React.createElement(CalIcon,{size:13})},
-    {id:"list",  label:"근무 목록",   icon:React.createElement(List,{size:13})},
-    {id:"order", label:"재고 주문",   icon:React.createElement(Package,{size:13})},
+/* ══════════════════════════════════
+   TODO MODAL
+══════════════════════════════════ */
+const TODO_STORES=[
+  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
+  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
+  {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
+];
+function todoBadge(sid){const s=TODO_STORES.find(x=>x.id===sid);return s?s.badge:{bg:"#F1F5F9",color:"#475569"};}
+
+function TodoModal({todo,onClose,onSave,onDelete}){
+  const isEdit=!!(todo?.id);
+  const [form,setForm]=useState({
+    title:todo?.title||"",
+    storeId:todo?.storeId||"미플",
+    staffId:todo?.staffId||"",
+    detail:todo?.detail||"",
+  });
+  const [err,setErr]=useState("");
+  const [saving,setSaving]=useState(false);
+
+  async function submit(e){
+    e.preventDefault();
+    if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
+    setSaving(true);
+    await onSave({id:todo?.id||uid(),...form,title:form.title.trim(),detail:form.detail.trim()});
+    setSaving(false);
+  }
+
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"할 일 수정":"할 일 추가"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 <span style={{color:"#EF4444"}}>*</span></label>
+          <input value={form.title} onChange={e=>{setForm({...form,title:e.target.value});setErr("");}}
+            className="ml-inp" autoFocus
+            style={{width:"100%",padding:"8px 12px",border:`1px solid ${err?"#EF4444":"#CBD5E1"}`,borderRadius:6,fontSize:13,outline:"none"}}
+            placeholder="할 일 내용을 입력하세요"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당 매장</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TODO_STORES.map(s=>{const b=s.badge;return(
+              <button key={s.id} type="button" onClick={()=>setForm({...form,storeId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
+                  border:`2px solid ${form.storeId===s.id?b.color:"#E2E8F0"}`,
+                  background:form.storeId===s.id?b.bg:"#fff",
+                  color:form.storeId===s.id?b.color:"#94A3B8"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당자</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            <button type="button" onClick={()=>setForm({...form,staffId:""})}
+              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                border:`2px solid ${form.staffId===""?"#334155":"#E2E8F0"}`,
+                background:form.staffId===""?"#334155":"#fff",
+                color:form.staffId===""?"#fff":"#94A3B8"}}>
+              미정
+            </button>
+            {STAFF.map(s=>(
+              <button key={s.id} type="button" onClick={()=>setForm({...form,staffId:s.id})}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .12s",
+                  border:`2px solid ${form.staffId===s.id?s.color:"#E2E8F0"}`,
+                  background:form.staffId===s.id?s.color:"#fff",
+                  color:form.staffId===s.id?"#fff":"#94A3B8"}}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>세부 내용</label>
+          <textarea value={form.detail} onChange={e=>setForm({...form,detail:e.target.value})}
+            className="ml-inp"
+            style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:80}}
+            placeholder="상세 설명, 참고사항 등"/>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={()=>onDelete(todo)}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose}
+              style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving}
+              style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":"추가"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   TODO VIEW
+══════════════════════════════════ */
+function TodoView({todos,onAdd,onItemClick}){
+  const [filterStore,setFilterStore]=useState("all");
+  const [filterStaff,setFilterStaff]=useState("all");
+
+  const filtered=useMemo(()=>{
+    let l=[...todos].sort((a,b)=>b.createdAt>a.createdAt?1:-1);
+    if(filterStore!=="all")l=l.filter(t=>t.storeId===filterStore);
+    if(filterStaff!=="all")l=l.filter(t=>t.staffId===filterStaff);
+    return l;
+  },[todos,filterStore,filterStaff]);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      {/* 필터 */}
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
+        <select value={filterStore} onChange={e=>setFilterStore(e.target.value)}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 매장</option>
+          {TODO_STORES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+        </select>
+        <select value={filterStaff} onChange={e=>setFilterStaff(e.target.value)}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 담당자</option>
+          <option value="">미정</option>
+          {STAFF.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}건</span>
+        <button onClick={onAdd}
+          style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
+          <Plus size={12}/> 할 일 추가
+        </button>
+      </div>
+
+      {/* 목록 */}
+      <div className="tbl-wrap">
+        {filtered.length===0?(
+          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>
+            {todos.length===0?"할 일을 추가해주세요.":"조건에 맞는 항목이 없어요."}
+          </div>
+        ):(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>할 일</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당 매장</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당자</th>
+                <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>요청일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((t,i)=>{
+                const b=todoBadge(t.storeId);
+                const sc=t.staffId?staffColor(t.staffId):null;
+                return(
+                  <tr key={t.id} className={`ml-row ${i%2===0?"even":"odd"}`}
+                    onClick={()=>onItemClick(t)} style={{cursor:"pointer"}}>
+                    <td style={{padding:"11px 16px"}}>
+                      <div style={{fontWeight:600,color:"#1E293B",marginBottom:t.detail?3:0}}>{t.title}</div>
+                      {t.detail&&(
+                        <div style={{fontSize:11,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>
+                          {t.detail}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}>
+                      <span className="tag" style={{background:b.bg,color:b.color}}>{t.storeId||"—"}</span>
+                    </td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}>
+                      {t.staffId?(
+                        <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
+                          <span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block"}}/>
+                          <span style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{staffName(t.staffId)}</span>
+                        </span>
+                      ):<span style={{fontSize:12,color:"#94A3B8"}}>미정</span>}
+                    </td>
+                    <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:11,color:"#94A3B8",whiteSpace:"nowrap"}}>
+                      {t.createdAt?t.createdAt.slice(0,10):"—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   MAIN APP
+══════════════════════════════════ */
+function App(){
+  const [mainTab,setMainTab]=useState("work");  // work | order | todo
+  const [workSubTab,setWorkSubTab]=useState("cal"); // cal | list
+  const [loading,setLoading]=useState(true);
+  const [calFilterStaff,setCalFilterStaff]=useState("all");
+  const [calFilterStore,setCalFilterStore]=useState("all");
+
+  const [works,setWorks]=useState([]);
+  const [workModal,setWorkModal]=useState(null);
+
+  const [orderItems,setOrderItems]=useState([]);
+  const [orderHistory,setOrderHistory]=useState([]);
+  const [itemModal,setItemModal]=useState(null);
+
+  const [todos,setTodos]=useState([]);
+  const [todoModal,setTodoModal]=useState(null);
+
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const {data}=await sb.from('work_records').select('*').order('start_at',{ascending:false}).limit(1000);
+        setWorks((data||[]).map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo||""})));
+      }catch(e){setWorks([]);}
+      try{
+        const {data}=await sb.from('order_items').select('*').order('created_at',{ascending:true});
+        setOrderItems((data||[]).map(r=>({id:r.id,name:r.name,category:r.category||"",link:r.link||"",memo:r.memo||""})));
+      }catch(e){setOrderItems([]);}
+      try{
+        const {data}=await sb.from('order_history').select('*').order('changed_at',{ascending:false}).limit(2000);
+        setOrderHistory((data||[]).map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})));
+      }catch(e){setOrderHistory([]);}
+      try{
+        const {data}=await sb.from('todos').select('*').order('created_at',{ascending:false}).limit(500);
+        setTodos((data||[]).map(r=>({id:r.id,title:r.title,storeId:r.store_id||"",staffId:r.staff_id||"",detail:r.detail||"",createdAt:r.created_at})));
+      }catch(e){setTodos([]);}
+      setLoading(false);
+    })();
+  },[]);
+
+  /* work CRUD */
+  async function handleSaveWork(rows){
+    const isEdit=rows.length===1&&!!(workModal?.record);
+    try{
+      if(isEdit){
+        const r=rows[0];
+        const row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};
+        await sb.from('work_records').update(row).eq('id',row.id);
+        setWorks(prev=>prev.map(w=>w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w));
+      }else{
+        const dbRows=rows.map(r=>({id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo}));
+        await sb.from('work_records').insert(dbRows);
+        const newWorks=dbRows.map(r=>({id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo}));
+        setWorks(prev=>[...newWorks,...prev]);
+      }
+      setWorkModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  async function handleDeleteWork(w){
+    if(!window.confirm("이 근무 기록을 삭제할까요?"))return;
+    try{
+      await sb.from('work_records').delete().eq('id',w.id);
+      setWorks(prev=>prev.filter(x=>x.id!==w.id));
+      setWorkModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+  async function handleBulkDeleteWork(ids){
+    try{
+      await sb.from('work_records').delete().in('id',ids);
+      setWorks(prev=>prev.filter(x=>!ids.includes(x.id)));
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+
+  /* order item CRUD */
+  async function handleSaveItem(form){
+    const isNew=!form.id||!orderItems.find(x=>x.id===form.id);
+    try{
+      if(isNew){
+        await sb.from('order_items').insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});
+        setOrderItems(prev=>[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}]);
+      }else{
+        await sb.from('order_items').update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq('id',form.id);
+        setOrderItems(prev=>prev.map(x=>x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x));
+      }
+      setItemModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  async function handleDeleteItem(item){
+    if(!window.confirm(`"${item.name}" 품목을 삭제할까요? 이력도 모두 삭제됩니다.`))return;
+    try{
+      await sb.from('order_items').delete().eq('id',item.id);
+      setOrderItems(prev=>prev.filter(x=>x.id!==item.id));
+      setOrderHistory(prev=>prev.filter(x=>x.itemId!==item.id));
+      setItemModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+  async function handleStatusChange(itemId,storeId,newStatus){
+    const row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};
+    try{
+      await sb.from('order_history').insert(row);
+      setOrderHistory(prev=>[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev]);
+    }catch(e){alert("상태 변경 실패: "+e.message);}
+  }
+  async function handleBulkStatus(itemIds,storeIds,status){
+    const rows=[];
+    itemIds.forEach(itemId=>{storeIds.forEach(storeId=>{rows.push({id:uid(),item_id:itemId,store_id:storeId,status,changed_at:new Date().toISOString()});});});
+    try{
+      await sb.from('order_history').insert(rows);
+      setOrderHistory(prev=>[...rows.map(r=>({id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at})),...prev]);
+    }catch(e){alert("일괄 변경 실패: "+e.message);}
+  }
+
+  /* todo CRUD */
+  async function handleSaveTodo(form){
+    const isEdit=!!(todoModal?.id);
+    try{
+      if(isEdit){
+        await sb.from('todos').update({title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail}).eq('id',form.id);
+        setTodos(prev=>prev.map(t=>t.id===form.id?{...t,title:form.title,storeId:form.storeId,staffId:form.staffId,detail:form.detail}:t));
+      }else{
+        const row={id:form.id,title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail,created_at:new Date().toISOString()};
+        await sb.from('todos').insert(row);
+        setTodos(prev=>[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id||"",detail:row.detail,createdAt:row.created_at},...prev]);
+      }
+      setTodoModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  async function handleDeleteTodo(t){
+    if(!window.confirm(`"${t.title}"을(를) 삭제할까요?`))return;
+    try{
+      await sb.from('todos').delete().eq('id',t.id);
+      setTodos(prev=>prev.filter(x=>x.id!==t.id));
+      setTodoModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+
+  const MAIN_TABS=[
+    {id:"work",  label:"근무 관리",  icon:React.createElement(CalIcon,{size:13})},
+    {id:"order", label:"재고 주문",  icon:React.createElement(Package,{size:13})},
+    {id:"todo",  label:"할 일 목록", icon:React.createElement(List,{size:13})},
+  ];
+  const WORK_SUB_TABS=[
+    {id:"cal",  label:"캘린더", icon:React.createElement(CalIcon,{size:12})},
+    {id:"list", label:"목록",   icon:React.createElement(List,{size:12})},
   ];
 
   return(
@@ -1227,34 +1574,53 @@ function App(){
       <style>{CSS}</style>
 
       {/* ── 헤더 ── */}
-      <div style={{background:"#1E293B",padding:"16px 24px 0"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-          <div>
-            <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
-            <h1 style={{fontSize:20,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
-          </div>
+      <div style={{background:"#1E293B",padding:"14px 20px 0"}}>
+        <div style={{marginBottom:10}}>
+          <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
+          <h1 style={{fontSize:19,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
         </div>
+        {/* 메인 탭 */}
         <div style={{display:"flex",gap:2}}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 16px",borderRadius:"20px 20px 0 0",fontSize:13,fontWeight:500,border:"none",cursor:"pointer",whiteSpace:"nowrap",
-                background:tab===t.id?"rgba(255,255,255,.1)":"transparent",
-                color:tab===t.id?"#F8FAFC":"#94A3B8",
-                borderBottom:tab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
+          {MAIN_TABS.map(t=>(
+            <button key={t.id} onClick={()=>setMainTab(t.id)}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 16px",borderRadius:"16px 16px 0 0",fontSize:13,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+                background:mainTab===t.id?"rgba(255,255,255,.12)":"transparent",
+                color:mainTab===t.id?"#F8FAFC":"#64748B",
+                borderBottom:mainTab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
               {t.icon}{t.label}
             </button>
           ))}
         </div>
       </div>
 
+      {/* ── 서브탭 (근무 관리만) ── */}
+      {mainTab==="work"&&(
+        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center"}}>
+          {WORK_SUB_TABS.map(t=>(
+            <button key={t.id} onClick={()=>setWorkSubTab(t.id)}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",
+                background:workSubTab===t.id?"#1E293B":"transparent",
+                color:workSubTab===t.id?"#F8FAFC":"#64748B"}}>
+              {t.icon}{t.label}
+            </button>
+          ))}
+          {workSubTab==="cal"&&(
+            <button onClick={()=>setWorkModal({date:null})}
+              style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}>
+              <Plus size={12}/> 근무 등록
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── 콘텐츠 ── */}
       {loading?(
         <div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>
       ):(
         <>
-          {tab==="cal"&&(
+          {/* 근무 관리 */}
+          {mainTab==="work"&&workSubTab==="cal"&&(
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              {/* 캘린더 필터 고정 바 */}
               <CalendarFilterBar
                 filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff}
                 filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
@@ -1267,7 +1633,7 @@ function App(){
               </div>
             </div>
           )}
-          {tab==="list"&&(
+          {mainTab==="work"&&workSubTab==="list"&&(
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
               <WorkListView works={works}
                 onEdit={w=>setWorkModal({record:w})}
@@ -1275,37 +1641,39 @@ function App(){
                 onBulkDelete={handleBulkDeleteWork}/>
             </div>
           )}
-          {tab==="order"&&(
+
+          {/* 재고 주문 */}
+          {mainTab==="order"&&(
             <OrderView
-              items={orderItems}
-              history={orderHistory}
+              items={orderItems} history={orderHistory}
               onItemClick={item=>setItemModal(item)}
               onAddItem={()=>setItemModal({})}
               onStatusChange={handleStatusChange}
-              onBulkStatus={handleBulkStatus}
-            />
+              onBulkStatus={handleBulkStatus}/>
+          )}
+
+          {/* 할 일 목록 */}
+          {mainTab==="todo"&&(
+            <TodoView
+              todos={todos}
+              onAdd={()=>setTodoModal({})}
+              onItemClick={t=>setTodoModal(t)}/>
           )}
         </>
       )}
 
       {/* ── 모달 ── */}
       {workModal!==null&&(
-        <WorkModal
-          record={workModal.record||null}
-          defaultDate={workModal.date||null}
-          onClose={()=>setWorkModal(null)}
-          onSave={handleSaveWork}
-          onDelete={handleDeleteWork}
-        />
+        <WorkModal record={workModal.record||null} defaultDate={workModal.date||null}
+          onClose={()=>setWorkModal(null)} onSave={handleSaveWork} onDelete={handleDeleteWork}/>
       )}
       {itemModal!==null&&(
-        <ItemDetailModal
-          item={itemModal}
-          history={orderHistory}
-          onClose={()=>setItemModal(null)}
-          onSave={handleSaveItem}
-          onDelete={handleDeleteItem}
-        />
+        <ItemDetailModal item={itemModal} history={orderHistory}
+          onClose={()=>setItemModal(null)} onSave={handleSaveItem} onDelete={handleDeleteItem}/>
+      )}
+      {todoModal!==null&&(
+        <TodoModal todo={todoModal} onClose={()=>setTodoModal(null)}
+          onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>
       )}
     </div>
   );
