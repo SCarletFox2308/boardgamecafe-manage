@@ -122,16 +122,17 @@ th{position:sticky;top:0;z-index:2;background:#334155;}
 `;
 
 // ── WorkModal ──
-function WorkModal({record,defaultDate,forceStaffId,onClose,onSave,onDelete}){
+function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSave,onDelete}){
   var isEdit=!!record;
   var now=new Date();
   var initDate=defaultDate||dateStr(now);
+  var initStaffId=isEdit?record.staffId:(forceStaffId||defaultStaffId||STAFF[0]&&STAFF[0].id||"");
   var [form,setForm]=useState(isEdit?{
     staffId:record.staffId,storeId:record.storeId,
     startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
     endAt:record.endAt?toLocalISO(new Date(record.endAt)):"",
     memo:record.memo||"",
-  }:{staffId:forceStaffId||STAFF[0].id,storeId:STORES[0].id,startAt:initDate+"T14:00",endAt:initDate+"T23:00",memo:""});
+  }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T14:00",endAt:initDate+"T23:00",memo:""});
   var [repeat,setRepeat]=useState(false);
   var initDow=getDow(initDate);
   var [repeatDows,setRepeatDows]=useState([initDow]);
@@ -1108,8 +1109,14 @@ function LoginScreen({onLogin}){
 }
 
 // ── App ──
+var STORAGE_KEY="miple_user_v1";
+
 function App(){
-  var [currentUser,setCurrentUser]=useState(null); // {id,name,color,isAdmin}
+  // localStorage에서 저장된 사용자 복원 시도
+  var saved=null;
+  try{var s=localStorage.getItem(STORAGE_KEY);if(s)saved=JSON.parse(s);}catch(e){}
+
+  var [currentUser,setCurrentUser]=useState(saved); // {id,name,color,isAdmin}
   var [mainTab,setMainTab]=useState("work");
   var [workSubTab,setWorkSubTab]=useState("cal");
   var [loading,setLoading]=useState(true);
@@ -1120,10 +1127,23 @@ function App(){
   var [orderItems,setOrderItems]=useState([]);
   var [orderHistory,setOrderHistory]=useState([]);
   var [itemModal,setItemModal]=useState(null);
-  var [staffList,setStaffList]=useState([]); // 동적 직원 목록
+  var [staffList,setStaffList]=useState([]);
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
   var [staffManageModal,setStaffManageModal]=useState(false);
+
+  function handleLogin(user){
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
+    setCurrentUser(user);
+    setLoading(true); // 데이터 재로드
+  }
+
+  function handleLogout(){
+    try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
+    setCurrentUser(null);
+    setLoading(true);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);
+  }
 
   useEffect(function(){
     if(!currentUser)return;
@@ -1151,7 +1171,7 @@ function App(){
     return(
       <div className="ml-root">
         <style>{CSS}</style>
-        <LoginScreen onLogin={function(user){setCurrentUser(user);}}/>
+        <LoginScreen onLogin={handleLogin}/>
       </div>
     );
   }
@@ -1221,7 +1241,7 @@ function App(){
               <button onClick={function(){setStaffManageModal(true);}}
                 style={{fontSize:11,color:"#94A3B8",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:6,cursor:"pointer",padding:"4px 10px"}}>직원 관리</button>
             )}
-            <button onClick={function(){setCurrentUser(null);setLoading(true);}} style={{fontSize:11,color:"#64748B",background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>로그아웃</button>
+            <button onClick={handleLogout} style={{fontSize:11,color:"#64748B",background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>로그아웃</button>
           </div>
         </div>
         <div style={{display:"flex",gap:2}}>
