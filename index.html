@@ -188,7 +188,7 @@ function WorkModal({record,defaultDate,forceStaffId,onClose,onSave,onDelete}){
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 *</label>
           <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
             {STAFF.map(function(s){
-              var locked=!!forceStaffId&&!isEdit;
+              var locked=!!forceStaffId; // 비관리자는 신규/수정 모두 잠금
               return(
                 <button key={s.id} type="button"
                   onClick={function(){if(!locked)setForm({...form,staffId:s.id});}}
@@ -203,6 +203,7 @@ function WorkModal({record,defaultDate,forceStaffId,onClose,onSave,onDelete}){
               );
             })}
           </div>
+          {!!forceStaffId&&<p style={{fontSize:11,color:"#94A3B8",marginTop:4}}>본인 명의로만 등록/수정할 수 있어요.</p>}
           {err.staffId&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.staffId}</p>}
         </div>
         <div style={{marginBottom:14}}>
@@ -879,6 +880,154 @@ function TodoView({todos,onAdd,onItemClick}){
   );
 }
 
+// ── StaffManageModal ──
+function StaffManageModal({onClose}){
+  var [staffList,setStaffList]=useState([]);
+  var [pins,setPins]=useState({}); // staffId -> {pin, isAdmin}
+  var [loading,setLoading]=useState(true);
+  var [saving,setSaving]=useState(false);
+  // 신규 직원 폼
+  var [newName,setNewName]=useState("");
+  var [newPin,setNewPin]=useState("");
+  var [newIsAdmin,setNewIsAdmin]=useState(false);
+  var [err,setErr]=useState("");
+
+  useEffect(function(){
+    (async function(){
+      try{
+        var r=await sb.from("staff_pins").select("staff_id,pin,is_admin");
+        var map={};
+        (r.data||[]).forEach(function(x){map[x.staff_id]={pin:x.pin,isAdmin:!!x.is_admin};});
+        setPins(map);
+      }catch(e){}
+      setLoading(false);
+    })();
+  },[]);
+
+  async function savePin(staffId,newPin,isAdmin){
+    setSaving(true);
+    try{
+      await sb.from("staff_pins").upsert({staff_id:staffId,pin:newPin,is_admin:isAdmin});
+      setPins(function(prev){return{...prev,[staffId]:{pin:newPin,isAdmin:isAdmin}};});
+    }catch(e){alert("저장 실패: "+e.message);}
+    setSaving(false);
+  }
+
+  async function addStaff(e){
+    e.preventDefault();
+    if(!newName.trim()){setErr("이름을 입력해주세요.");return;}
+    if(!newPin.trim()){setErr("PIN을 입력해주세요.");return;}
+    // staff_pins에 새 id 생성
+    var newId="staff_"+Date.now();
+    setSaving(true);
+    try{
+      await sb.from("staff_pins").insert({staff_id:newId,pin:newPin.trim(),is_admin:newIsAdmin});
+      setPins(function(prev){return{...prev,[newId]:{pin:newPin.trim(),isAdmin:newIsAdmin}};});
+      setNewName("");setNewPin("");setNewIsAdmin(false);setErr("");
+      alert("직원이 추가됐어요. 적용하려면 STAFF 배열에도 추가해주세요.\n\nid: "+newId+"\nname: "+newName.trim());
+    }catch(e){alert("추가 실패: "+e.message);}
+    setSaving(false);
+  }
+
+  var COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#7C3AED","#BE185D"];
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:520}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>직원 관리</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+
+        {loading?<div style={{textAlign:"center",padding:20,color:"#94A3B8"}}>불러오는 중…</div>:(
+          <>
+            {/* 기존 직원 목록 */}
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>등록된 직원</div>
+              {STAFF.map(function(s){
+                var info=pins[s.id]||{pin:"",isAdmin:false};
+                return(
+                  <StaffRow key={s.id} staff={s} info={info} onSave={savePin} saving={saving}/>
+                );
+              })}
+            </div>
+
+            {/* 신규 직원 추가 */}
+            <div style={{background:"#F8FAFC",borderRadius:10,padding:"16px",border:"1px solid #E2E8F0"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:12}}>신규 직원 추가</div>
+              <form onSubmit={addStaff}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div>
+                    <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>이름</label>
+                    <input value={newName} onChange={function(e){setNewName(e.target.value);setErr("");}}
+                      className="ml-inp" style={{width:"100%",padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="홍길동"/>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>PIN</label>
+                    <input value={newPin} onChange={function(e){setNewPin(e.target.value);setErr("");}}
+                      className="ml-inp" style={{width:"100%",padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="1234"/>
+                  </div>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",marginBottom:10}}>
+                  <input type="checkbox" checked={newIsAdmin} onChange={function(e){setNewIsAdmin(e.target.checked);}} style={{accentColor:"#2563EB"}}/>
+                  관리자 권한 부여
+                </label>
+                {err&&<p style={{fontSize:12,color:"#EF4444",marginBottom:8}}>{err}</p>}
+                <div style={{background:"#FEF9C3",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#713F12",marginBottom:10}}>
+                  ⚠️ 직원 추가 후 개발자에게 STAFF 배열 업데이트를 요청하세요.
+                </div>
+                <button type="submit" disabled={saving}
+                  style={{width:"100%",padding:"8px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer",opacity:saving?0.6:1}}>
+                  {saving?"추가 중…":"직원 추가"}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StaffRow({staff,info,onSave,saving}){
+  var [pin,setPin]=useState(info.pin||"");
+  var [isAdmin,setIsAdmin]=useState(!!info.isAdmin);
+  var [editing,setEditing]=useState(false);
+
+  function save(){
+    if(!pin.trim()){alert("PIN을 입력해주세요.");return;}
+    onSave(staff.id,pin.trim(),isAdmin).then(function(){setEditing(false);}).catch(function(){});
+  }
+
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #F1F5F9"}}>
+      <span style={{width:10,height:10,borderRadius:"50%",background:staff.color,display:"inline-block",flexShrink:0}}/>
+      <span style={{fontWeight:600,fontSize:13,flex:1}}>{staff.name}</span>
+      {editing?(
+        <>
+          <input value={pin} onChange={function(e){setPin(e.target.value);}}
+            style={{width:80,padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:5,fontSize:12,outline:"none"}} placeholder="PIN"/>
+          <label style={{display:"flex",alignItems:"center",gap:4,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+            <input type="checkbox" checked={isAdmin} onChange={function(e){setIsAdmin(e.target.checked);}} style={{accentColor:"#2563EB"}}/>
+            관리자
+          </label>
+          <button onClick={save} disabled={saving}
+            style={{padding:"4px 10px",background:"#2563EB",color:"#fff",border:"none",borderRadius:5,fontSize:11,fontWeight:600,cursor:"pointer"}}>저장</button>
+          <button onClick={function(){setPin(info.pin||"");setIsAdmin(!!info.isAdmin);setEditing(false);}}
+            style={{padding:"4px 10px",background:"#F1F5F9",color:"#64748B",border:"none",borderRadius:5,fontSize:11,cursor:"pointer"}}>취소</button>
+        </>
+      ):(
+        <>
+          <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>PIN: {"•".repeat(Math.min(pin.length,6)||4)}</span>
+          {isAdmin&&<span style={{fontSize:10,fontWeight:700,color:"#2563EB",background:"#DBEAFE",padding:"1px 6px",borderRadius:4}}>관리자</span>}
+          <button onClick={function(){setEditing(true);}}
+            style={{padding:"4px 10px",background:"#F8FAFC",color:"#374151",border:"1px solid #E2E8F0",borderRadius:5,fontSize:11,cursor:"pointer"}}>수정</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── LoginScreen ──
 function LoginScreen({onLogin}){
   var [selectedStaff,setSelectedStaff]=useState(null);
@@ -954,6 +1103,7 @@ function App(){
   var [itemModal,setItemModal]=useState(null);
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
+  var [staffManageModal,setStaffManageModal]=useState(false);
 
   useEffect(function(){
     if(!currentUser)return; // 로그인 후에만 데이터 로드
@@ -1034,9 +1184,13 @@ function App(){
             <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.08)",borderRadius:8,padding:"6px 12px"}}>
               <span style={{width:8,height:8,borderRadius:"50%",background:currentUser.color,display:"inline-block"}}/>
               <span style={{fontSize:12,fontWeight:600,color:"#F1F5F9"}}>{currentUser.name}</span>
-              {currentUser.isAdmin&&<span style={{fontSize:10,fontWeight:700,color:"#93C5FD",background:"rgba(59,130,246,.2)",padding:"1px 6px",borderRadius:4}}>관리자</span>}
+              {isAdmin&&<span style={{fontSize:10,fontWeight:700,color:"#93C5FD",background:"rgba(59,130,246,.2)",padding:"1px 6px",borderRadius:4}}>관리자</span>}
             </div>
-            <button onClick={function(){setCurrentUser(null);}} style={{fontSize:11,color:"#64748B",background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>로그아웃</button>
+            {isAdmin&&(
+              <button onClick={function(){setStaffManageModal(true);}}
+                style={{fontSize:11,color:"#94A3B8",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:6,cursor:"pointer",padding:"4px 10px"}}>직원 관리</button>
+            )}
+            <button onClick={function(){setCurrentUser(null);setLoading(true);}} style={{fontSize:11,color:"#64748B",background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>로그아웃</button>
           </div>
         </div>
         <div style={{display:"flex",gap:2}}>
@@ -1092,6 +1246,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orderHistory} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {staffManageModal&&<StaffManageModal onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
 }
