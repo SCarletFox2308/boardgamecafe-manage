@@ -710,20 +710,16 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
 }
 
 // ── OrderView ──
-function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkStatus}){
-  var [orderTab,setOrderTab]=useState("list"); // list | 구매요청 | 주문완료 | 배송완료
+function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onBulkUpdateStatus}){
+  var [orderTab,setOrderTab]=useState("list");
   var [search,setSearch]=useState("");
   var [filterCat,setFilterCat]=useState("all");
-  var [checked,setChecked]=useState(new Set());
-  var [bulkStore,setBulkStore]=useState("all");
+  // 배송완료 탭 필터
+  var [filterItem,setFilterItem]=useState("all");
+  var [filterFrom,setFilterFrom]=useState(function(){var d=new Date();d.setMonth(d.getMonth()-6);return d.toISOString().slice(0,10);});
+  var [filterTo,setFilterTo]=useState(new Date().toISOString().slice(0,10));
 
-  function latestEntry(itemId,storeId){
-    var h=(history||[]).filter(function(x){return x.itemId===itemId&&x.storeId===storeId;}).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
-    return h[0]||{status:"주문완료",changedAt:null};
-  }
-  function latestStatus(itemId,storeId){return latestEntry(itemId,storeId).status;}
-
-  // 물품목록 탭용 필터
+  // 검색/카테고리 필터된 품목
   var filteredItems=useMemo(function(){
     var l=items;
     if(search.trim())l=l.filter(function(it){return it.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
@@ -731,28 +727,22 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
     return l;
   },[items,search,filterCat]);
 
-  // 상태탭용: 각 매장별 해당 상태 품목
-  function itemsForStoreStatus(storeId,status){
-    return items.filter(function(it){return latestStatus(it.id,storeId)===status;})
-      .filter(function(it){
-        if(search.trim()&&it.name.toLowerCase().indexOf(search.trim().toLowerCase())<0)return false;
-        if(filterCat!=="all"&&it.category!==filterCat)return false;
-        return true;
-      });
+  // 상태별 주문 인스턴스 (매장별)
+  function ordersForStoreStatus(storeId,status){
+    return orders.filter(function(o){return o.storeId===storeId&&o.status===status;})
+      .sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
   }
 
-  function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
-  function toggleAll(){
-    var allIds=filteredItems.map(function(i){return i.id;});
-    checked.size===allIds.length?setChecked(new Set()):setChecked(new Set(allIds));
-  }
-  function bulkChange(status){
-    if(checked.size===0){alert("품목을 선택해주세요.");return;}
-    var storeLabel=bulkStore==="all"?"양쪽 매장":bulkStore;
-    if(!window.confirm("선택한 "+checked.size+"개 품목을 ["+storeLabel+"] 기준으로 \""+status+"\"(으)로 변경할까요?"))return;
-    var stores=bulkStore==="all"?STORES.map(function(s){return s.id;}):[bulkStore];
-    onBulkStatus([...checked],stores,status);setChecked(new Set());
-  }
+  // 배송완료 이력 필터
+  var deliveredOrders=useMemo(function(){
+    return orders.filter(function(o){
+      if(o.status!=="배송완료")return false;
+      if(filterItem!=="all"&&o.itemId!==filterItem)return false;
+      if(filterFrom&&o.changedAt&&o.changedAt.slice(0,10)<filterFrom)return false;
+      if(filterTo&&o.changedAt&&o.changedAt.slice(0,10)>filterTo)return false;
+      return true;
+    }).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,1000);
+  },[orders,filterItem,filterFrom,filterTo]);
 
   var ORDER_TABS=[
     {id:"list",label:"물품 목록"},
@@ -761,43 +751,86 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
     {id:"배송완료",label:"배송완료"},
   ];
 
+  function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
+
   // 상태탭 카드 컴포넌트
   function StoreColumn({storeId,status}){
     var b=STORES.find(function(s){return s.id===storeId;});
     var badge=b?b.badge:{bg:"#F1F5F9",color:"#475569"};
-    var colItems=itemsForStoreStatus(storeId,status);
+    var colOrders=ordersForStoreStatus(storeId,status);
     var cfg=statusCfg(status);
     var nextCfg=statusCfg(cfg.next);
+    var prevCfg=statusCfg(STATUSES[(STATUSES.findIndex(function(x){return x.id===status;})-1+STATUSES.length)%STATUSES.length].id);
+    var [colChecked,setColChecked]=useState(new Set());
+
+    function toggleOne(id){setColChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+    function toggleAll(){colChecked.size===colOrders.length&&colOrders.length>0?setColChecked(new Set()):setColChecked(new Set(colOrders.map(function(o){return o.id;})));}
+
+    async function bulkUpdate(newStatus){
+      if(colChecked.size===0)return;
+      if(!window.confirm(storeId+" "+colChecked.size+"건을 \""+newStatus+"\"(으)로 변경할까요?"))return;
+      var ids=[...colChecked];
+      await Promise.all(ids.map(function(id){return onUpdateOrderStatus(id,newStatus);}));
+      setColChecked(new Set());
+    }
+
     return(
       <div style={{flex:1,minWidth:0,background:"#fff",borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden"}}>
-        <div style={{padding:"10px 14px",background:badge.bg,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontWeight:700,fontSize:13,color:badge.color}}>{storeId}</span>
-          <span className="ml-mono" style={{fontSize:11,color:badge.color,opacity:0.7}}>{colItems.length}개</span>
+        {/* 헤더 */}
+        <div style={{padding:"10px 14px",background:badge.bg,display:"flex",alignItems:"center",gap:8}}>
+          <input type="checkbox" checked={colOrders.length>0&&colChecked.size===colOrders.length} onChange={toggleAll}
+            style={{accentColor:badge.color,cursor:"pointer",width:14,height:14}}/>
+          <span style={{fontWeight:700,fontSize:13,color:badge.color,flex:1}}>{storeId}</span>
+          <span className="ml-mono" style={{fontSize:11,color:badge.color,opacity:0.7}}>{colOrders.length}건</span>
         </div>
-        {colItems.length===0?(
-          <div style={{padding:"24px 14px",textAlign:"center",fontSize:12,color:"#CBD5E1"}}>{status} 품목 없음</div>
+        {/* 일괄 액션 바 */}
+        {colChecked.size>0&&(
+          <div style={{padding:"7px 14px",background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:11,color:"#64748B",fontWeight:600}}>{colChecked.size}개 선택</span>
+            <button onClick={function(){bulkChange(cfg.prev||prevCfg.id,colChecked,setColChecked);}}
+              style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid #E2E8F0",background:"#fff",color:"#64748B",cursor:"pointer"}}>
+              ← 취소
+            </button>
+            <button onClick={function(){bulkUpdate(cfg.next);}}
+              style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid "+nextCfg.dot,background:nextCfg.bg||"#fff",color:nextCfg.color,cursor:"pointer"}}>
+              → {cfg.next}
+            </button>
+          </div>
+        )}
+        {colOrders.length===0?(
+          <div style={{padding:"24px 14px",textAlign:"center",fontSize:12,color:"#CBD5E1"}}>{status} 주문 없음</div>
         ):(
           <div style={{padding:"8px 0"}}>
-            {colItems.map(function(item){
-              var entry=latestEntry(item.id,storeId);
-              var c=item.category?catCfg(item.category):null;
+            {colOrders.map(function(o){
+              var it=items.find(function(x){return x.id===o.itemId;});
+              var c=it&&it.category?catCfg(it.category):null;
+              var isCk=colChecked.has(o.id);
               return(
-                <div key={item.id} style={{padding:"10px 14px",borderBottom:"1px solid #F8FAFC",display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
+                <div key={o.id} onClick={function(){toggleOne(o.id);}}
+                  style={{padding:"10px 14px",borderBottom:"1px solid #F8FAFC",display:"flex",alignItems:"flex-start",gap:8,cursor:"pointer",background:isCk?"#EFF6FF":"transparent",transition:"background .1s"}}>
+                  <input type="checkbox" checked={isCk} onChange={function(){toggleOne(o.id);}} onClick={function(e){e.stopPropagation();}}
+                    style={{accentColor:"#3B82F6",cursor:"pointer",marginTop:3,flexShrink:0}}/>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <button onClick={function(){onItemClick(item);}}
-                        style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
-                        {item.name}
-                      </button>
-                      {c&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{item.category}</span>}
+                    <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                      <span style={{fontSize:13,fontWeight:700,color:"#1E293B"}}>{itemName(o.itemId)}</span>
+                      {c&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{it.category}</span>}
                     </div>
-                    {entry.changedAt&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(entry.changedAt)}</div>}
-                    {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#3B82F6"}}>🔗 링크</a>}
+                    {o.memo&&<div style={{fontSize:11,color:"#64748B",marginBottom:2}}>{o.memo}</div>}
+                    <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.changedAt?fmtDateTime(o.changedAt):""}</div>
                   </div>
-                  <button onClick={function(){if(window.confirm("\""+item.name+"\"을(를)\n["+storeId+"] 기준으로 \""+cfg.next+"\"(으)로 변경할까요?"))onStatusChange(item.id,storeId,cfg.next);}}
-                    style={{flexShrink:0,padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
-                    → {cfg.next}
-                  </button>
+                  <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}} onClick={function(e){e.stopPropagation();}}>
+                    <button onClick={function(){if(window.confirm("\""+itemName(o.itemId)+"\" 주문을\n\""+cfg.next+"\"(으)로 변경할까요?"))onUpdateOrderStatus(o.id,cfg.next);}}
+                      style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
+                      → {cfg.next}
+                    </button>
+                    <button onClick={function(){
+                      var prev=STATUSES[(STATUSES.findIndex(function(x){return x.id===status;})-1+STATUSES.length)%STATUSES.length];
+                      if(window.confirm("\""+itemName(o.itemId)+"\" 주문을\n\""+prev.id+"\"(으)로 되돌릴까요?"))onUpdateOrderStatus(o.id,prev.id);
+                    }}
+                      style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid #E2E8F0",background:"#F8FAFC",color:"#64748B",cursor:"pointer",whiteSpace:"nowrap"}}>
+                      ← 취소
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -805,6 +838,14 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
         )}
       </div>
     );
+
+    async function bulkChange(newStatus,checked,setChecked){
+      if(checked.size===0)return;
+      if(!window.confirm(storeId+" "+checked.size+"건을 \""+newStatus+"\"(으)로 변경할까요?"))return;
+      var ids=[...checked];
+      await Promise.all(ids.map(function(id){return onUpdateOrderStatus(id,newStatus);}));
+      setChecked(new Set());
+    }
   }
 
   return(
@@ -813,15 +854,15 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
       {/* 서브탭 */}
       <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"0 16px",display:"flex",gap:2,alignItems:"flex-end",flexShrink:0}}>
         {ORDER_TABS.map(function(t){
-          var cfg=t.id!=="list"?statusCfg(t.id):null;
-          // 각 상태탭에 미완료 카운트 표시
-          var cnt=t.id!=="list"?STORES.reduce(function(sum,s){return sum+items.filter(function(it){return latestStatus(it.id,s.id)===t.id;}).length;},0):null;
+          var cfg=t.id!=="list"&&t.id!=="배송완료"?statusCfg(t.id):null;
+          var cnt=null;
+          if(t.id==="구매요청"||t.id==="주문완료")cnt=orders.filter(function(o){return o.status===t.id;}).length;
           return(
-            <button key={t.id} onClick={function(){setOrderTab(t.id);setChecked(new Set());}}
+            <button key={t.id} onClick={function(){setOrderTab(t.id);}}
               style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 14px",fontSize:12,fontWeight:600,border:"none",cursor:"pointer",borderRadius:"8px 8px 0 0",
                 background:orderTab===t.id?"#fff":"transparent",
                 color:orderTab===t.id?(cfg?cfg.color:"#1E293B"):"#64748B",
-                borderBottom:orderTab===t.id?"2px solid "+(cfg?cfg.dot:"#1E293B"):"2px solid transparent"}}>
+                borderBottom:orderTab===t.id?"2px solid "+(cfg?cfg.dot:"#334155"):"2px solid transparent"}}>
               {t.label}
               {cnt!==null&&cnt>0&&<span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:999,background:cfg?cfg.bg:"#F1F5F9",color:cfg?cfg.color:"#475569"}}>{cnt}</span>}
             </button>
@@ -832,97 +873,140 @@ function OrderView({items,history,onItemClick,onAddItem,onStatusChange,onBulkSta
         )}
       </div>
 
-      {/* 검색/카테고리 필터 (공통) */}
-      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
-        <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…"
-          style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:140}}/>
-        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-          <button onClick={function(){setFilterCat("all");}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat==="all"?"#334155":"#E2E8F0",background:filterCat==="all"?"#334155":"#fff",color:filterCat==="all"?"#fff":"#94A3B8"}}>전체</button>
-          {CATEGORIES.map(function(c){return(
-            <button key={c.id} onClick={function(){setFilterCat(filterCat===c.id?"all":c.id);}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat===c.id?c.color:"#E2E8F0",background:filterCat===c.id?c.bg:"#fff",color:filterCat===c.id?c.color:"#94A3B8"}}>{c.id}</button>
-          );})}
-        </div>
-        {/* 물품목록 탭에서만 일괄변경 */}
-        {orderTab==="list"&&(
-          <div style={{display:"flex",alignItems:"center",gap:6,marginLeft:"auto",flexWrap:"wrap"}}>
-            <span style={{fontSize:11,color:"#94A3B8"}}>{checked.size>0?checked.size+"개 선택":""}</span>
-            <select value={bulkStore} onChange={function(e){setBulkStore(e.target.value);}}
-              style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",cursor:"pointer"}}>
-              <option value="all">양쪽 매장</option>
-              {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.id}만</option>;})}
-            </select>
-            {["구매요청","주문완료","배송완료"].map(function(st){var cfg=statusCfg(st);return(
-              <button key={st} onClick={function(){bulkChange(st);}} style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid "+cfg.dot,background:checked.size>0?cfg.bg:"#F8FAFC",color:checked.size>0?cfg.color:"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
-                일괄 {st}
-              </button>
+      {/* 검색/카테고리 필터 */}
+      {(orderTab==="list"||orderTab==="구매요청"||orderTab==="주문완료")&&(
+        <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
+          <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…"
+            style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:140}}/>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <button onClick={function(){setFilterCat("all");}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat==="all"?"#334155":"#E2E8F0",background:filterCat==="all"?"#334155":"#fff",color:filterCat==="all"?"#fff":"#94A3B8"}}>전체</button>
+            {CATEGORIES.map(function(c){return(
+              <button key={c.id} onClick={function(){setFilterCat(filterCat===c.id?"all":c.id);}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat===c.id?c.color:"#E2E8F0",background:filterCat===c.id?c.bg:"#fff",color:filterCat===c.id?c.color:"#94A3B8"}}>{c.id}</button>
             );})}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* 배송완료 필터 */}
+      {orderTab==="배송완료"&&(
+        <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
+          <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
+            style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 품목</option>
+            {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+          </select>
+          <span style={{fontSize:11,color:"#94A3B8"}}>기간</span>
+          <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
+            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}}/>
+          <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
+          <input type="date" value={filterTo} onChange={function(e){setFilterTo(e.target.value);}}
+            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}}/>
+          <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{deliveredOrders.length}건</span>
+        </div>
+      )}
 
       {/* 콘텐츠 */}
       <div className="tbl-wrap">
 
-        {/* ── 물품 목록 탭 ── */}
+        {/* 물품 목록 탭 */}
         {orderTab==="list"&&(
           filteredItems.length===0?(
             <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}</div>
           ):(
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
-              <colgroup><col style={{width:36}}/><col style={{width:"22%"}}/><col/><col/><col style={{width:"18%"}}/><col style={{width:36}}/></colgroup>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
               <thead>
                 <tr style={{background:"#334155",color:"#E2E8F0"}}>
-                  <th style={{padding:"10px 10px",textAlign:"center"}}><input type="checkbox" checked={checked.size===filteredItems.length&&filteredItems.length>0} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></th>
-                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
-                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>미플</th>
-                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600}}>아카이브</th>
-                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>특이사항</th>
-                  <th style={{padding:"10px 10px"}}/>
+                  <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>품목명</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>미플 주문</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>아카이브 주문</th>
+                  <th style={{padding:"10px 10px",textAlign:"center",fontWeight:600,width:40}}/>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map(function(item,i){var isCk=checked.has(item.id);return(
-                  <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
-                    <td style={{padding:"10px 10px",textAlign:"center"}}><input type="checkbox" checked={isCk} onChange={function(){toggleCheck(item.id);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></td>
-                    <td style={{padding:"10px 14px"}}>
-                      <button onClick={function(){onItemClick(item);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1",padding:0}}>{item.name}</button>
-                      {item.category&&(function(){var c=catCfg(item.category);return <span style={{display:"inline-block",marginLeft:6,padding:"1px 7px",borderRadius:999,fontSize:10,fontWeight:700,background:c.bg,color:c.color}}>{item.category}</span>;}())}
-                      {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:10,color:"#3B82F6",marginTop:2}}>🔗 링크</a>}
-                    </td>
-                    {STORES.map(function(s){
-                      var entry=latestEntry(item.id,s.id);var st=entry.status;var cfg=statusCfg(st);var nextCfg=statusCfg(cfg.next);
-                      return(
-                        <td key={s.id} style={{padding:"8px 14px",textAlign:"center"}}>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                            <span style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,background:cfg.bg,color:cfg.color,whiteSpace:"nowrap"}}>{st}</span>
-                            {entry.changedAt&&<span className="ml-mono" style={{fontSize:9,color:"#94A3B8",whiteSpace:"nowrap"}}>{fmtDateTime(entry.changedAt)}</span>}
-                            <button onClick={function(){if(window.confirm("\""+item.name+"\"을(를)\n["+s.id+"] 기준으로 \""+cfg.next+"\"(으)로 변경할까요?"))onStatusChange(item.id,s.id,cfg.next);}}
-                              style={{marginTop:2,padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
-                              → {cfg.next}
-                            </button>
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td style={{padding:"10px 14px",fontSize:11,color:"#64748B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.memo||""}</td>
-                    <td style={{padding:"10px 10px",textAlign:"center"}}>
-                      <button onClick={function(){onItemClick(item);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}><Pencil size={12}/></button>
-                    </td>
-                  </tr>
-                );})}
+                {filteredItems.map(function(item,i){
+                  var c=item.category?catCfg(item.category):null;
+                  return(
+                    <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                      <td style={{padding:"11px 16px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7}}>
+                          <button onClick={function(){onItemClick(item);}}
+                            style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
+                            {item.name}
+                          </button>
+                          {c&&<span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{item.category}</span>}
+                        </div>
+                        {item.memo&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{item.memo}</div>}
+                      </td>
+                      <td style={{padding:"11px 14px",textAlign:"center"}}>
+                        <button onClick={function(){onAddOrder(item,"미플");}}
+                          style={{padding:"5px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"1.5px solid #F59E0B",background:"#FEF3C7",color:"#92400E",cursor:"pointer",whiteSpace:"nowrap"}}>
+                          + 구매요청
+                        </button>
+                      </td>
+                      <td style={{padding:"11px 14px",textAlign:"center"}}>
+                        <button onClick={function(){onAddOrder(item,"아카이브");}}
+                          style={{padding:"5px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"1.5px solid #3B82F6",background:"#DBEAFE",color:"#1E40AF",cursor:"pointer",whiteSpace:"nowrap"}}>
+                          + 구매요청
+                        </button>
+                      </td>
+                      <td style={{padding:"11px 10px",textAlign:"center"}}>
+                        <button onClick={function(){onItemClick(item);}}
+                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
+                          <Pencil size={12}/>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )
         )}
 
-        {/* ── 상태 탭 (구매요청/주문완료/배송완료) ── */}
-        {orderTab!=="list"&&(
+        {/* 구매요청 / 주문완료 탭 */}
+        {(orderTab==="구매요청"||orderTab==="주문완료")&&(
           <div style={{padding:16,display:"flex",gap:12,alignItems:"flex-start"}}>
             <StoreColumn storeId="미플" status={orderTab}/>
             <StoreColumn storeId="아카이브" status={orderTab}/>
           </div>
         )}
 
+        {/* 배송완료 탭 */}
+        {orderTab==="배송완료"&&(
+          deliveredOrders.length===0?(
+            <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>배송완료 이력이 없어요.</div>
+          ):(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>메모</th>
+                  <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>배송완료일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveredOrders.map(function(o,i){
+                  var it=items.find(function(x){return x.id===o.itemId;});
+                  var b=storeBadge(o.storeId);
+                  return(
+                    <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                      <td style={{padding:"9px 14px",fontWeight:600,color:"#1E293B"}}>
+                        {itemName(o.itemId)}
+                        {it&&it.category&&(function(){var c=catCfg(it.category);return <span style={{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}}>{it.category}</span>;}())}
+                      </td>
+                      <td style={{padding:"9px 14px",textAlign:"center"}}>
+                        <span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span>
+                      </td>
+                      <td style={{padding:"9px 14px",fontSize:12,color:"#64748B"}}>{o.memo||""}</td>
+                      <td className="ml-mono" style={{padding:"9px 14px",textAlign:"right",fontSize:12,color:"#374151"}}>{o.changedAt?o.changedAt.slice(0,10):""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        )}
       </div>
     </div>
   );
@@ -1235,7 +1319,7 @@ function App(){
   var [works,setWorks]=useState([]);
   var [workModal,setWorkModal]=useState(null);
   var [orderItems,setOrderItems]=useState([]);
-  var [orderHistory,setOrderHistory]=useState([]);
+  var [orders,setOrders]=useState([]); // 주문 인스턴스 (order_history 기반)
   var [itemModal,setItemModal]=useState(null);
   var [staffList,setStaffList]=useState([]);
   var [todos,setTodos]=useState([]);
@@ -1271,7 +1355,7 @@ function App(){
       // 2. 나머지 데이터
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
       try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
-      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrderHistory((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,changedAt:x.changed_at};}).reverse().reverse());}catch(e){setOrderHistory([]);}
+      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,memo:x.memo||"",changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       setLoading(false);
     })();
@@ -1308,9 +1392,29 @@ function App(){
       setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteItem(item){if(!window.confirm("\""+item.name+"\" 품목을 삭제할까요?"))return;try{await sb.from("order_items").delete().eq("id",item.id);setOrderItems(function(prev){return prev.filter(function(x){return x.id!==item.id;});});setOrderHistory(function(prev){return prev.filter(function(x){return x.itemId!==item.id;});});setItemModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
-  async function handleStatusChange(itemId,storeId,newStatus){var row={id:uid(),item_id:itemId,store_id:storeId,status:newStatus,changed_at:new Date().toISOString()};try{await sb.from("order_history").insert(row);setOrderHistory(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,changedAt:row.changed_at},...prev];});}catch(e){alert("상태 변경 실패: "+e.message);}}
-  async function handleBulkStatus(itemIds,storeIds,status){var rows=[];itemIds.forEach(function(itemId){storeIds.forEach(function(storeId){rows.push({id:uid(),item_id:itemId,store_id:storeId,status:status,changed_at:new Date().toISOString()});});});try{await sb.from("order_history").insert(rows);setOrderHistory(function(prev){return[...rows.map(function(r){return{id:r.id,itemId:r.item_id,storeId:r.store_id,status:r.status,changedAt:r.changed_at};}), ...prev];});}catch(e){alert("일괄 변경 실패: "+e.message);}}
+  async function handleDeleteItem(item){
+    if(!window.confirm("\""+item.name+"\" 품목을 삭제할까요?"))return;
+    try{
+      await sb.from("order_items").delete().eq("id",item.id);
+      setOrderItems(function(prev){return prev.filter(function(x){return x.id!==item.id;});});
+      setOrders(function(prev){return prev.filter(function(x){return x.itemId!==item.id;});});
+      setItemModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+  async function handleAddOrder(item,storeId){
+    var row={id:uid(),item_id:item.id,store_id:storeId,status:"구매요청",memo:"",changed_at:new Date().toISOString()};
+    try{
+      await sb.from("order_history").insert(row);
+      setOrders(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,memo:"",changedAt:row.changed_at},...prev];});
+    }catch(e){alert("주문 추가 실패: "+e.message);}
+  }
+  async function handleUpdateOrderStatus(orderId,newStatus){
+    var now=new Date().toISOString();
+    try{
+      await sb.from("order_history").update({status:newStatus,changed_at:now}).eq("id",orderId);
+      setOrders(function(prev){return prev.map(function(o){return o.id===orderId?{...o,status:newStatus,changedAt:now}:o;});});
+    }catch(e){alert("상태 변경 실패: "+e.message);}
+  }
 
   async function handleSaveTodo(form){
     var isEdit=!!(todoModal&&todoModal.id);
@@ -1400,12 +1504,12 @@ function App(){
                 onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
             </div>
           )}
-          {mainTab==="order"&&<OrderView items={orderItems} history={orderHistory} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onStatusChange={handleStatusChange} onBulkStatus={handleBulkStatus}/>}
+          {mainTab==="order"&&<OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>}
           {mainTab==="todo"&&<TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>}
         </>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
-      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orderHistory} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
+      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
