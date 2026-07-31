@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>미플+아카이브 업무 관리</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.27.0/babel.min.js"></script>
+<script>window.require=window.require||function(){return undefined;};</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+#root{height:100%;}
+#root:empty::before{content:"불러오는 중입니다.";display:block;padding:40px;text-align:center;color:#64748B;font-family:sans-serif;}
+</style>
+</head>
+<body style="height:100%">
+<div id="root"></div>
+<script id="app-source" type="text/plain">
+
+const {useState,useEffect,useMemo,Fragment}=React;
+const IB={fill:"none",stroke:"currentColor",strokeWidth:2,strokeLinecap:"round",strokeLinejoin:"round"};
+const svg=(p,w,h,v,...c)=>React.createElement("svg",{width:w||16,height:h||16,viewBox:v||"0 0 24 24",...IB,...p},...c);
+const path=(d)=>React.createElement("path",{d});
+const circle=(cx,cy,r)=>React.createElement("circle",{cx,cy,r});
+const rect=(x,y,w,h,rx)=>React.createElement("rect",{x,y,width:w,height:h,rx});
+const line=(x1,y1,x2,y2)=>React.createElement("line",{x1,y1,x2,y2});
+function Plus(p){return svg(p,16,16,"0 0 24 24",path("M5 12h14M12 5v14"));}
+function Pencil(p){return svg(p,16,16,"0 0 24 24",path("M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"),path("m15 5 4 4"));}
+function Trash2(p){return svg(p,16,16,"0 0 24 24",path("M3 6h18"),path("M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"),path("M10 11v6"),path("M14 11v6"));}
+function X(p){return svg(p,16,16,"0 0 24 24",path("M18 6 6 18M6 6l12 12"));}
+function CL(p){return svg(p,16,16,"0 0 24 24",path("m15 18-6-6 6-6"));}
+function CR(p){return svg(p,16,16,"0 0 24 24",path("m9 18 6-6-6-6"));}
+function CD(p){return svg(p,16,16,"0 0 24 24",path("m6 9 6 6 6-6"));}
+function CU(p){return svg(p,16,16,"0 0 24 24",path("m18 15-6-6-6 6"));}
+function ListIcon(p){return svg(p,16,16,"0 0 24 24",line(8,6,21,6),line(8,12,21,12),line(8,18,21,18),line(3,6,3.01,6),line(3,12,3.01,12),line(3,18,3.01,18));}
+function CalIcon(p){return svg(p,16,16,"0 0 24 24",rect(3,4,18,18,2),line(16,2,16,6),line(8,2,8,6),line(3,10,21,10));}
+function PkgIcon(p){return svg(p,16,16,"0 0 24 24",path("m7.5 4.27 9 5.15"),path("M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"),path("m3.3 7 8.7 5 8.7-5"),path("M12 22V12"));}
+
+// ── 설정 ──
+const STORES=[
+  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
+  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
+];
+const TODO_STORES=[
+  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
+  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
+  {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
+];
+const STAFF_COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#BE185D","#065F46"];
+var STAFF=[]; // DB에서 동적으로 로드됨
+const CATEGORIES=[
+  {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
+  {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
+  {id:"직원",     bg:"#F3E8FF",color:"#6B21A8"},
+  {id:"게임관리", bg:"#DCFCE7",color:"#14532D"},
+  {id:"잡화",     bg:"#F1F5F9",color:"#475569"},
+];
+const STATUSES=[
+  {id:"구매요청",next:"주문완료",bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
+  {id:"주문완료",next:"배송완료",bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
+  {id:"배송완료",next:"구매요청",bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
+];
+const DOW_LABELS=["일","월","화","수","목","금","토"];
+
+// ── helpers ──
+function uid(){return typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID():"r-"+Date.now()+"-"+Math.random().toString(16).slice(2);}
+function pad(n){return String(n).padStart(2,"0");}
+function dateStr(d){d=d||new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function toLocalISO(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());}
+function fmtDate(iso){if(!iso)return"";var d=new Date(iso);return d.getFullYear()+"."+pad(d.getMonth()+1)+"."+pad(d.getDate());}
+function fmtTime(iso){if(!iso)return"";var d=new Date(iso);return pad(d.getHours())+":"+pad(d.getMinutes());}
+function fmtDateTime(iso){if(!iso)return"";return fmtDate(iso)+" "+fmtTime(iso);}
+function calcHours(s,e){if(!s||!e)return null;var d=(new Date(e)-new Date(s))/3600000;return d>0?d:null;}
+function fmtHours(h){if(h==null)return"—";var hr=Math.floor(h),min=Math.round((h-hr)*60);return min===0?hr+"시간":hr+"시간 "+min+"분";}
+function storeBadge(sid){var s=STORES.find(function(x){return x.id===sid;});return s?s.badge:{bg:"#F3F4F6",color:"#374151"};}
+function staffColor(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.color:"#6B7280";}
+function staffName(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.name:sid||"—";}
+function statusCfg(s){return STATUSES.find(function(x){return x.id===s;})||STATUSES[1];}
+function catCfg(c){return CATEGORIES.find(function(x){return x.id===c;})||{bg:"#F1F5F9",color:"#475569"};}
+function todoBadge(sid){var s=TODO_STORES.find(function(x){return x.id===sid;});return s?s.badge:{bg:"#F1F5F9",color:"#475569"};}
+function getDow(ds){return new Date(ds+"T12:00:00").getDay();}
+function getDatesForDows(startDs,endDs,dows){
+  var result=[],cur=new Date(startDs+"T12:00:00"),end=new Date(endDs+"T12:00:00");
+  while(cur<=end){if(dows.indexOf(cur.getDay())>=0)result.push(dateStr(cur));cur.setDate(cur.getDate()+1);}
+  return result;
+}
+var holidayCache={};
+function fetchHolidays(year){
+  if(holidayCache[year]!==undefined)return Promise.resolve(holidayCache[year]);
+  var url="https://www.googleapis.com/calendar/v3/calendars/ko.south_korea%23holiday%40group.v.calendar.google.com/events?key=AIzaSyB6_HCHduvd5dxQEr2-2yXPDUoJmXHOZ4c&timeMin="+year+"-01-01T00:00:00Z&timeMax="+year+"-12-31T23:59:59Z&singleEvents=true&maxResults=50";
+  return fetch(url).then(function(r){return r.ok?r.json():Promise.reject();}).then(function(d){
+    var map={};
+    (d.items||[]).forEach(function(ev){var dt=(ev.start&&ev.start.date||"").slice(0,10);if(dt)map[dt]=ev.summary||"공휴일";});
+    holidayCache[year]=map;return map;
+  }).catch(function(){
+    var fixed={};
+    [[1,1,"신정"],[3,1,"삼일절"],[5,5,"어린이날"],[6,6,"현충일"],[8,15,"광복절"],[10,3,"개천절"],[10,9,"한글날"],[12,25,"크리스마스"]].forEach(function(x){fixed[year+"-"+pad(x[0])+"-"+pad(x[1])]=x[2];});
+    holidayCache[year]=fixed;return fixed;
+  });
+}
+
+const CSS=`
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+.ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#F1F5F9;}
+.ml-mono{font-family:"IBM Plex Mono",monospace;}
+.ml-inp:focus,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
+.modal-box{background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 50px rgba(0,0,0,.3);}
+.fade-in{animation:fadeIn .18s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;}
+.cal-day{border-radius:8px;cursor:pointer;transition:background .12s;}
+.cal-day:hover{background:#EFF6FF!important;}
+.tbl-wrap{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;}
+.ml-row:hover td{background:#EFF6FF!important;}
+.ml-row.even td{background:#FAFAFA;}.ml-row.odd td{background:#fff;}
+th{position:sticky;top:0;z-index:2;background:#334155;}
+.sort-btn{cursor:pointer;user-select:none;}
+`;
+
+// ── WorkModal ──
+function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSave,onDelete}){
+  var isEdit=!!record;
+  var now=new Date();
+  var initDate=defaultDate||dateStr(now);
+  var initStaffId=isEdit?record.staffId:(forceStaffId||defaultStaffId||STAFF[0]&&STAFF[0].id||"");
+  var [form,setForm]=useState(isEdit?{
+    staffId:record.staffId,storeId:record.storeId,
+    startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
+    endAt:record.endAt?toLocalISO(new Date(record.endAt)):"",
+    memo:record.memo||"",
+  }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T14:00",endAt:initDate+"T23:00",memo:""});
+  var [repeat,setRepeat]=useState(false);
+  var initDow=getDow(initDate);
+  var [repeatDows,setRepeatDows]=useState([initDow]);
+  var [repeatEnd,setRepeatEnd]=useState(function(){var d=new Date(initDate+"T12:00:00");d.setDate(d.getDate()+27);return dateStr(d);});
+  var [previewCount,setPreviewCount]=useState(0);
+  var [err,setErr]=useState({});
+  var [saving,setSaving]=useState(false);
+  var hours=calcHours(form.startAt,form.endAt);
+
+  useEffect(function(){
+    if(!repeat||repeatDows.length===0){setPreviewCount(0);return;}
+    var startDs=form.startAt.slice(0,10)||initDate;
+    setPreviewCount(getDatesForDows(startDs,repeatEnd,repeatDows).length);
+  },[repeat,repeatDows,repeatEnd,form.startAt]);
+
+  function toggleDow(d){setRepeatDows(function(prev){return prev.indexOf(d)>=0?prev.filter(function(x){return x!==d;}):[...prev,d].sort();});}
+
+  function submit(e){
+    e.preventDefault();
+    var er={};
+    if(!form.staffId)er.staffId="직원을 선택해주세요.";
+    if(!form.storeId)er.storeId="매장을 선택해주세요.";
+    if(!form.startAt)er.startAt="출근 시간을 입력해주세요.";
+    if(form.endAt&&form.startAt&&new Date(form.endAt)<=new Date(form.startAt))er.endAt="종료 시간이 시작보다 빠릅니다.";
+    if(repeat&&repeatDows.length===0)er.repeat="요일을 선택해주세요.";
+    if(Object.keys(er).length){setErr(er);return;}
+    setSaving(true);
+    var startTime=form.startAt.slice(11);
+    var endTime=form.endAt?form.endAt.slice(11):"";
+    var rows=[];
+    if(!isEdit&&repeat&&repeatDows.length>0){
+      var startDs=form.startAt.slice(0,10);
+      var dates=getDatesForDows(startDs,repeatEnd,repeatDows);
+      var allDates=dates.length>0?dates:[startDs];
+      rows=allDates.map(function(ds){return{id:uid(),staffId:form.staffId,storeId:form.storeId,startAt:new Date(ds+"T"+startTime).toISOString(),endAt:endTime?new Date(ds+"T"+endTime).toISOString():null,memo:form.memo};});
+    } else {
+      rows=[{id:isEdit?record.id:uid(),staffId:form.staffId,storeId:form.storeId,startAt:new Date(form.startAt).toISOString(),endAt:form.endAt?new Date(form.endAt).toISOString():null,memo:form.memo}];
+    }
+    onSave(rows).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return (
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"근무 기록 수정":"근무 일정 등록"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>직원 *</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {STAFF.map(function(s){
+              var locked=!!forceStaffId; // 비관리자는 신규/수정 모두 잠금
+              return(
+                <button key={s.id} type="button"
+                  onClick={function(){if(!locked)setForm({...form,staffId:s.id});}}
+                  style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,
+                    border:"2px solid "+(form.staffId===s.id?s.color:"#E2E8F0"),
+                    background:form.staffId===s.id?s.color:"#fff",
+                    color:form.staffId===s.id?"#fff":"#374151",
+                    cursor:locked?"default":"pointer",
+                    opacity:locked&&form.staffId!==s.id?0.3:1}}>
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          {!!forceStaffId&&<p style={{fontSize:11,color:"#94A3B8",marginTop:4}}>본인 명의로만 등록/수정할 수 있어요.</p>}
+          {err.staffId&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.staffId}</p>}
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>매장 *</label>
+          <div style={{display:"flex",gap:10}}>
+            {STORES.map(function(s){var b=s.badge;return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:13,fontWeight:600,border:"2px solid "+(form.storeId===s.id?b.color:"#E2E8F0"),background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+          <div>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>{repeat?"시작일+출근 *":"출근 시간 *"}</label>
+            <input type="datetime-local" value={form.startAt} onChange={function(e){setForm({...form,startAt:e.target.value});}}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.startAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}}/>
+            {err.startAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>퇴근 시간</label>
+            <input type="datetime-local" value={form.endAt} onChange={function(e){setForm({...form,endAt:e.target.value});}}
+              className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.endAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}}/>
+            {err.endAt&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err.endAt}</p>}
+          </div>
+        </div>
+        {hours!=null&&(
+          <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:13,color:"#14532D",fontWeight:600}}>
+            ⏱ 1일 근무: {fmtHours(hours)}
+          </div>
+        )}
+        {!isEdit&&(
+          <div style={{marginBottom:14,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:repeat?12:0}}>
+              <input type="checkbox" checked={repeat} onChange={function(e){setRepeat(e.target.checked);}} style={{width:16,height:16,accentColor:"#2563EB",cursor:"pointer"}}/>
+              <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>반복 등록</span>
+              <span style={{fontSize:11,color:"#94A3B8"}}>매주 특정 요일에 반복</span>
+            </label>
+            {repeat&&(
+              <>
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 요일</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {DOW_LABELS.map(function(label,idx){var sel=repeatDows.indexOf(idx)>=0;var isHol=idx===0||idx===6;return(
+                      <button key={idx} type="button" onClick={function(){toggleDow(idx);}}
+                        style={{width:36,height:36,borderRadius:"50%",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",background:sel?"#2563EB":"#fff",color:sel?"#fff":isHol?(idx===0?"#EF4444":"#3B82F6"):"#374151",boxShadow:sel?"0 0 0 2px #2563EB":"0 0 0 1.5px #CBD5E1"}}>
+                        {label}
+                      </button>
+                    );})}
+                  </div>
+                  {err.repeat&&<p style={{fontSize:12,color:"#EF4444",marginTop:4}}>{err.repeat}</p>}
+                </div>
+                <div>
+                  <div style={{fontSize:12,fontWeight:500,color:"#64748B",marginBottom:6}}>반복 종료일</div>
+                  <input type="date" value={repeatEnd} onChange={function(e){setRepeatEnd(e.target.value);}}
+                    className="ml-inp" style={{padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",width:"100%"}}/>
+                </div>
+                {previewCount>0&&(
+                  <div style={{marginTop:10,background:"#EFF6FF",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#1D4ED8",fontWeight:600}}>
+                    📅 총 {previewCount}일 등록 예정 · {fmtHours((hours||0)*previewCount)} 합산
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
+          <input value={form.memo} onChange={function(e){setForm({...form,memo:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="특이사항 등"/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={function(){onDelete(record);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":repeat&&previewCount>1?previewCount+"일 등록":"등록"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── ItemDetailModal ──
+function ItemDetailModal({item,history,onClose,onSave,onDelete}){
+  var isNew=!item.id;
+  var [name,setName]=useState(item.name||"");
+  var [category,setCategory]=useState(item.category||"");
+  var [link,setLink]=useState(item.link||"");
+  var [memo,setMemo]=useState(item.memo||"");
+  var [saving,setSaving]=useState(false);
+  var [err,setErr]=useState("");
+
+  var histByStore=useMemo(function(){
+    var m={};
+    STORES.forEach(function(s){
+      m[s.id]=(history||[]).filter(function(h){return h.itemId===item.id&&h.storeId===s.id;}).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,8);
+    });
+    return m;
+  },[history,item.id]);
+
+  function submit(e){
+    e.preventDefault();
+    if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:item.id||uid(),name:name.trim(),category:category,link:link.trim(),memo:memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isNew?"품목 추가":"품목 상세"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>품목명 *</label>
+          <input value={name} onChange={function(e){setName(e.target.value);setErr("");}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="예: 음료수, 컵"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>카테고리</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {CATEGORIES.map(function(c){return(
+              <button key={c.id} type="button" onClick={function(){setCategory(category===c.id?"":c.id);}}
+                style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(category===c.id?c.color:"#E2E8F0"),background:category===c.id?c.bg:"#fff",color:category===c.id?c.color:"#94A3B8"}}>
+                {c.id}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>주문 링크</label>
+          <input value={link} onChange={function(e){setLink(e.target.value);}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="https://..."/>
+        </div>
+        {link&&<div style={{marginBottom:12}}><a href={link} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:"#2563EB",textDecoration:"underline"}}>🔗 주문 링크 열기</a></div>}
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>특이사항</label>
+          <input value={memo} onChange={function(e){setMemo(e.target.value);}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="용량, 규격, 주의사항 등"/>
+        </div>
+        {!isNew&&(
+          <div style={{marginBottom:20,background:"#F8FAFC",borderRadius:10,padding:"12px 14px",border:"1px solid #E2E8F0"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>상태 변경 이력</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {STORES.map(function(s){var b=s.badge;var rows=histByStore[s.id]||[];return(
+                <div key={s.id}>
+                  <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:6,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+                  {rows.length===0?<p style={{fontSize:11,color:"#CBD5E1"}}>이력 없음</p>:rows.map(function(h){var cfg=statusCfg(h.status);return(
+                    <div key={h.id} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0"}}>
+                      <span style={{width:52,flexShrink:0,fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:4,background:cfg.bg,color:cfg.color,textAlign:"center"}}>{h.status}</span>
+                      <span className="ml-mono" style={{fontSize:11,color:"#64748B"}}>{fmtDateTime(h.changedAt)}</span>
+                    </div>
+                  );})}
+                </div>
+              );})}
+            </div>
+          </div>
+        )}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {!isNew?(
+            <button type="button" onClick={function(){onDelete(item);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isNew?"추가":"저장"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── TodoModal ──
+function TodoModal({todo,onClose,onSave,onDelete}){
+  var isEdit=!!(todo&&todo.id);
+  var [form,setForm]=useState({
+    title:todo&&todo.title||"",storeId:todo&&todo.storeId||"미플",staffId:todo&&todo.staffId||"",detail:todo&&todo.detail||"",
+  });
+  var [err,setErr]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submit(e){
+    e.preventDefault();
+    if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"할 일 수정":"할 일 추가"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 *</label>
+          <input value={form.title} onChange={function(e){setForm({...form,title:e.target.value});setErr("");}}
+            className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="할 일 내용을 입력하세요"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당 매장</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TODO_STORES.map(function(s){var b=s.badge;return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.storeId===s.id?b.color:"#E2E8F0"),background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#94A3B8"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>담당자</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            <button type="button" onClick={function(){setForm({...form,staffId:""});}}
+              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===""?"#334155":"#E2E8F0"),background:form.staffId===""?"#334155":"#fff",color:form.staffId===""?"#fff":"#94A3B8"}}>
+              미정
+            </button>
+            {STAFF.map(function(s){return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,staffId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===s.id?s.color:"#E2E8F0"),background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#94A3B8"}}>
+                {s.name}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>세부 내용</label>
+          <textarea value={form.detail} onChange={function(e){setForm({...form,detail:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:80}} placeholder="상세 설명, 참고사항 등"/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={function(){onDelete(todo);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":"추가"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── CalendarFilterBar ──
+function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore}){
+  return(
+    <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
+      <span style={{fontSize:11,fontWeight:700,color:"#94A3B8"}}>필터</span>
+      <select value={filterStaff} onChange={function(e){setFilterStaff(e.target.value);}}
+        style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <option value="all">전체 직원</option>
+        {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
+      </select>
+      <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);}}
+        style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+        <option value="all">전체 매장</option>
+        {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
+      </select>
+      {(filterStaff!=="all"||filterStore!=="all")&&(
+        <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
+          style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
+      )}
+    </div>
+  );
+}
+
+// ── CalendarView ──
+var holidayCache2={};
+function CalendarView({works,onDayClick,onWorkClick,filterStaff,filterStore}){
+  filterStaff=filterStaff||"all";filterStore=filterStore||"all";
+  var today=new Date();
+  var [year,setYear]=useState(today.getFullYear());
+  var [month,setMonth]=useState(today.getMonth());
+  var [holidays,setHolidays]=useState({});
+  useEffect(function(){fetchHolidays(year).then(function(h){setHolidays(h);});;},[year]);
+  function prevMonth(){if(month===0){setYear(function(y){return y-1;});setMonth(11);}else setMonth(function(m){return m-1;});}
+  function nextMonth(){if(month===11){setYear(function(y){return y+1;});setMonth(0);}else setMonth(function(m){return m+1;});}
+  var firstDay=new Date(year,month,1).getDay();
+  var daysInMonth=new Date(year,month+1,0).getDate();
+  var todayStr=dateStr(today);
+  var worksByDate=useMemo(function(){
+    var map={};
+    works.filter(function(w){
+      if(!w.startAt)return false;
+      if(filterStaff!=="all"&&w.staffId!==filterStaff)return false;
+      if(filterStore!=="all"&&w.storeId!==filterStore)return false;
+      return true;
+    }).forEach(function(w){
+      var d=w.startAt.slice(0,10);
+      if(d.slice(0,7)!==year+"-"+pad(month+1))return;
+      if(!map[d])map[d]={};
+      if(!map[d][w.storeId])map[d][w.storeId]=[];
+      map[d][w.storeId].push(w);
+    });
+    Object.values(map).forEach(function(byStore){
+      Object.keys(byStore).forEach(function(sid){byStore[sid].sort(function(a,b){return(a.startAt||"")>(b.startAt||"")?1:-1;});});
+    });
+    return map;
+  },[works,year,month,filterStaff,filterStore]);
+
+  var DOW=["일","월","화","수","목","금","토"];
+  var cells=[];
+  for(var i=0;i<firstDay;i++)cells.push(null);
+  for(var d=1;d<=daysInMonth;d++)cells.push(d);
+
+  return(
+    <div style={{padding:"16px 20px 32px",maxWidth:960,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}><CL size={16}/></button>
+        <h2 style={{fontSize:18,fontWeight:700,color:"#0F172A"}}>{year}년 {month+1}월</h2>
+        <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}><CR size={16}/></button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+        {DOW.map(function(d,i){return(
+          <div key={d} style={{textAlign:"center",fontSize:12,fontWeight:700,padding:"6px 0",color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B"}}>{d}</div>
+        );})}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+        {cells.map(function(day,idx){
+          if(!day)return <div key={"e"+idx}/>;
+          var ds=year+"-"+pad(month+1)+"-"+pad(day);
+          var dow=(firstDay+day-1)%7;
+          var isToday=ds===todayStr;
+          var holiday=holidays[ds];
+          var isHoliday=!!holiday||dow===0;
+          var isSat=dow===6;
+          var dayWorks=worksByDate[ds]||{};
+          var hasWork=STORES.some(function(s){return(dayWorks[s.id]||[]).length>0;});
+          return(
+            <div key={ds} className="cal-day" onClick={function(){onDayClick(ds);}}
+              style={{minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
+              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
+                <span style={{fontSize:13,fontWeight:isToday?700:500,color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",background:isToday?"#3B82F6":"transparent"}}>
+                  {day}
+                </span>
+                {holiday&&<span style={{fontSize:9,color:"#EF4444",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{holiday}</span>}
+              </div>
+              {STORES.map(function(s){
+                var ws=dayWorks[s.id]||[];
+                if(ws.length===0)return null;
+                var b=s.badge;
+                return(
+                  <div key={s.id} style={{marginBottom:3}}>
+                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,whiteSpace:"nowrap"}}>{s.id}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
+                      {ws.map(function(w){return(
+                        <button key={w.id} onClick={function(e){e.stopPropagation();onWorkClick(w);}}
+                          style={{fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3}}>
+                          {staffName(w.staffId)}
+                        </button>
+                      );})}
+                    </div>
+                  </div>
+                );
+              })}
+              {!hasWork&&<div style={{fontSize:10,color:"#CBD5E1",marginTop:2}}>+ 등록</div>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:16,padding:"12px 16px",background:"#fff",borderRadius:10,border:"1px solid #E2E8F0"}}>
+        <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",marginRight:4}}>직원</span>
+        {STAFF.map(function(s){return(
+          <span key={s.id} style={{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:"1px solid "+s.color+"44"}}>{s.name}</span>
+        );})}
+        <span style={{fontSize:11,color:"#94A3B8",marginLeft:8}}>날짜 클릭 시 근무 등록</span>
+      </div>
+    </div>
+  );
+}
+
+// ── WorkListView ──
+function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
+  var today=new Date();
+  var curMonth=today.getFullYear()+"-"+pad(today.getMonth()+1);
+  var [filter,setFilter]=useState({staff:"all",month:curMonth});
+  var [sort,setSort]=useState({key:"startAt",dir:"desc"});
+  var [checked,setChecked]=useState(new Set());
+  var months=useMemo(function(){var s=new Set(works.map(function(w){return w.startAt&&w.startAt.slice(0,7);}).filter(Boolean));return [...s].sort().reverse();},[works]);
+  var filtered=useMemo(function(){
+    var l=[...works];
+    if(filter.staff!=="all")l=l.filter(function(w){return w.staffId===filter.staff;});
+    if(filter.month)l=l.filter(function(w){return w.startAt&&w.startAt.slice(0,7)===filter.month;});
+    return l.sort(function(a,b){var av=a[sort.key]||"",bv=b[sort.key]||"";var c=av<bv?-1:av>bv?1:0;return sort.dir==="asc"?c:-c;});
+  },[works,filter,sort]);
+  var staffTotals=useMemo(function(){
+    var map={};
+    STAFF.forEach(function(s){map[s.id]={name:s.name,color:s.color,hours:0,count:0};});
+    filtered.forEach(function(w){if(!map[w.staffId])return;var h=calcHours(w.startAt,w.endAt)||0;map[w.staffId].hours+=h;map[w.staffId].count+=1;});
+    return Object.values(map).filter(function(x){return x.count>0;});
+  },[filtered]);
+  function toggleSort(k){setSort(function(s){return s.key===k?{...s,dir:s.dir==="asc"?"desc":"asc"}:{key:k,dir:"desc"};});}
+  function SI({k}){if(sort.key!==k)return <CD size={11} style={{opacity:0.3}}/>;return sort.dir==="asc"?<CU size={11}/>:<CD size={11}/>;}
+  var canEdit=function(w){return currentUser.isAdmin||w.staffId===currentUser.id;};
+  var checkable=filtered.filter(canEdit);
+  function toggleCheck(id,w){if(!canEdit(w))return;setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function toggleAll(){checked.size===checkable.length&&checkable.length>0?setChecked(new Set()):setChecked(new Set(checkable.map(function(w){return w.id;})));}
+  function handleBulkDelete(){if(checked.size===0)return;if(!window.confirm("선택한 "+checked.size+"건의 근무 기록을 삭제할까요?"))return;onBulkDelete([...checked]);setChecked(new Set());}
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
+        <select value={filter.staff} onChange={function(e){setFilter({...filter,staff:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 직원</option>
+          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
+        </select>
+        <select value={filter.month} onChange={function(e){setFilter({...filter,month:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="">전체 기간</option>
+          {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
+        </select>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}건</span>
+        {checked.size>0&&(
+          <button onClick={handleBulkDelete} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+            <Trash2 size={12}/> {checked.size}건 삭제
+          </button>
+        )}
+      </div>
+      {staffTotals.length>0&&(
+        <div style={{background:"#1E293B",padding:"10px 20px",display:"flex",flexWrap:"wrap",gap:10,flexShrink:0,borderBottom:"2px solid #334155"}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#94A3B8",alignSelf:"center",marginRight:4}}>합계</span>
+          {staffTotals.map(function(s){return(
+            <div key={s.name} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.07)",borderRadius:8,padding:"5px 12px"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}/>
+              <span style={{fontSize:12,fontWeight:600,color:"#F1F5F9"}}>{s.name}</span>
+              <span className="ml-mono" style={{fontSize:12,color:"#94A3B8"}}>·</span>
+              <span className="ml-mono" style={{fontSize:12,fontWeight:700,color:"#7DD3FC"}}>{fmtHours(s.hours)}</span>
+              <span style={{fontSize:11,color:"#64748B"}}>({s.count}일)</span>
+            </div>
+          );})}
+        </div>
+      )}
+      <div className="tbl-wrap">
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>근무 기록이 없어요.</div>:(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 10px",textAlign:"center",width:36}}><input type="checkbox" checked={checkable.length>0&&checked.size===checkable.length} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/></th>
+                <th className="sort-btn" onClick={function(){toggleSort("startAt");}} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>날짜 <SI k="startAt"/></span></th>
+                <th className="sort-btn" onClick={function(){toggleSort("staffId");}} style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}>직원 <SI k="staffId"/></span></th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>출근</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>퇴근</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>근무시간</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>메모</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(function(w,i){
+                var hours=calcHours(w.startAt,w.endAt);var sb2=storeBadge(w.storeId);var sc=staffColor(w.staffId);var isCk=checked.has(w.id);var hasPermission=canEdit(w);
+                return(
+                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                    <td style={{padding:"9px 10px",textAlign:"center"}}>
+                      {hasPermission
+                        ?<input type="checkbox" checked={isCk} onChange={function(){toggleCheck(w.id,w);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                        :<span style={{display:"inline-block",width:16,height:16}}/>}
+                    </td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{w.startAt?w.startAt.slice(0,10):""}</td>
+                    <td style={{padding:"9px 14px"}}><span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:8,height:8,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span></span></td>
+                    <td style={{padding:"9px 14px"}}><span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span></td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:"#374151"}}>{fmtTime(w.startAt)}</td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:12,color:w.endAt?"#374151":"#94A3B8"}}>{w.endAt?fmtTime(w.endAt):"미입력"}</td>
+                    <td style={{padding:"9px 14px",textAlign:"center"}}>{hours!=null?<span style={{background:"#F0FDF4",color:"#15803D",padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:600}}>{fmtHours(hours)}</span>:<span style={{color:"#94A3B8",fontSize:12}}>—</span>}</td>
+                    <td style={{padding:"9px 14px",color:"#64748B",fontSize:12}}>{w.memo||""}</td>
+                    <td style={{padding:"9px 14px",textAlign:"center"}}>
+                      <div style={{display:"inline-flex",gap:6}}>
+                        {(currentUser.isAdmin||w.staffId===currentUser.id)?(
+                          <>
+                            <button onClick={function(){onEdit(w);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #BFDBFE",borderRadius:5,background:"#EFF6FF",color:"#2563EB",cursor:"pointer"}}><Pencil size={12}/></button>
+                            <button onClick={function(){onDelete(w);}} style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #FECACA",borderRadius:5,background:"#FEF2F2",color:"#DC2626",cursor:"pointer"}}><Trash2 size={12}/></button>
+                          </>
+                        ):<span style={{fontSize:11,color:"#CBD5E1"}}>—</span>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── StoreColumn (OrderView 외부 독립 컴포넌트) ──
+function StoreColumn({storeId,status,colOrders,items,onUpdateOrderStatus}){
+  var b=STORES.find(function(s){return s.id===storeId;});
+  var badge=b?b.badge:{bg:"#F1F5F9",color:"#475569"};
+  var cfg=statusCfg(status);
+  var nextCfg=statusCfg(cfg.next);
+  var prevIdx=(STATUSES.findIndex(function(x){return x.id===status;})-1+STATUSES.length)%STATUSES.length;
+  var prevCfg=statusCfg(STATUSES[prevIdx].id);
+  var [colChecked,setColChecked]=useState(new Set());
+
+  function toggleOne(id){setColChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function toggleAll(){colChecked.size===colOrders.length&&colOrders.length>0?setColChecked(new Set()):setColChecked(new Set(colOrders.map(function(o){return o.id;})));}
+
+  function bulkUpdate(newStatus){
+    if(colChecked.size===0)return;
+    if(!window.confirm(storeId+" "+colChecked.size+"건을 \""+newStatus+"\"(으)로 변경할까요?"))return;
+    var ids=[...colChecked];
+    Promise.all(ids.map(function(id){return onUpdateOrderStatus(id,newStatus);}));
+    setColChecked(new Set());
+  }
+
+  function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
+
+  return(
+    <div style={{flex:1,minWidth:0,background:"#fff",borderRadius:10,border:"1px solid #E2E8F0",overflow:"hidden"}}>
+      <div style={{padding:"10px 14px",background:badge.bg,display:"flex",alignItems:"center",gap:8}}>
+        <input type="checkbox" checked={colOrders.length>0&&colChecked.size===colOrders.length} onChange={toggleAll}
+          style={{accentColor:badge.color,cursor:"pointer",width:14,height:14}}/>
+        <span style={{fontWeight:700,fontSize:13,color:badge.color,flex:1}}>{storeId}</span>
+        <span className="ml-mono" style={{fontSize:11,color:badge.color,opacity:0.7}}>{colOrders.length}건</span>
+      </div>
+      {colChecked.size>0&&(
+        <div style={{padding:"7px 14px",background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,color:"#64748B",fontWeight:600}}>{colChecked.size}개 선택</span>
+          <button onClick={function(){bulkUpdate(prevCfg.id);}}
+            style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid #E2E8F0",background:"#fff",color:"#64748B",cursor:"pointer"}}>
+            ← 취소
+          </button>
+          <button onClick={function(){bulkUpdate(cfg.next);}}
+            style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid "+nextCfg.dot,background:nextCfg.bg||"#fff",color:nextCfg.color,cursor:"pointer"}}>
+            → {cfg.next}
+          </button>
+        </div>
+      )}
+      {colOrders.length===0?(
+        <div style={{padding:"24px 14px",textAlign:"center",fontSize:12,color:"#CBD5E1"}}>{status} 주문 없음</div>
+      ):(
+        <div style={{padding:"8px 0"}}>
+          {colOrders.map(function(o){
+            var it=items.find(function(x){return x.id===o.itemId;});
+            var c=it&&it.category?catCfg(it.category):null;
+            var isCk=colChecked.has(o.id);
+            return(
+              <div key={o.id} onClick={function(){toggleOne(o.id);}}
+                style={{padding:"10px 14px",borderBottom:"1px solid #F8FAFC",display:"flex",alignItems:"flex-start",gap:8,cursor:"pointer",background:isCk?"#EFF6FF":"transparent",transition:"background .1s"}}>
+                <input type="checkbox" checked={isCk} onChange={function(){toggleOne(o.id);}} onClick={function(e){e.stopPropagation();}}
+                  style={{accentColor:"#3B82F6",cursor:"pointer",marginTop:3,flexShrink:0}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:700,color:"#1E293B"}}>{itemName(o.itemId)}</span>
+                    {c&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{it.category}</span>}
+                  </div>
+                  {o.memo&&<div style={{fontSize:11,color:"#64748B",marginBottom:2}}>{o.memo}</div>}
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <span className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.changedAt?fmtDateTime(o.changedAt):""}</span>
+                    {o.requestedBy&&<span style={{fontSize:9,color:"#7C3AED",fontWeight:600}}>요청: {staffName(o.requestedBy)}</span>}
+                    {o.completedBy&&<span style={{fontSize:9,color:"#059669",fontWeight:600}}>완료: {staffName(o.completedBy)}</span>}
+                  </div>
+                </div>
+                <div style={{flexShrink:0}} onClick={function(e){e.stopPropagation();}}>
+                  <button onClick={function(){if(window.confirm("\""+itemName(o.itemId)+"\" 주문을\n\""+cfg.next+"\"(으)로 변경할까요?"))onUpdateOrderStatus(o.id,cfg.next);}}
+                    style={{padding:"3px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
+                    → {cfg.next}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── OrderView ──
+function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onBulkUpdateStatus}){
+  var [orderTab,setOrderTab]=useState("list");
+  var [search,setSearch]=useState("");
+  var [filterCat,setFilterCat]=useState("all");
+  var [filterItem,setFilterItem]=useState("all");
+  var [filterFrom,setFilterFrom]=useState(function(){var d=new Date();d.setMonth(d.getMonth()-6);return d.toISOString().slice(0,10);});
+  var [filterTo,setFilterTo]=useState(new Date().toISOString().slice(0,10));
+
+  var filteredItems=useMemo(function(){
+    var l=items;
+    if(search.trim())l=l.filter(function(it){return it.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
+    if(filterCat!=="all")l=l.filter(function(it){return it.category===filterCat;});
+    return l;
+  },[items,search,filterCat]);
+
+  function ordersForStoreStatus(storeId,status){
+    return orders.filter(function(o){return o.storeId===storeId&&o.status===status;})
+      .sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
+  }
+
+  var deliveredOrders=useMemo(function(){
+    return orders.filter(function(o){
+      if(o.status!=="배송완료")return false;
+      if(filterItem!=="all"&&o.itemId!==filterItem)return false;
+      if(filterFrom&&o.changedAt&&o.changedAt.slice(0,10)<filterFrom)return false;
+      if(filterTo&&o.changedAt&&o.changedAt.slice(0,10)>filterTo)return false;
+      return true;
+    }).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,1000);
+  },[orders,filterItem,filterFrom,filterTo]);
+
+  var ORDER_TABS=[
+    {id:"list",label:"물품 목록"},
+    {id:"구매요청",label:"구매요청"},
+    {id:"주문완료",label:"주문완료"},
+    {id:"배송완료",label:"배송완료"},
+  ];
+
+  function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+
+      {/* 서브탭 */}
+      <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"0 16px",display:"flex",gap:2,alignItems:"flex-end",flexShrink:0}}>
+        {ORDER_TABS.map(function(t){
+          var cfg=t.id!=="list"&&t.id!=="배송완료"?statusCfg(t.id):null;
+          var cnt=null;
+          if(t.id==="구매요청"||t.id==="주문완료")cnt=orders.filter(function(o){return o.status===t.id;}).length;
+          return(
+            <button key={t.id} onClick={function(){setOrderTab(t.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 14px",fontSize:12,fontWeight:600,border:"none",cursor:"pointer",borderRadius:"8px 8px 0 0",
+                background:orderTab===t.id?"#fff":"transparent",
+                color:orderTab===t.id?(cfg?cfg.color:"#1E293B"):"#64748B",
+                borderBottom:orderTab===t.id?"2px solid "+(cfg?cfg.dot:"#334155"):"2px solid transparent"}}>
+              {t.label}
+              {cnt!==null&&cnt>0&&<span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:999,background:cfg?cfg.bg:"#F1F5F9",color:cfg?cfg.color:"#475569"}}>{cnt}</span>}
+            </button>
+          );
+        })}
+        {orderTab==="list"&&(
+          <button onClick={onAddItem} style={{marginLeft:"auto",marginBottom:6,display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={11}/> 품목 추가</button>
+        )}
+      </div>
+
+      {/* 검색/카테고리 필터 */}
+      {(orderTab==="list"||orderTab==="구매요청"||orderTab==="주문완료")&&(
+        <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
+          <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…"
+            style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:140}}/>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <button onClick={function(){setFilterCat("all");}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat==="all"?"#334155":"#E2E8F0",background:filterCat==="all"?"#334155":"#fff",color:filterCat==="all"?"#fff":"#94A3B8"}}>전체</button>
+            {CATEGORIES.map(function(c){return(
+              <button key={c.id} onClick={function(){setFilterCat(filterCat===c.id?"all":c.id);}} style={{padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterCat===c.id?c.color:"#E2E8F0",background:filterCat===c.id?c.bg:"#fff",color:filterCat===c.id?c.color:"#94A3B8"}}>{c.id}</button>
+            );})}
+          </div>
+          {/* 물품목록 탭 - 체크 시 일괄 구매요청 */}
+          {orderTab==="list"&&checked.size>0&&(
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>
+              <button onClick={function(){
+                var ids=[...checked];
+                var selItems=items.filter(function(it){return ids.indexOf(it.id)>=0;});
+                if(!window.confirm(checked.size+"개 품목을 [미플] 구매요청할까요?"))return;
+                Promise.all(selItems.map(function(it){return onAddOrder(it,"미플");}));
+                setChecked(new Set());
+              }} style={{padding:"4px 12px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid #F59E0B",background:"#FEF3C7",color:"#92400E",cursor:"pointer"}}>
+                미플 일괄 구매요청
+              </button>
+              <button onClick={function(){
+                var ids=[...checked];
+                var selItems=items.filter(function(it){return ids.indexOf(it.id)>=0;});
+                if(!window.confirm(checked.size+"개 품목을 [아카이브] 구매요청할까요?"))return;
+                Promise.all(selItems.map(function(it){return onAddOrder(it,"아카이브");}));
+                setChecked(new Set());
+              }} style={{padding:"4px 12px",borderRadius:999,fontSize:11,fontWeight:700,border:"1.5px solid #3B82F6",background:"#DBEAFE",color:"#1E40AF",cursor:"pointer"}}>
+                아카이브 일괄 구매요청
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 배송완료 필터 */}
+      {orderTab==="배송완료"&&(
+        <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
+          <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
+            style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 품목</option>
+            {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+          </select>
+          <span style={{fontSize:11,color:"#94A3B8"}}>기간</span>
+          <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
+            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}}/>
+          <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
+          <input type="date" value={filterTo} onChange={function(e){setFilterTo(e.target.value);}}
+            style={{padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}}/>
+          <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{deliveredOrders.length}건</span>
+        </div>
+      )}
+
+      {/* 콘텐츠 */}
+      <div className="tbl-wrap">
+
+        {/* 물품 목록 탭 */}
+        {orderTab==="list"&&(
+          filteredItems.length===0?(
+            <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}</div>
+          ):(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                  <th style={{padding:"10px 10px",textAlign:"center",width:36}}>
+                    <input type="checkbox"
+                      checked={checked.size===filteredItems.length&&filteredItems.length>0}
+                      onChange={function(){checked.size===filteredItems.length?setChecked(new Set()):setChecked(new Set(filteredItems.map(function(i){return i.id;})));}}
+                      style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                  </th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>미플 주문</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>아카이브 주문</th>
+                  <th style={{padding:"10px 10px",textAlign:"center",fontWeight:600,width:40}}/>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredItems.map(function(item,i){
+                  var c=item.category?catCfg(item.category):null;
+                  var isCk=checked.has(item.id);
+                  return(
+                    <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")} style={{background:isCk?"#EFF6FF!important":""}}>
+                      <td style={{padding:"11px 10px",textAlign:"center"}}>
+                        <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(item.id);}}
+                          style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                      </td>
+                      <td style={{padding:"11px 14px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7}}>
+                          <button onClick={function(){onItemClick(item);}}
+                            style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
+                            {item.name}
+                          </button>
+                          {c&&<span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{item.category}</span>}
+                        </div>
+                        {item.memo&&<div style={{fontSize:11,color:"#94A3B8",marginTop:2}}>{item.memo}</div>}
+                      </td>
+                      <td style={{padding:"11px 14px",textAlign:"center"}}>
+                        <button onClick={function(){onAddOrder(item,"미플");}}
+                          style={{padding:"5px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"1.5px solid #F59E0B",background:"#FEF3C7",color:"#92400E",cursor:"pointer",whiteSpace:"nowrap"}}>
+                          + 구매요청
+                        </button>
+                      </td>
+                      <td style={{padding:"11px 14px",textAlign:"center"}}>
+                        <button onClick={function(){onAddOrder(item,"아카이브");}}
+                          style={{padding:"5px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"1.5px solid #3B82F6",background:"#DBEAFE",color:"#1E40AF",cursor:"pointer",whiteSpace:"nowrap"}}>
+                          + 구매요청
+                        </button>
+                      </td>
+                      <td style={{padding:"11px 10px",textAlign:"center"}}>
+                        <button onClick={function(){onItemClick(item);}}
+                          style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
+                          <Pencil size={12}/>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        )}
+
+        {/* 구매요청 / 주문완료 탭 */}
+        {(orderTab==="구매요청"||orderTab==="주문완료")&&(
+          <div style={{padding:16,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <StoreColumn storeId="미플" status={orderTab} colOrders={ordersForStoreStatus("미플",orderTab)} items={items} onUpdateOrderStatus={onUpdateOrderStatus}/>
+            <StoreColumn storeId="아카이브" status={orderTab} colOrders={ordersForStoreStatus("아카이브",orderTab)} items={items} onUpdateOrderStatus={onUpdateOrderStatus}/>
+          </div>
+        )}
+
+        {/* 배송완료 탭 */}
+        {orderTab==="배송완료"&&(
+          deliveredOrders.length===0?(
+            <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>배송완료 이력이 없어요.</div>
+          ):(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>요청/완료</th>
+                  <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>배송완료일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveredOrders.map(function(o,i){
+                  var it=items.find(function(x){return x.id===o.itemId;});
+                  var b=storeBadge(o.storeId);
+                  var itCat=it&&it.category?catCfg(it.category):null;
+                  return(
+                    <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                      <td style={{padding:"9px 14px",fontWeight:600,color:"#1E293B"}}>
+                        {itemName(o.itemId)}
+                        {itCat&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:itCat.bg,color:itCat.color}}>{it.category}</span>}
+                      </td>
+                      <td style={{padding:"9px 14px",textAlign:"center"}}>
+                        <span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span>
+                      </td>
+                      <td style={{padding:"9px 14px",fontSize:11}}>
+                        {o.requestedBy&&<span style={{display:"inline-flex",alignItems:"center",gap:3,marginRight:10,color:"#7C3AED",fontWeight:600}}>요청 {staffName(o.requestedBy)}</span>}
+                        {o.completedBy&&<span style={{display:"inline-flex",alignItems:"center",gap:3,color:"#059669",fontWeight:600}}>완료 {staffName(o.completedBy)}</span>}
+                        {o.memo&&<span style={{color:"#94A3B8",marginLeft:6}}>{o.memo}</span>}
+                      </td>
+                      <td className="ml-mono" style={{padding:"9px 14px",textAlign:"right",fontSize:12,color:"#374151"}}>{o.changedAt?o.changedAt.slice(0,10):""}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── TodoView ──
+function TodoView({todos,onAdd,onItemClick}){
+  var [filterStore,setFilterStore]=useState("all");
+  var [filterStaff,setFilterStaff]=useState("all");
+  var filtered=useMemo(function(){
+    var l=[...todos].sort(function(a,b){return b.createdAt>a.createdAt?1:-1;});
+    if(filterStore!=="all")l=l.filter(function(t){return t.storeId===filterStore;});
+    if(filterStaff!=="all")l=l.filter(function(t){return t.staffId===filterStaff;});
+    return l;
+  },[todos,filterStore,filterStaff]);
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
+        <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 매장</option>
+          {TODO_STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
+        </select>
+        <select value={filterStaff} onChange={function(e){setFilterStaff(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 담당자</option>
+          <option value="">미정</option>
+          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
+        </select>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}건</span>
+        <button onClick={onAdd} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 할 일 추가</button>
+      </div>
+      <div className="tbl-wrap">
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{todos.length===0?"할 일을 추가해주세요.":"조건에 맞는 항목이 없어요."}</div>:(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>할 일</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당 매장</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당자</th>
+                <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>요청일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(function(t,i){
+                var b=todoBadge(t.storeId);var sc=t.staffId?staffColor(t.staffId):null;
+                return(
+                  <tr key={t.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(t);}} style={{cursor:"pointer"}}>
+                    <td style={{padding:"11px 16px"}}>
+                      <div style={{fontWeight:600,color:"#1E293B",marginBottom:t.detail?3:0}}>{t.title}</div>
+                      {t.detail&&<div style={{fontSize:11,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{t.detail}</div>}
+                    </td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{t.storeId||"—"}</span></td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}>{t.staffId?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{staffName(t.staffId)}</span></span>:<span style={{fontSize:12,color:"#94A3B8"}}>미정</span>}</td>
+                    <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:11,color:"#94A3B8",whiteSpace:"nowrap"}}>{t.createdAt?t.createdAt.slice(0,10):"—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── StaffManageModal ──
+function StaffManageModal({staffList,onStaffChange,onClose}){
+  var [pins,setPins]=useState({}); // staffId -> {pin, isAdmin}
+  var [loading,setLoading]=useState(true);
+  var [saving,setSaving]=useState(false);
+  var [newName,setNewName]=useState("");
+  var [newPin,setNewPin]=useState("");
+  var [newIsAdmin,setNewIsAdmin]=useState(false);
+  var [newColor,setNewColor]=useState(STAFF_COLORS[0]);
+  var [err,setErr]=useState("");
+
+  useEffect(function(){
+    (function(){
+      try{
+        var r=sb.from("staff_pins").select("staff_id,pin,is_admin");
+        var map={};
+        (r.data||[]).forEach(function(x){map[x.staff_id]={pin:x.pin,isAdmin:!!x.is_admin};});
+        setPins(map);
+      }catch(e){}
+      setLoading(false);
+    })();
+  },[]);
+
+  function savePin(staffId,newPin,isAdmin){
+    setSaving(true);
+    try{
+      sb.from("staff_pins").update({pin:newPin,is_admin:isAdmin}).eq("staff_id",staffId);
+      setPins(function(prev){return{...prev,[staffId]:{pin:newPin,isAdmin:isAdmin}};});
+      // 관리자 권한 변경을 staffList에도 반영
+      onStaffChange(staffList.map(function(s){return s.id===staffId?{...s,isAdmin:isAdmin}:s;}));
+    }catch(e){alert("저장 실패: "+e.message);}
+    setSaving(false);
+  }
+
+  function addStaff(e){
+    e.preventDefault();
+    if(!newName.trim()){setErr("이름을 입력해주세요.");return;}
+    if(!newPin.trim()){setErr("PIN을 입력해주세요.");return;}
+    var newId="staff_"+Date.now();
+    setSaving(true);
+    try{
+      sb.from("staff_pins").insert({staff_id:newId,name:newName.trim(),color:newColor,pin:newPin.trim(),is_admin:newIsAdmin});
+      var newStaff={id:newId,name:newName.trim(),color:newColor,isAdmin:newIsAdmin};
+      STAFF.push(newStaff);
+      var updated=[...staffList,newStaff];
+      onStaffChange(updated);
+      setPins(function(prev){return{...prev,[newId]:{pin:newPin.trim(),isAdmin:newIsAdmin}};});
+      setNewName("");setNewPin("");setNewIsAdmin(false);setNewColor(STAFF_COLORS[updated.length%STAFF_COLORS.length]);setErr("");
+    }catch(e){alert("추가 실패: "+e.message);}
+    setSaving(false);
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:520}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>직원 관리</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+
+        {loading?<div style={{textAlign:"center",padding:20,color:"#94A3B8"}}>불러오는 중…</div>:(
+          <>
+            <div style={{marginBottom:24}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>등록된 직원</div>
+              {staffList.map(function(s){
+                var info=pins[s.id]||{pin:"",isAdmin:false};
+                return <StaffRow key={s.id} staff={s} info={info} onSave={savePin} saving={saving}/>;
+              })}
+              {staffList.length===0&&<p style={{fontSize:12,color:"#94A3B8"}}>직원이 없어요.</p>}
+            </div>
+
+            <div style={{background:"#F8FAFC",borderRadius:10,padding:"16px",border:"1px solid #E2E8F0"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:12}}>신규 직원 추가</div>
+              <form onSubmit={addStaff}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div>
+                    <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>이름</label>
+                    <input value={newName} onChange={function(e){setNewName(e.target.value);setErr("");}}
+                      className="ml-inp" style={{width:"100%",padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="홍길동"/>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>PIN</label>
+                    <input value={newPin} onChange={function(e){setNewPin(e.target.value);setErr("");}}
+                      className="ml-inp" style={{width:"100%",padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="1234"/>
+                  </div>
+                </div>
+                <div style={{marginBottom:10}}>
+                  <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>색상</label>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {STAFF_COLORS.map(function(c){return(
+                      <button key={c} type="button" onClick={function(){setNewColor(c);}}
+                        style={{width:28,height:28,borderRadius:"50%",background:c,border:newColor===c?"3px solid #1E293B":"2px solid transparent",cursor:"pointer"}}>
+                      </button>
+                    );})}
+                  </div>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer",marginBottom:10}}>
+                  <input type="checkbox" checked={newIsAdmin} onChange={function(e){setNewIsAdmin(e.target.checked);}} style={{accentColor:"#2563EB"}}/>
+                  관리자 권한 부여
+                </label>
+                {err&&<p style={{fontSize:12,color:"#EF4444",marginBottom:8}}>{err}</p>}
+                <button type="submit" disabled={saving}
+                  style={{width:"100%",padding:"8px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:13,fontWeight:600,cursor:"pointer",opacity:saving?0.6:1}}>
+                  {saving?"추가 중…":"직원 추가"}
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StaffRow({staff,info,onSave,saving}){
+  var [pin,setPin]=useState(info.pin||"");
+  var [isAdmin,setIsAdmin]=useState(!!info.isAdmin);
+  var [editing,setEditing]=useState(false);
+
+  function save(){
+    if(!pin.trim()){alert("PIN을 입력해주세요.");return;}
+    onSave(staff.id,pin.trim(),isAdmin).then(function(){setEditing(false);}).catch(function(){});
+  }
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #F1F5F9"}}>
+      <span style={{width:10,height:10,borderRadius:"50%",background:staff.color,display:"inline-block",flexShrink:0}}/>
+      <span style={{fontWeight:600,fontSize:13,flex:1}}>{staff.name}</span>
+      {editing?(
+        <>
+          <input value={pin} onChange={function(e){setPin(e.target.value);}}
+            style={{width:80,padding:"4px 8px",border:"1px solid #CBD5E1",borderRadius:5,fontSize:12,outline:"none"}} placeholder="PIN"/>
+          <label style={{display:"flex",alignItems:"center",gap:4,fontSize:11,cursor:"pointer",whiteSpace:"nowrap"}}>
+            <input type="checkbox" checked={isAdmin} onChange={function(e){setIsAdmin(e.target.checked);}} style={{accentColor:"#2563EB"}}/>
+            관리자
+          </label>
+          <button onClick={save} disabled={saving}
+            style={{padding:"4px 10px",background:"#2563EB",color:"#fff",border:"none",borderRadius:5,fontSize:11,fontWeight:600,cursor:"pointer"}}>저장</button>
+          <button onClick={function(){setPin(info.pin||"");setIsAdmin(!!info.isAdmin);setEditing(false);}}
+            style={{padding:"4px 10px",background:"#F1F5F9",color:"#64748B",border:"none",borderRadius:5,fontSize:11,cursor:"pointer"}}>취소</button>
+        </>
+      ):(
+        <>
+          <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>PIN: {"•".repeat(Math.min(pin.length,6)||4)}</span>
+          {isAdmin&&<span style={{fontSize:10,fontWeight:700,color:"#2563EB",background:"#DBEAFE",padding:"1px 6px",borderRadius:4}}>관리자</span>}
+          <button onClick={function(){setEditing(true);}}
+            style={{padding:"4px 10px",background:"#F8FAFC",color:"#374151",border:"1px solid #E2E8F0",borderRadius:5,fontSize:11,cursor:"pointer"}}>수정</button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── LoginScreen ──
+function LoginScreen({onLogin}){
+  var [staffOptions,setStaffOptions]=useState([]);
+  var [selectedStaff,setSelectedStaff]=useState(null);
+  var [pin,setPin]=useState("");
+  var [err,setErr]=useState("");
+  var [loading,setLoading]=useState(false);
+  var [loadingStaff,setLoadingStaff]=useState(true);
+
+  useEffect(function(){
+    (function(){
+      try{
+        var r=sb.from("staff_pins").select("staff_id,name,color,pin,is_admin").order("staff_id",{ascending:true});
+        var list=(r.data||[]).filter(function(x){return x.name;}).map(function(x,i){
+          return{id:x.staff_id,name:x.name,color:x.color||STAFF_COLORS[i%STAFF_COLORS.length],pin:x.pin,isAdmin:!!x.is_admin};
+        });
+        setStaffOptions(list);
+        // 전역 STAFF도 채워두기
+        STAFF.length=0;list.forEach(function(s){STAFF.push(s);});
+      }catch(e){setErr("직원 정보를 불러오지 못했어요.");}
+      setLoadingStaff(false);
+    })();
+  },[]);
+
+  function submit(e){
+    e.preventDefault();
+    if(!selectedStaff){setErr("직원을 선택해주세요.");return;}
+    if(!pin.trim()){setErr("PIN을 입력해주세요.");return;}
+    setLoading(true);setErr("");
+    try{
+      if(String(selectedStaff.pin)!==pin.trim()){setErr("PIN이 틀렸어요.");setLoading(false);setPin("");return;}
+      onLogin({id:selectedStaff.id,name:selectedStaff.name,color:selectedStaff.color,isAdmin:!!selectedStaff.isAdmin});
+    }catch(ex){setErr("오류: "+(ex&&ex.message?ex.message:String(ex)));setLoading(false);}
+  }
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F1F5F9",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{background:"#1E293B",borderRadius:16,padding:"28px 32px",width:"100%",maxWidth:380,boxShadow:"0 20px 50px rgba(0,0,0,.25)"}}>
+        <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8",marginBottom:4}}>업무 관리</div>
+        <h1 style={{fontSize:22,fontWeight:700,color:"#F8FAFC",marginBottom:24}}>미플+아카이브</h1>
+
+        <form onSubmit={submit}>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:12,fontWeight:600,color:"#94A3B8",marginBottom:8}}>직원 선택</label>
+            {loadingStaff?(
+              <div style={{textAlign:"center",padding:12,color:"#64748B",fontSize:12}}>불러오는 중…</div>
+            ):(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {staffOptions.map(function(s){var sel=selectedStaff&&selectedStaff.id===s.id;return(
+                  <button key={s.id} type="button" onClick={function(){setSelectedStaff(s);setPin("");setErr("");}}
+                    style={{padding:"10px 8px",borderRadius:10,fontSize:13,fontWeight:700,border:"2px solid "+(sel?s.color:"rgba(255,255,255,.1)"),background:sel?s.color:"rgba(255,255,255,.05)",color:sel?"#fff":"#94A3B8",cursor:"pointer",transition:"all .15s"}}>
+                    {s.name}
+                  </button>
+                );})}
+              </div>
+            )}
+          </div>
+
+          {selectedStaff&&(
+            <div style={{marginBottom:16}}>
+              <label style={{display:"block",fontSize:12,fontWeight:600,color:"#94A3B8",marginBottom:8}}>PIN 번호</label>
+              <input type="password" value={pin} onChange={function(e){setPin(e.target.value);setErr("");}}
+                autoFocus inputMode="numeric" maxLength={8} placeholder="PIN 입력"
+                style={{width:"100%",padding:"12px 16px",background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:8,fontSize:16,color:"#F8FAFC",outline:"none",letterSpacing:4,textAlign:"center"}}/>
+            </div>
+          )}
+
+          {err&&<p style={{fontSize:12,color:"#FCA5A5",marginBottom:12,textAlign:"center"}}>{err}</p>}
+
+          <button type="submit" disabled={loading||!selectedStaff}
+            style={{width:"100%",padding:"12px",background:selectedStaff?"#2563EB":"rgba(255,255,255,.1)",color:selectedStaff?"#fff":"#64748B",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:selectedStaff?"pointer":"not-allowed",transition:"all .15s"}}>
+            {loading?"확인 중…":"로그인"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Tab Error Boundary ──
+class TabErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={error:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  componentDidCatch(e,info){console.error("Tab error:",e,info);}
+  render(){
+    if(this.state.error){
+      return React.createElement("div",{style:{padding:32,textAlign:"center",color:"#991B1B",background:"#FEF2F2",margin:16,borderRadius:12,border:"1px solid #FECACA"}},
+        React.createElement("div",{style:{fontSize:16,fontWeight:700,marginBottom:8}},"이 탭에서 오류가 발생했어요"),
+        React.createElement("div",{style:{fontSize:12,color:"#B91C1C",marginBottom:16,fontFamily:"monospace"}},this.state.error.message||String(this.state.error)),
+        React.createElement("button",{
+          onClick:function(){this.setState({error:null});}.bind(this),
+          style:{padding:"8px 20px",background:"#DC2626",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}
+        },"다시 시도")
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── App ──
+var STORAGE_KEY="miple_user_v1";
+
+function App(){
+  // localStorage에서 저장된 사용자 복원 시도
+  var saved=null;
+  try{var s=localStorage.getItem(STORAGE_KEY);if(s)saved=JSON.parse(s);}catch(e){}
+
+  var [currentUser,setCurrentUser]=useState(saved); // {id,name,color,isAdmin}
+  var [mainTab,setMainTab]=useState("work");
+  var [workSubTab,setWorkSubTab]=useState("cal");
+  var [loading,setLoading]=useState(true);
+  var [calFilterStaff,setCalFilterStaff]=useState("all");
+  var [calFilterStore,setCalFilterStore]=useState("all");
+  var [works,setWorks]=useState([]);
+  var [workModal,setWorkModal]=useState(null);
+  var [orderItems,setOrderItems]=useState([]);
+  var [orders,setOrders]=useState([]); // 주문 인스턴스 (order_history 기반)
+  var [itemModal,setItemModal]=useState(null);
+  var [staffList,setStaffList]=useState([]);
+  var [todos,setTodos]=useState([]);
+  var [todoModal,setTodoModal]=useState(null);
+  var [staffManageModal,setStaffManageModal]=useState(false);
+
+  function handleLogin(user){
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
+    setCurrentUser(user);
+    setLoading(true); // 데이터 재로드
+  }
+
+  function handleLogout(){
+    try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
+    setCurrentUser(null);
+    setLoading(true);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);
+  }
+
+  useEffect(function(){
+    if(!currentUser)return;
+    (function(){
+      // 1. 직원 목록 먼저 로드 (전역 STAFF 갱신)
+      try{
+        var rs=sb.from("staff_pins").select("staff_id,name,color,is_admin").order("staff_id",{ascending:true});
+        var loaded=(rs.data||[]).filter(function(x){return x.name;}).map(function(x,i){
+          return{id:x.staff_id,name:x.name,color:x.color||STAFF_COLORS[i%STAFF_COLORS.length],isAdmin:!!x.is_admin};
+        });
+        STAFF.length=0;
+        loaded.forEach(function(s){STAFF.push(s);});
+        setStaffList([...loaded]);
+      }catch(e){console.warn("staff load error",e);}
+      // 2. 나머지 데이터
+      try{var r=sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
+      try{var r2=sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
+      try{var r3=sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,memo:x.memo||"",requestedBy:x.requested_by||null,completedBy:x.completed_by||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
+      try{var r4=sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
+      setLoading(false);
+    })();
+  },[currentUser]);
+
+  if(!currentUser){
+    return(
+      <div className="ml-root">
+        <style>{CSS}</style>
+        <LoginScreen onLogin={handleLogin}/>
+      </div>
+    );
+  }
+
+  var isAdmin=currentUser.isAdmin;
+  var myId=currentUser.id;
+
+  function handleSaveWork(rows){
+    var isEdit=rows.length===1&&!!(workModal&&workModal.record);
+    try{
+      if(isEdit){var r=rows[0];var row={id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};sb.from("work_records").update(row).eq("id",row.id);setWorks(function(prev){return prev.map(function(w){return w.id===row.id?{id:row.id,staffId:row.staff_id,storeId:row.store_id,startAt:row.start_at,endAt:row.end_at,memo:row.memo}:w;});});}
+      else{var dbRows=rows.map(function(r){return{id:r.id,staff_id:r.staffId,store_id:r.storeId,start_at:r.startAt,end_at:r.endAt||null,memo:r.memo};});sb.from("work_records").insert(dbRows);setWorks(function(prev){return[...dbRows.map(function(r){return{id:r.id,staffId:r.staff_id,storeId:r.store_id,startAt:r.start_at,endAt:r.end_at,memo:r.memo};}),...prev];});}
+      setWorkModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  function handleDeleteWork(w){if(!window.confirm("이 근무 기록을 삭제할까요?"))return;try{sb.from("work_records").delete().eq("id",w.id);setWorks(function(prev){return prev.filter(function(x){return x.id!==w.id;});});setWorkModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+  function handleBulkDeleteWork(ids){try{sb.from("work_records").delete().in("id",ids);setWorks(function(prev){return prev.filter(function(x){return ids.indexOf(x.id)<0;});});}catch(e){alert("삭제 실패: "+e.message);}}
+
+  function handleSaveItem(form){
+    var isNew=!form.id||!orderItems.find(function(x){return x.id===form.id;});
+    try{
+      if(isNew){sb.from("order_items").insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}];});}
+      else{sb.from("order_items").update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x;});});}
+      setItemModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  function handleDeleteItem(item){
+    if(!window.confirm("\""+item.name+"\" 품목을 삭제할까요?"))return;
+    try{
+      sb.from("order_items").delete().eq("id",item.id);
+      setOrderItems(function(prev){return prev.filter(function(x){return x.id!==item.id;});});
+      setOrders(function(prev){return prev.filter(function(x){return x.itemId!==item.id;});});
+      setItemModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+  function handleAddOrder(item,storeId){
+    var row={id:uid(),item_id:item.id,store_id:storeId,status:"구매요청",memo:"",requested_by:myId,changed_at:new Date().toISOString()};
+    try{
+      sb.from("order_history").insert(row);
+      setOrders(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,memo:"",requestedBy:myId,completedBy:null,changedAt:row.changed_at},...prev];});
+    }catch(e){alert("주문 추가 실패: "+e.message);}
+  }
+  function handleUpdateOrderStatus(orderId,newStatus){
+    var now=new Date().toISOString();
+    var updates={status:newStatus,changed_at:now};
+    if(newStatus==="배송완료")updates.completed_by=myId;
+    try{
+      sb.from("order_history").update(updates).eq("id",orderId);
+      setOrders(function(prev){return prev.map(function(o){
+        if(o.id!==orderId)return o;
+        return{...o,status:newStatus,changedAt:now,completedBy:newStatus==="배송완료"?myId:o.completedBy};
+      });});
+    }catch(e){alert("상태 변경 실패: "+e.message);}
+  }
+
+  function handleSaveTodo(form){
+    var isEdit=!!(todoModal&&todoModal.id);
+    try{
+      if(isEdit){sb.from("todos").update({title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail}).eq("id",form.id);setTodos(function(prev){return prev.map(function(t){return t.id===form.id?{...t,title:form.title,storeId:form.storeId,staffId:form.staffId,detail:form.detail}:t;});});}
+      else{var row={id:form.id,title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail,created_at:new Date().toISOString()};sb.from("todos").insert(row);setTodos(function(prev){return[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id||"",detail:row.detail,createdAt:row.created_at},...prev];});}
+      setTodoModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  function handleDeleteTodo(t){if(!window.confirm("\""+t.title+"\"을(를) 삭제할까요?"))return;try{sb.from("todos").delete().eq("id",t.id);setTodos(function(prev){return prev.filter(function(x){return x.id!==t.id;});});setTodoModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+
+  var MAIN_TABS=[
+    {id:"work",label:"근무 관리",icon:<CalIcon size={13}/>},
+    {id:"order",label:"재고 주문",icon:<PkgIcon size={13}/>},
+    {id:"todo",label:"할 일 목록",icon:<ListIcon size={13}/>},
+  ];
+  var WORK_SUB=[
+    {id:"cal",label:"캘린더",icon:<CalIcon size={12}/>},
+    {id:"list",label:"목록",icon:<ListIcon size={12}/>},
+  ];
+
+  return(
+    <div className="ml-root">
+      <style>{CSS}</style>
+      <div style={{background:"#1E293B",padding:"14px 20px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <div>
+            <div className="ml-mono" style={{fontSize:10,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
+            <h1 style={{fontSize:19,fontWeight:700,color:"#F8FAFC",marginTop:1}}>미플+아카이브</h1>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.08)",borderRadius:8,padding:"6px 12px"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:currentUser.color,display:"inline-block"}}/>
+              <span style={{fontSize:12,fontWeight:600,color:"#F1F5F9"}}>{currentUser.name}</span>
+              {isAdmin&&<span style={{fontSize:10,fontWeight:700,color:"#93C5FD",background:"rgba(59,130,246,.2)",padding:"1px 6px",borderRadius:4}}>관리자</span>}
+            </div>
+            {isAdmin&&(
+              <button onClick={function(){setStaffManageModal(true);}}
+                style={{fontSize:11,color:"#94A3B8",background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.1)",borderRadius:6,cursor:"pointer",padding:"4px 10px"}}>직원 관리</button>
+            )}
+            <button onClick={handleLogout} style={{fontSize:11,color:"#64748B",background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>로그아웃</button>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:2}}>
+          {MAIN_TABS.map(function(t){return(
+            <button key={t.id} onClick={function(){setMainTab(t.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"8px 16px",borderRadius:"16px 16px 0 0",fontSize:13,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",background:mainTab===t.id?"rgba(255,255,255,.12)":"transparent",color:mainTab===t.id?"#F8FAFC":"#64748B",borderBottom:mainTab===t.id?"2px solid #3B82F6":"2px solid transparent"}}>
+              {t.icon}{t.label}
+            </button>
+          );})}
+        </div>
+      </div>
+      {mainTab==="work"&&(
+        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center"}}>
+          {WORK_SUB.map(function(t){return(
+            <button key={t.id} onClick={function(){setWorkSubTab(t.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:workSubTab===t.id?"#1E293B":"transparent",color:workSubTab===t.id?"#F8FAFC":"#64748B"}}>
+              {t.icon}{t.label}
+            </button>
+          );})}
+          <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
+        </div>
+      )}
+      {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
+        <>
+          {mainTab==="work"&&workSubTab==="cal"&&(
+            <TabErrorBoundary key="work-cal">
+            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
+              <div style={{flex:1,overflow:"auto"}}>
+                <CalendarView works={works}
+                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}}
+                  onWorkClick={function(w){
+                    if(isAdmin||w.staffId===myId)setWorkModal({record:w});
+                    else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
+                  }}
+                  filterStaff={calFilterStaff} filterStore={calFilterStore}/>
+              </div>
+            </div>
+            </TabErrorBoundary>
+          )}
+          {mainTab==="work"&&workSubTab==="list"&&(
+            <TabErrorBoundary key="work-list">
+            <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+              <WorkListView works={works} currentUser={currentUser}
+                onEdit={function(w){
+                  if(isAdmin||w.staffId===myId)setWorkModal({record:w});
+                  else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
+                }}
+                onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
+            </div>
+            </TabErrorBoundary>
+          )}
+          {mainTab==="order"&&(
+            <TabErrorBoundary key="order">
+              <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>
+            </TabErrorBoundary>
+          )}
+          {mainTab==="todo"&&(
+            <TabErrorBoundary key="todo">
+              <TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>
+            </TabErrorBoundary>
+          )}
+        </>
+      )}
+      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
+      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
+      {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+
+</script>
+<script>
+(function(){
+  function showError(t,d){document.getElementById("root").innerHTML="<div style='padding:24px;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;font-family:sans-serif'><b>"+t+"</b><br>"+d+"</div>";}
+  window.onerror=function(m,s,l){showError("오류가 발생했어요:",m+" (line "+l+")");}
+  try{
+    var sb=window.supabase.createClient(
+      "https://kgtopbstibqdixgdntds.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtndG9wYnN0aWJxZGl4Z2RudGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MDMyNTQsImV4cCI6MjA5ODE3OTI1NH0.y3Fm7oM6Zn66JgSblCTol1C28NWLk7ypvOjzltxkM4Y"
+    );
+    window.sb=sb;
+    var source=document.getElementById("app-source").textContent;
+    var transformed=Babel.transform(source,{presets:[["react",{runtime:"classic"}]],sourceType:"script"}).code;
+    (function(sb){eval(transformed);})(sb);
+  }catch(e){showError("초기화 중 오류가 발생했어요:",(e&&e.message)?e.message:String(e));}
+})();
+</script>
+</body>
+</html>
