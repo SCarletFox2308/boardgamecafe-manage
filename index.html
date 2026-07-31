@@ -1011,7 +1011,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
                     <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")}>
                       <td style={{padding:"9px 14px",fontWeight:600,color:"#1E293B"}}>
                         {itemName(o.itemId)}
-                        {it&&it.category&&(function(){var c=catCfg(it.category);return <span style={{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}}>{it.category}</span>;}())}
+                        {it&&it.category?(function(){var c=catCfg(it.category);return React.createElement("span",{style:{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}},it.category);}()):null}
                       </td>
                       <td style={{padding:"9px 14px",textAlign:"center"}}>
                         <span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span>
