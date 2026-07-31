@@ -1007,11 +1007,12 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
                 {deliveredOrders.map(function(o,i){
                   var it=items.find(function(x){return x.id===o.itemId;});
                   var b=storeBadge(o.storeId);
+                  var itCat=it&&it.category?catCfg(it.category):null;
                   return(
                     <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")}>
                       <td style={{padding:"9px 14px",fontWeight:600,color:"#1E293B"}}>
                         {itemName(o.itemId)}
-                        {it&&it.category?(function(){var c=catCfg(it.category);return React.createElement("span",{style:{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}},it.category);}()):null}
+                        {itCat&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:itCat.bg,color:itCat.color}}>{it.category}</span>}
                       </td>
                       <td style={{padding:"9px 14px",textAlign:"center"}}>
                         <span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span>
