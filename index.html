@@ -1559,7 +1559,7 @@ root.render(<App/>);
     );
     window.sb=sb;
     var source=document.getElementById("app-source").textContent;
-    var transformed=Babel.transform(source,{presets:[["react",{runtime:"classic"}]],sourceType:"script"}).code;
+    var transformed=Babel.transform(source,{presets:[["react",{runtime:"classic"}],["env",{targets:{browsers:["last 2 versions"]}}]],sourceType:"script"}).code;
     (function(sb){eval(transformed);})(sb);
   }catch(e){showError("초기화 중 오류가 발생했어요:",(e&&e.message)?e.message:String(e));}
 })();
