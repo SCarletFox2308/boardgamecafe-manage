@@ -1048,6 +1048,145 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
   );
 }
 
+// ── SubscriptionModal ──
+function SubscriptionModal({sub,storeId,onClose,onSave,onDelete}){
+  var isEdit=!!(sub&&sub.id);
+  var [form,setForm]=useState({
+    name:(sub&&sub.name)||"",
+    subDate:(sub&&sub.subDate)||dateStr(new Date()),
+    groupName:(sub&&sub.groupName)||"",
+    reviewDone:!!(sub&&sub.reviewDone),
+    memo:(sub&&sub.memo)||"",
+  });
+  var [err,setErr]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submit(e){
+    e.preventDefault();
+    if(!form.name.trim()){setErr("이름을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:(sub&&sub.id)||uid(),storeId:storeId,name:form.name.trim(),subDate:form.subDate,groupName:form.groupName.trim(),reviewDone:form.reviewDone,memo:form.memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>{isEdit?"월정액 정보 수정":"월정액 등록"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>이름 *</label>
+          <input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});setErr("");}}
+            className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="회원 이름"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>월정액 일자</label>
+          <input type="date" value={form.subDate} onChange={function(e){setForm({...form,subDate:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}}/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>모임명</label>
+          <input value={form.groupName} onChange={function(e){setForm({...form,groupName:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="소속 모임명"/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+            <input type="checkbox" checked={form.reviewDone} onChange={function(e){setForm({...form,reviewDone:e.target.checked});}} style={{width:16,height:16,accentColor:"#2563EB",cursor:"pointer"}}/>
+            <span style={{fontSize:13,fontWeight:600,color:"#1E293B"}}>리뷰 작성 완료</span>
+          </label>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>메모</label>
+          <input value={form.memo} onChange={function(e){setForm({...form,memo:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="특이사항 등"/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={function(){onDelete(sub);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:13,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":"등록"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── SubscriptionView ──
+function SubscriptionView({subs,storeId,onAdd,onItemClick}){
+  var [search,setSearch]=useState("");
+  var [filterGroup,setFilterGroup]=useState("all");
+
+  var storeSubs=useMemo(function(){return subs.filter(function(s){return s.storeId===storeId;});},[subs,storeId]);
+
+  var groups=useMemo(function(){
+    var s=new Set(storeSubs.map(function(x){return x.groupName;}).filter(Boolean));
+    return [...s].sort();
+  },[storeSubs]);
+
+  var filtered=useMemo(function(){
+    var l=[...storeSubs];
+    if(search.trim())l=l.filter(function(x){return x.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
+    if(filterGroup!=="all")l=l.filter(function(x){return x.groupName===filterGroup;});
+    return l.sort(function(a,b){return(b.subDate||"")>(a.subDate||"")?1:-1;});
+  },[storeSubs,search,filterGroup]);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
+        <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="이름 검색…"
+          style={{padding:"6px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:160}}/>
+        <select value={filterGroup} onChange={function(e){setFilterGroup(e.target.value);}}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 모임</option>
+          {groups.map(function(g){return <option key={g} value={g}>{g}</option>;})}
+        </select>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}명</span>
+        <button onClick={onAdd} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 월정액 등록</button>
+      </div>
+      <div className="tbl-wrap">
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{storeSubs.length===0?"등록된 월정액이 없어요.":"검색 결과가 없어요."}</div>:(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>이름</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>월정액 일자</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>모임명</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>리뷰</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600}}>메모</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(function(s,i){return(
+                <tr key={s.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(s);}} style={{cursor:"pointer"}}>
+                  <td style={{padding:"11px 16px",fontWeight:600,color:"#1E293B"}}>{s.name}</td>
+                  <td className="ml-mono" style={{padding:"11px 14px",textAlign:"center",fontSize:12,color:"#374151"}}>{s.subDate||"—"}</td>
+                  <td style={{padding:"11px 14px",textAlign:"center"}}>{s.groupName?<span className="tag" style={{background:"#F1F5F9",color:"#475569"}}>{s.groupName}</span>:<span style={{fontSize:12,color:"#CBD5E1"}}>—</span>}</td>
+                  <td style={{padding:"11px 14px",textAlign:"center"}}>
+                    {s.reviewDone
+                      ?<span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:999,background:"#DCFCE7",color:"#14532D"}}>완료</span>
+                      :<span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:999,background:"#FEF3C7",color:"#92400E"}}>미작성</span>}
+                  </td>
+                  <td style={{padding:"11px 16px",color:"#64748B",fontSize:12}}>{s.memo||""}</td>
+                </tr>
+              );})}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TodoView ──
 function TodoView({todos,onAdd,onItemClick}){
   var [filterStore,setFilterStore]=useState("all");
@@ -1381,6 +1520,9 @@ function App(){
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
   var [staffManageModal,setStaffManageModal]=useState(false);
+  var [subs,setSubs]=useState([]);
+  var [subModal,setSubModal]=useState(null);
+  var [subStoreTab,setSubStoreTab]=useState("미플");
 
   function handleLogin(user){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
@@ -1392,7 +1534,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);
   }
 
   useEffect(function(){
@@ -1413,6 +1555,7 @@ function App(){
       try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,memo:x.memo||"",requestedBy:x.requested_by||null,completedBy:x.completed_by||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
+      try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
       setLoading(false);
     })();
   },[currentUser]);
@@ -1487,9 +1630,26 @@ function App(){
   }
   async function handleDeleteTodo(t){if(!window.confirm("\""+t.title+"\"을(를) 삭제할까요?"))return;try{await sb.from("todos").delete().eq("id",t.id);setTodos(function(prev){return prev.filter(function(x){return x.id!==t.id;});});setTodoModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
 
+  async function handleSaveSub(form){
+    var isEdit=!!(subModal&&subModal.id);
+    try{
+      if(isEdit){
+        await sb.from("subscriptions").update({name:form.name,sub_date:form.subDate||null,group_name:form.groupName||null,review_done:form.reviewDone,memo:form.memo}).eq("id",form.id);
+        setSubs(function(prev){return prev.map(function(s){return s.id===form.id?{...s,name:form.name,subDate:form.subDate,groupName:form.groupName,reviewDone:form.reviewDone,memo:form.memo}:s;});});
+      }else{
+        var row={id:form.id,store_id:form.storeId,name:form.name,sub_date:form.subDate||null,group_name:form.groupName||null,review_done:form.reviewDone,memo:form.memo,created_at:new Date().toISOString()};
+        await sb.from("subscriptions").insert(row);
+        setSubs(function(prev){return[{id:row.id,storeId:row.store_id,name:row.name,subDate:row.sub_date||"",groupName:row.group_name||"",reviewDone:row.review_done,memo:row.memo},...prev];});
+      }
+      setSubModal(null);
+    }catch(e){alert("저장 실패: "+e.message);}
+  }
+  async function handleDeleteSub(s){if(!window.confirm("\""+s.name+"\" 정보를 삭제할까요?"))return;try{await sb.from("subscriptions").delete().eq("id",s.id);setSubs(function(prev){return prev.filter(function(x){return x.id!==s.id;});});setSubModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+
   var MAIN_TABS=[
     {id:"work",label:"근무 관리",icon:<CalIcon size={13}/>},
     {id:"order",label:"재고 주문",icon:<PkgIcon size={13}/>},
+    {id:"sub",label:"월정액 명단",icon:<ListIcon size={13}/>},
     {id:"todo",label:"할 일 목록",icon:<ListIcon size={13}/>},
   ];
   var WORK_SUB=[
@@ -1539,6 +1699,16 @@ function App(){
           <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 근무 등록</button>
         </div>
       )}
+      {mainTab==="sub"&&(
+        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center"}}>
+          {STORES.map(function(s){return(
+            <button key={s.id} onClick={function(){setSubStoreTab(s.id);}}
+              style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer",background:subStoreTab===s.id?"#1E293B":"transparent",color:subStoreTab===s.id?"#F8FAFC":"#64748B"}}>
+              {s.id}
+            </button>
+          );})}
+        </div>
+      )}
       {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
         <>
           {mainTab==="work"&&workSubTab==="cal"&&(
@@ -1574,6 +1744,11 @@ function App(){
               <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>
             </TabErrorBoundary>
           )}
+          {mainTab==="sub"&&(
+            <TabErrorBoundary key="sub">
+              <SubscriptionView subs={subs} storeId={subStoreTab} onAdd={function(){setSubModal({});}} onItemClick={function(s){setSubModal(s);}}/>
+            </TabErrorBoundary>
+          )}
           {mainTab==="todo"&&(
             <TabErrorBoundary key="todo">
               <TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>
@@ -1584,6 +1759,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
