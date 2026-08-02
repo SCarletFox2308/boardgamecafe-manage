@@ -1053,7 +1053,7 @@ function SubscriptionModal({sub,storeId,defaultMonth,allSubs,onClose,onSave,onDe
   var isEdit=!!(sub&&sub.id);
   var [form,setForm]=useState({
     name:(sub&&sub.name)||"",
-    subDate:(sub&&sub.subDate)||(defaultMonth?defaultMonth+"-01":dateStr(new Date())),
+    subDate:(sub&&sub.subDate)||dateStr(new Date()),
     groupName:(sub&&sub.groupName)||"",
     reviewDone:!!(sub&&sub.reviewDone),
     memo:(sub&&sub.memo)||"",
@@ -1201,7 +1201,7 @@ function SubscriptionView({subs,storeId,onAdd,onItemClick}){
     var l=[...monthSubs];
     if(search.trim())l=l.filter(function(x){return x.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
     if(filterGroup!=="all")l=l.filter(function(x){return x.groupName===filterGroup;});
-    return l.sort(function(a,b){return(b.subDate||"")>(a.subDate||"")?1:-1;});
+    return l.sort(function(a,b){return a.name.localeCompare(b.name,"ko");});
   },[monthSubs,search,filterGroup]);
 
   function prevMonth(){
