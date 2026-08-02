@@ -1061,10 +1061,24 @@ function SubscriptionModal({sub,storeId,defaultMonth,allSubs,onClose,onSave,onDe
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
 
-  var knownNames=useMemo(function(){
-    var s=new Set((allSubs||[]).map(function(x){return x.name;}).filter(Boolean));
-    return [...s].sort();
+  // allSubs는 이미 created_at desc 순으로 로드됨 → 순서 그대로 최근 등록 우선
+  var recentNames=useMemo(function(){
+    var seen=new Set(),result=[];
+    (allSubs||[]).forEach(function(x){
+      if(x.name&&!seen.has(x.name)){seen.add(x.name);result.push(x.name);}
+    });
+    return result.slice(0,20).sort(function(a,b){return a.localeCompare(b,"ko");});
   },[allSubs]);
+  var [nameFilter,setNameFilter]=useState("");
+  var knownNames=useMemo(function(){
+    if(!nameFilter.trim())return recentNames;
+    var q=nameFilter.trim().toLowerCase();
+    var seen=new Set(),result=[];
+    (allSubs||[]).forEach(function(x){
+      if(x.name&&x.name.toLowerCase().indexOf(q)>=0&&!seen.has(x.name)){seen.add(x.name);result.push(x.name);}
+    });
+    return result.sort(function(a,b){return a.localeCompare(b,"ko");});
+  },[recentNames,nameFilter,allSubs]);
   var knownGroups=useMemo(function(){
     var s=new Set((allSubs||[]).map(function(x){return x.groupName;}).filter(Boolean));
     return [...s].sort();
@@ -1086,20 +1100,23 @@ function SubscriptionModal({sub,storeId,defaultMonth,allSubs,onClose,onSave,onDe
         </div>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>이름 *</label>
-          <input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});setErr("");}}
+          <input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});setNameFilter(e.target.value);setErr("");}}
             className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="회원 이름"/>
           {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
           {knownNames.length>0&&(
-            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8}}>
-              {knownNames.map(function(n){return(
-                <button key={n} type="button" onClick={function(){setForm({...form,name:n});setErr("");}}
-                  style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
-                    border:"1.5px solid "+(form.name===n?"#2563EB":"#E2E8F0"),
-                    background:form.name===n?"#EFF6FF":"#fff",
-                    color:form.name===n?"#2563EB":"#94A3B8"}}>
-                  {n}
-                </button>
-              );})}
+            <div style={{marginTop:8}}>
+              {!nameFilter.trim()&&<div style={{fontSize:10,color:"#94A3B8",marginBottom:5}}>최근 등록 {knownNames.length}명</div>}
+              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                {knownNames.map(function(n){return(
+                  <button key={n} type="button" onClick={function(){setForm({...form,name:n});setNameFilter("");setErr("");}}
+                    style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
+                      border:"1.5px solid "+(form.name===n?"#2563EB":"#E2E8F0"),
+                      background:form.name===n?"#EFF6FF":"#fff",
+                      color:form.name===n?"#2563EB":"#94A3B8"}}>
+                    {n}
+                  </button>
+                );})}
+              </div>
             </div>
           )}
         </div>
