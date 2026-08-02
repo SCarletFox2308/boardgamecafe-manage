@@ -713,6 +713,8 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
 function StoreOrderColumn({storeId,status,items,orders,onUpdateOrderStatus}){
   var cfg=statusCfg(status);
   var nextCfg=statusCfg(cfg.next);
+  var [checked,setChecked]=useState(new Set());
+  var [confirming,setConfirming]=useState(false);
 
   var colOrders=useMemo(function(){
     return orders.filter(function(o){return o.storeId===storeId&&o.status===status;})
@@ -720,38 +722,71 @@ function StoreOrderColumn({storeId,status,items,orders,onUpdateOrderStatus}){
   },[orders,storeId,status]);
 
   function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
+  function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function toggleAll(){checked.size===colOrders.length&&colOrders.length>0?setChecked(new Set()):setChecked(new Set(colOrders.map(function(o){return o.id;})));}
 
-  if(colOrders.length===0){
-    return <div style={{padding:"32px 14px",textAlign:"center",fontSize:13,color:"#CBD5E1"}}>{status} 주문이 없어요.</div>;
+  var checkedOrders=useMemo(function(){return colOrders.filter(function(o){return checked.has(o.id);});},[colOrders,checked]);
+
+  function confirmMove(){
+    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,cfg.next);});
+    setChecked(new Set());
+    setConfirming(false);
   }
 
   return(
     <div>
-      {colOrders.map(function(o){
-        var it=items.find(function(x){return x.id===o.itemId;});
-        var c=it&&it.category?catCfg(it.category):null;
-        return(
-          <div key={o.id} style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"flex-start",gap:10}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                <span style={{fontSize:14,fontWeight:700,color:"#1E293B"}}>{itemName(o.itemId)}</span>
-                {c&&<span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{it.category}</span>}
-              </div>
-              {o.memo&&<div style={{fontSize:12,color:"#64748B",marginBottom:3}}>{o.memo}</div>}
-              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-                <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{o.changedAt?fmtDateTime(o.changedAt):""}</span>
-                {o.requestedBy&&<span style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>요청: {staffName(o.requestedBy)}</span>}
-                {o.completedBy&&<span style={{fontSize:10,color:"#059669",fontWeight:600}}>완료: {staffName(o.completedBy)}</span>}
+      <div style={{padding:"10px 16px",background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",gap:10}}>
+        <input type="checkbox" checked={colOrders.length>0&&checked.size===colOrders.length} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+        {checked.size>0&&<span style={{fontSize:11,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
+        <button onClick={function(){if(checked.size===0){alert("항목을 선택해주세요.");return;}setConfirming(true);}}
+          style={{marginLeft:"auto",padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:checked.size>0?(nextCfg.bg||"#fff"):"#F1F5F9",color:checked.size>0?nextCfg.color:"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
+          → {cfg.next}로 이동
+        </button>
+      </div>
+      {colOrders.length===0?(
+        <div style={{padding:"32px 14px",textAlign:"center",fontSize:13,color:"#CBD5E1"}}>{status} 주문이 없어요.</div>
+      ):(
+        colOrders.map(function(o){
+          var it=items.find(function(x){return x.id===o.itemId;});
+          var c=it&&it.category?catCfg(it.category):null;
+          var isCk=checked.has(o.id);
+          return(
+            <div key={o.id} onClick={function(){toggleCheck(o.id);}}
+              style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer",background:isCk?"#EFF6FF":"transparent"}}>
+              <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(o.id);}} onClick={function(e){e.stopPropagation();}}
+                style={{accentColor:"#3B82F6",cursor:"pointer",marginTop:3,flexShrink:0}}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                  <span style={{fontSize:14,fontWeight:700,color:"#1E293B"}}>{itemName(o.itemId)}</span>
+                  {c&&<span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{it.category}</span>}
+                </div>
+                {o.memo&&<div style={{fontSize:12,color:"#64748B",marginBottom:3}}>{o.memo}</div>}
+                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                  <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{o.changedAt?fmtDateTime(o.changedAt):""}</span>
+                  {o.requestedBy&&<span style={{fontSize:10,color:"#7C3AED",fontWeight:600}}>요청: {staffName(o.requestedBy)}</span>}
+                  {o.completedBy&&<span style={{fontSize:10,color:"#059669",fontWeight:600}}>완료: {staffName(o.completedBy)}</span>}
+                </div>
               </div>
             </div>
-            <button onClick={function(){
-              if(window.confirm("\""+itemName(o.itemId)+"\" 주문을\n\""+cfg.next+"\"(으)로 변경할까요?"))onUpdateOrderStatus(o.id,cfg.next);
-            }} style={{flexShrink:0,padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid "+nextCfg.dot,background:"#fff",color:nextCfg.color,cursor:"pointer",whiteSpace:"nowrap"}}>
-              → {cfg.next}
-            </button>
+          );
+        })
+      )}
+      {confirming&&(
+        <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)setConfirming(false);}}>
+          <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:12}}>선택한 {checkedOrders.length}개 항목을 [{cfg.next}]로 변경하시겠습니까?</h2>
+            <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:20,maxHeight:220,overflowY:"auto",border:"1px solid #E2E8F0"}}>
+              {checkedOrders.map(function(o){return(
+                <div key={o.id} style={{fontSize:13,color:"#374151",padding:"3px 0"}}>· {itemName(o.itemId)}</div>
+              );})}
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button onClick={function(){setConfirming(false);}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+              <button onClick={confirmMove} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>
+            </div>
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
