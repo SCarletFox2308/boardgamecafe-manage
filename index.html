@@ -1049,7 +1049,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
 }
 
 // ── SubscriptionModal ──
-function SubscriptionModal({sub,storeId,defaultMonth,onClose,onSave,onDelete}){
+function SubscriptionModal({sub,storeId,defaultMonth,allSubs,onClose,onSave,onDelete}){
   var isEdit=!!(sub&&sub.id);
   var [form,setForm]=useState({
     name:(sub&&sub.name)||"",
@@ -1060,6 +1060,15 @@ function SubscriptionModal({sub,storeId,defaultMonth,onClose,onSave,onDelete}){
   });
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
+
+  var knownNames=useMemo(function(){
+    var s=new Set((allSubs||[]).map(function(x){return x.name;}).filter(Boolean));
+    return [...s].sort();
+  },[allSubs]);
+  var knownGroups=useMemo(function(){
+    var s=new Set((allSubs||[]).map(function(x){return x.groupName;}).filter(Boolean));
+    return [...s].sort();
+  },[allSubs]);
 
   function submit(e){
     e.preventDefault();
@@ -1080,6 +1089,19 @@ function SubscriptionModal({sub,storeId,defaultMonth,onClose,onSave,onDelete}){
           <input value={form.name} onChange={function(e){setForm({...form,name:e.target.value});setErr("");}}
             className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="회원 이름"/>
           {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+          {knownNames.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8}}>
+              {knownNames.map(function(n){return(
+                <button key={n} type="button" onClick={function(){setForm({...form,name:n});setErr("");}}
+                  style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
+                    border:"1.5px solid "+(form.name===n?"#2563EB":"#E2E8F0"),
+                    background:form.name===n?"#EFF6FF":"#fff",
+                    color:form.name===n?"#2563EB":"#94A3B8"}}>
+                  {n}
+                </button>
+              );})}
+            </div>
+          )}
         </div>
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>월정액 일자</label>
@@ -1090,6 +1112,19 @@ function SubscriptionModal({sub,storeId,defaultMonth,onClose,onSave,onDelete}){
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>모임명</label>
           <input value={form.groupName} onChange={function(e){setForm({...form,groupName:e.target.value});}}
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="소속 모임명"/>
+          {knownGroups.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:8}}>
+              {knownGroups.map(function(g){return(
+                <button key={g} type="button" onClick={function(){setForm({...form,groupName:g});}}
+                  style={{padding:"3px 10px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
+                    border:"1.5px solid "+(form.groupName===g?"#2563EB":"#E2E8F0"),
+                    background:form.groupName===g?"#EFF6FF":"#fff",
+                    color:form.groupName===g?"#2563EB":"#94A3B8"}}>
+                  {g}
+                </button>
+              );})}
+            </div>
+          )}
         </div>
         <div style={{marginBottom:14}}>
           <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
@@ -1802,7 +1837,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
-      {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
+      {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
