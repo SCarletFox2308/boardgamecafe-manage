@@ -1049,11 +1049,11 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
 }
 
 // ── SubscriptionModal ──
-function SubscriptionModal({sub,storeId,onClose,onSave,onDelete}){
+function SubscriptionModal({sub,storeId,defaultMonth,onClose,onSave,onDelete}){
   var isEdit=!!(sub&&sub.id);
   var [form,setForm]=useState({
     name:(sub&&sub.name)||"",
-    subDate:(sub&&sub.subDate)||dateStr(new Date()),
+    subDate:(sub&&sub.subDate)||(defaultMonth?defaultMonth+"-01":dateStr(new Date())),
     groupName:(sub&&sub.groupName)||"",
     reviewDone:!!(sub&&sub.reviewDone),
     memo:(sub&&sub.memo)||"",
@@ -1125,24 +1125,53 @@ function SubscriptionModal({sub,storeId,onClose,onSave,onDelete}){
 function SubscriptionView({subs,storeId,onAdd,onItemClick}){
   var [search,setSearch]=useState("");
   var [filterGroup,setFilterGroup]=useState("all");
+  var [month,setMonth]=useState(function(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1);});
 
   var storeSubs=useMemo(function(){return subs.filter(function(s){return s.storeId===storeId;});},[subs,storeId]);
 
+  var months=useMemo(function(){
+    var s=new Set(storeSubs.map(function(x){return x.subDate?x.subDate.slice(0,7):null;}).filter(Boolean));
+    var cur=month;
+    s.add(cur);
+    return [...s].sort().reverse();
+  },[storeSubs,month]);
+
+  var monthSubs=useMemo(function(){
+    return storeSubs.filter(function(x){return x.subDate&&x.subDate.slice(0,7)===month;});
+  },[storeSubs,month]);
+
   var groups=useMemo(function(){
-    var s=new Set(storeSubs.map(function(x){return x.groupName;}).filter(Boolean));
+    var s=new Set(monthSubs.map(function(x){return x.groupName;}).filter(Boolean));
     return [...s].sort();
-  },[storeSubs]);
+  },[monthSubs]);
 
   var filtered=useMemo(function(){
-    var l=[...storeSubs];
+    var l=[...monthSubs];
     if(search.trim())l=l.filter(function(x){return x.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
     if(filterGroup!=="all")l=l.filter(function(x){return x.groupName===filterGroup;});
     return l.sort(function(a,b){return(b.subDate||"")>(a.subDate||"")?1:-1;});
-  },[storeSubs,search,filterGroup]);
+  },[monthSubs,search,filterGroup]);
+
+  function prevMonth(){
+    var d=new Date(month+"-01T12:00:00");d.setMonth(d.getMonth()-1);
+    setMonth(d.getFullYear()+"-"+pad(d.getMonth()+1));
+  }
+  function nextMonth(){
+    var d=new Date(month+"-01T12:00:00");d.setMonth(d.getMonth()+1);
+    setMonth(d.getFullYear()+"-"+pad(d.getMonth()+1));
+  }
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          <button onClick={prevMonth} style={{display:"inline-flex",alignItems:"center",padding:"5px 8px",border:"1px solid #E2E8F0",borderRadius:6,background:"#fff",cursor:"pointer"}}><CL size={14}/></button>
+          <select value={month} onChange={function(e){setMonth(e.target.value);}}
+            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B",fontWeight:600}}>
+            {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
+          </select>
+          <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"5px 8px",border:"1px solid #E2E8F0",borderRadius:6,background:"#fff",cursor:"pointer"}}><CR size={14}/></button>
+        </div>
         <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="이름 검색…"
           style={{padding:"6px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",width:160}}/>
         <select value={filterGroup} onChange={function(e){setFilterGroup(e.target.value);}}
@@ -1151,10 +1180,10 @@ function SubscriptionView({subs,storeId,onAdd,onItemClick}){
           {groups.map(function(g){return <option key={g} value={g}>{g}</option>;})}
         </select>
         <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{filtered.length}명</span>
-        <button onClick={onAdd} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 월정액 등록</button>
+        <button onClick={function(){onAdd(month);}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 월정액 등록</button>
       </div>
       <div className="tbl-wrap">
-        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{storeSubs.length===0?"등록된 월정액이 없어요.":"검색 결과가 없어요."}</div>:(
+        {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{monthSubs.length===0?(month+" 등록된 월정액이 없어요."):"검색 결과가 없어요."}</div>:(
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
@@ -1505,6 +1534,12 @@ function App(){
   var saved=null;
   try{var s=localStorage.getItem(STORAGE_KEY);if(s)saved=JSON.parse(s);}catch(e){}
 
+  // 사용자별 마지막 월정액 매장탭 복원
+  var savedTabs=null;
+  if(saved&&saved.id){
+    try{var ts=localStorage.getItem("miple_lasttab_"+saved.id);if(ts)savedTabs=JSON.parse(ts);}catch(e){}
+  }
+
   var [currentUser,setCurrentUser]=useState(saved); // {id,name,color,isAdmin}
   var [mainTab,setMainTab]=useState("work");
   var [workSubTab,setWorkSubTab]=useState("cal");
@@ -1522,7 +1557,7 @@ function App(){
   var [staffManageModal,setStaffManageModal]=useState(false);
   var [subs,setSubs]=useState([]);
   var [subModal,setSubModal]=useState(null);
-  var [subStoreTab,setSubStoreTab]=useState("미플");
+  var [subStoreTab,setSubStoreTab]=useState((savedTabs&&savedTabs.subStoreTab)||"미플");
 
   function handleLogin(user){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
@@ -1536,6 +1571,14 @@ function App(){
     setLoading(true);
     setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);
   }
+
+  // 로그인한 사용자별 월정액 매장탭만 기억
+  useEffect(function(){
+    if(!currentUser||!currentUser.id)return;
+    try{
+      localStorage.setItem("miple_lasttab_"+currentUser.id,JSON.stringify({subStoreTab:subStoreTab}));
+    }catch(e){}
+  },[currentUser,subStoreTab]);
 
   useEffect(function(){
     if(!currentUser)return;
@@ -1746,7 +1789,7 @@ function App(){
           )}
           {mainTab==="sub"&&(
             <TabErrorBoundary key="sub">
-              <SubscriptionView subs={subs} storeId={subStoreTab} onAdd={function(){setSubModal({});}} onItemClick={function(s){setSubModal(s);}}/>
+              <SubscriptionView subs={subs} storeId={subStoreTab} onAdd={function(m){setSubModal({defaultMonth:m});}} onItemClick={function(s){setSubModal(s);}}/>
             </TabErrorBoundary>
           )}
           {mainTab==="todo"&&(
@@ -1759,7 +1802,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
-      {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
+      {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
