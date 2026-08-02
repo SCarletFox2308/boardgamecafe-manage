@@ -1341,6 +1341,26 @@ function LoginScreen({onLogin}){
 // ── App ──
 var STORAGE_KEY="miple_user_v1";
 
+// ── Tab Error Boundary ──
+class TabErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={error:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  componentDidCatch(e,info){console.error("Tab error:",e,info);}
+  render(){
+    if(this.state.error){
+      return React.createElement("div",{style:{padding:32,textAlign:"center",color:"#991B1B",background:"#FEF2F2",margin:16,borderRadius:12,border:"1px solid #FECACA"}},
+        React.createElement("div",{style:{fontSize:16,fontWeight:700,marginBottom:8}},"이 탭에서 오류가 발생했어요"),
+        React.createElement("div",{style:{fontSize:12,color:"#B91C1C",marginBottom:16,fontFamily:"monospace",whiteSpace:"pre-wrap"}},this.state.error&&this.state.error.message?this.state.error.message:String(this.state.error)),
+        React.createElement("button",{
+          onClick:function(){this.setState({error:null});}.bind(this),
+          style:{padding:"8px 20px",background:"#DC2626",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:600}
+        },"다시 시도")
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App(){
   // localStorage에서 저장된 사용자 복원 시도
   var saved=null;
@@ -1522,6 +1542,7 @@ function App(){
       {loading?<div style={{padding:40,textAlign:"center",fontSize:13,color:"#64748B"}}>불러오는 중…</div>:(
         <>
           {mainTab==="work"&&workSubTab==="cal"&&(
+            <TabErrorBoundary key="work-cal">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
               <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
               <div style={{flex:1,overflow:"auto"}}>
@@ -1534,8 +1555,10 @@ function App(){
                   filterStaff={calFilterStaff} filterStore={calFilterStore}/>
               </div>
             </div>
+            </TabErrorBoundary>
           )}
           {mainTab==="work"&&workSubTab==="list"&&(
+            <TabErrorBoundary key="work-list">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
               <WorkListView works={works} currentUser={currentUser}
                 onEdit={function(w){
@@ -1544,9 +1567,18 @@ function App(){
                 }}
                 onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
             </div>
+            </TabErrorBoundary>
           )}
-          {mainTab==="order"&&<OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>}
-          {mainTab==="todo"&&<TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>}
+          {mainTab==="order"&&(
+            <TabErrorBoundary key="order">
+              <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>
+            </TabErrorBoundary>
+          )}
+          {mainTab==="todo"&&(
+            <TabErrorBoundary key="todo">
+              <TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>
+            </TabErrorBoundary>
+          )}
         </>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
