@@ -1326,9 +1326,15 @@ function BoardWriteModal({categories,onClose,onSave}){
 }
 
 // ── BoardPostModal (글 상세 + 댓글) ──
-function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePost,onAddComment,onDeleteComment}){
+function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePost,onAddComment,onDeleteComment,onEditPost}){
   var [commentText,setCommentText]=useState("");
   var [posting,setPosting]=useState(false);
+  var [editing,setEditing]=useState(false);
+  var [editTitle,setEditTitle]=useState(post.title);
+  var [editContent,setEditContent]=useState(post.content);
+  var [editCategoryId,setEditCategoryId]=useState(post.categoryId||"");
+  var [editErr,setEditErr]=useState("");
+  var [savingEdit,setSavingEdit]=useState(false);
 
   var postComments=useMemo(function(){
     return comments.filter(function(c){return c.postId===post.id;}).sort(function(a,b){return(a.createdAt||"")>(b.createdAt||"")?1:-1;});
@@ -1341,8 +1347,62 @@ function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePo
     onAddComment({id:uid(),postId:post.id,content:commentText.trim()}).then(function(){setCommentText("");setPosting(false);}).catch(function(){setPosting(false);});
   }
 
-  var canDeletePost=currentUser.isAdmin||post.authorId===currentUser.id;
+  function submitEdit(e){
+    e.preventDefault();
+    if(!editTitle.trim()){setEditErr("제목을 입력해주세요.");return;}
+    if(!editContent.trim()){setEditErr("내용을 입력해주세요.");return;}
+    setSavingEdit(true);
+    onEditPost({id:post.id,title:editTitle.trim(),content:editContent.trim(),categoryId:editCategoryId||null}).then(function(){setSavingEdit(false);setEditing(false);}).catch(function(){setSavingEdit(false);});
+  }
+
+  var canEditPost=currentUser.isAdmin||post.authorId===currentUser.id;
   var postCategory=(categories||[]).find(function(x){return x.id===post.categoryId;});
+
+  if(editing){
+    return(
+      <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+        <form className="modal-box fade-in" onSubmit={submitEdit} style={{padding:24,color:"#1E293B",maxWidth:560}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+            <h2 style={{fontSize:17,fontWeight:700}}>글 수정</h2>
+            <button type="button" onClick={function(){setEditing(false);}} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+          </div>
+          {categories&&categories.length>0&&(
+            <div style={{marginBottom:14}}>
+              <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>분류</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {categories.map(function(c){return(
+                  <button key={c.id} type="button" onClick={function(){setEditCategoryId(c.id);}}
+                    style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                      border:"1.5px solid "+(editCategoryId===c.id?"#2563EB":"#E2E8F0"),
+                      background:editCategoryId===c.id?"#EFF6FF":"#fff",
+                      color:editCategoryId===c.id?"#2563EB":"#94A3B8"}}>
+                    {c.name}
+                  </button>
+                );})}
+              </div>
+            </div>
+          )}
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 *</label>
+            <input value={editTitle} onChange={function(e){setEditTitle(e.target.value);setEditErr("");}}
+              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid "+(editErr?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}}/>
+          </div>
+          <div style={{marginBottom:20}}>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>내용 *</label>
+            <textarea value={editContent} onChange={function(e){setEditContent(e.target.value);setEditErr("");}}
+              className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:160}}/>
+            {editErr&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{editErr}</p>}
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+            <button type="button" onClick={function(){setEditing(false);}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={savingEdit} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:savingEdit?0.6:1}}>
+              {savingEdit?"저장 중…":"저장"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
 
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
@@ -1363,8 +1423,12 @@ function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePo
           {post.content}
         </div>
 
-        {canDeletePost&&(
-          <div style={{marginBottom:20}}>
+        {canEditPost&&(
+          <div style={{marginBottom:20,display:"flex",gap:8}}>
+            <button onClick={function(){setEditTitle(post.title);setEditContent(post.content);setEditCategoryId(post.categoryId||"");setEditing(true);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",border:"1px solid #BFDBFE",borderRadius:6,fontSize:12,color:"#2563EB",background:"#EFF6FF",cursor:"pointer"}}>
+              <Pencil size={12}/> 수정
+            </button>
             <button onClick={function(){onDeletePost(post);}}
               style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
               <Trash2 size={12}/> 글 삭제
@@ -2044,6 +2108,12 @@ function App(){
       setPostModal(null);
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
+  function handleEditPost(form){
+    return sb.from("board_posts").update({title:form.title,content:form.content,category_id:form.categoryId}).eq("id",form.id).then(function(){
+      setPosts(function(prev){return prev.map(function(p){return p.id===form.id?{...p,title:form.title,content:form.content,categoryId:form.categoryId}:p;});});
+      setPostModal(function(prev){return prev&&prev.id===form.id?{...prev,title:form.title,content:form.content,categoryId:form.categoryId}:prev;});
+    });
+  }
   function handleAddComment(form){
     var row={id:form.id,post_id:form.postId,author_id:myId,content:form.content,created_at:new Date().toISOString()};
     return sb.from("board_comments").insert(row).then(function(){
@@ -2196,7 +2266,7 @@ function App(){
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {writingPost&&<BoardWriteModal categories={categories} onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
-      {postModal!==null&&<BoardPostModal post={postModal} comments={comments} categories={categories} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
+      {postModal!==null&&<BoardPostModal post={postModal} comments={comments} categories={categories} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onEditPost={handleEditPost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
       {categoryManageModal&&<BoardCategoryManageModal categories={categories} onClose={function(){setCategoryManageModal(false);}} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
