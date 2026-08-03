@@ -1264,6 +1264,185 @@ function SubscriptionView({subs,storeId,onAdd,onItemClick}){
   );
 }
 
+// ── BoardWriteModal (새 글 작성) ──
+function BoardWriteModal({onClose,onSave}){
+  var [title,setTitle]=useState("");
+  var [content,setContent]=useState("");
+  var [err,setErr]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submit(e){
+    e.preventDefault();
+    if(!title.trim()){setErr("제목을 입력해주세요.");return;}
+    if(!content.trim()){setErr("내용을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:uid(),title:title.trim(),content:content.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>새 글 작성</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 *</label>
+          <input value={title} onChange={function(e){setTitle(e.target.value);setErr("");}}
+            className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:13,outline:"none"}} placeholder="제목을 입력하세요"/>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>내용 *</label>
+          <textarea value={content} onChange={function(e){setContent(e.target.value);setErr("");}}
+            className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none",resize:"vertical",minHeight:160}} placeholder="내용을 입력하세요"/>
+          {err&&<p style={{fontSize:12,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+          <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+          <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+            {saving?"등록 중…":"등록"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── BoardPostModal (글 상세 + 댓글) ──
+function BoardPostModal({post,comments,currentUser,onClose,onDeletePost,onAddComment,onDeleteComment}){
+  var [commentText,setCommentText]=useState("");
+  var [posting,setPosting]=useState(false);
+
+  var postComments=useMemo(function(){
+    return comments.filter(function(c){return c.postId===post.id;}).sort(function(a,b){return(a.createdAt||"")>(b.createdAt||"")?1:-1;});
+  },[comments,post.id]);
+
+  function submitComment(e){
+    e.preventDefault();
+    if(!commentText.trim())return;
+    setPosting(true);
+    onAddComment({id:uid(),postId:post.id,content:commentText.trim()}).then(function(){setCommentText("");setPosting(false);}).catch(function(){setPosting(false);});
+  }
+
+  var canDeletePost=currentUser.isAdmin||post.authorId===currentUser.id;
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:560}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
+          <h2 style={{fontSize:17,fontWeight:700,flex:1,paddingRight:12}}>{post.title}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",flexShrink:0}}><X size={18}/></button>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,fontSize:12,color:"#94A3B8"}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(post.authorId),display:"inline-block"}}/>
+          <span style={{fontWeight:600,color:"#64748B"}}>{staffName(post.authorId)}</span>
+          <span className="ml-mono">{fmtDateTime(post.createdAt)}</span>
+        </div>
+        <div style={{background:"#F8FAFC",borderRadius:8,padding:"14px 16px",marginBottom:20,fontSize:13,color:"#374151",whiteSpace:"pre-wrap",lineHeight:1.6,border:"1px solid #E2E8F0"}}>
+          {post.content}
+        </div>
+
+        {canDeletePost&&(
+          <div style={{marginBottom:20}}>
+            <button onClick={function(){onDeletePost(post);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={12}/> 글 삭제
+            </button>
+          </div>
+        )}
+
+        <div style={{borderTop:"1px solid #E2E8F0",paddingTop:16}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#64748B",marginBottom:10}}>댓글 {postComments.length}개</div>
+          <div style={{maxHeight:220,overflowY:"auto",marginBottom:14}}>
+            {postComments.length===0?(
+              <p style={{fontSize:12,color:"#CBD5E1",padding:"8px 0"}}>첫 댓글을 남겨보세요.</p>
+            ):postComments.map(function(c){
+              var canDeleteC=currentUser.isAdmin||c.authorId===currentUser.id;
+              return(
+                <div key={c.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(c.authorId),display:"inline-block",marginTop:5,flexShrink:0}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <span style={{fontSize:12,fontWeight:700,color:"#1E293B"}}>{staffName(c.authorId)}</span>
+                      <span className="ml-mono" style={{fontSize:10,color:"#CBD5E1"}}>{fmtDateTime(c.createdAt)}</span>
+                    </div>
+                    <div style={{fontSize:13,color:"#374151",whiteSpace:"pre-wrap"}}>{c.content}</div>
+                  </div>
+                  {canDeleteC&&(
+                    <button onClick={function(){onDeleteComment(c);}}
+                      style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",color:"#CBD5E1",padding:2}}>
+                      <X size={13}/>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <form onSubmit={submitComment} style={{display:"flex",gap:8}}>
+            <input value={commentText} onChange={function(e){setCommentText(e.target.value);}}
+              className="ml-inp" style={{flex:1,padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="댓글을 입력하세요"/>
+            <button type="submit" disabled={posting||!commentText.trim()}
+              style={{padding:"8px 16px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",fontWeight:600,opacity:(posting||!commentText.trim())?0.5:1,whiteSpace:"nowrap"}}>
+              등록
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── BoardView ──
+function BoardView({posts,comments,currentUser,onWrite,onItemClick}){
+  var sorted=useMemo(function(){
+    return [...posts].sort(function(a,b){return(b.createdAt||"")>(a.createdAt||"")?1:-1;});
+  },[posts]);
+
+  function commentCount(postId){return comments.filter(function(c){return c.postId===postId;}).length;}
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+        <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{sorted.length}개 글</span>
+        <button onClick={onWrite} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 글쓰기</button>
+      </div>
+      <div className="tbl-wrap">
+        {sorted.length===0?(
+          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>등록된 글이 없어요.</div>
+        ):(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>제목</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>작성자</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>댓글</th>
+                <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>작성일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(function(p,i){return(
+                <tr key={p.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(p);}} style={{cursor:"pointer"}}>
+                  <td style={{padding:"11px 16px",fontWeight:600,color:"#1E293B",maxWidth:320,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.title}</td>
+                  <td style={{padding:"11px 14px",textAlign:"center"}}>
+                    <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
+                      <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(p.authorId),display:"inline-block"}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{staffName(p.authorId)}</span>
+                    </span>
+                  </td>
+                  <td style={{padding:"11px 14px",textAlign:"center"}}>
+                    <span className="ml-mono" style={{fontSize:12,color:"#64748B"}}>{commentCount(p.id)}</span>
+                  </td>
+                  <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:11,color:"#94A3B8",whiteSpace:"nowrap"}}>{p.createdAt?p.createdAt.slice(0,10):"—"}</td>
+                </tr>
+              );})}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── TodoView ──
 function TodoView({todos,onAdd,onItemClick}){
   var [filterStore,setFilterStore]=useState("all");
@@ -1606,6 +1785,10 @@ function App(){
   var [subs,setSubs]=useState([]);
   var [subModal,setSubModal]=useState(null);
   var [subStoreTab,setSubStoreTab]=useState((savedTabs&&savedTabs.subStoreTab)||"미플");
+  var [posts,setPosts]=useState([]);
+  var [comments,setComments]=useState([]);
+  var [postModal,setPostModal]=useState(null);
+  var [writingPost,setWritingPost]=useState(false);
 
   function handleLogin(user){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
@@ -1617,7 +1800,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);
   }
 
   // 로그인한 사용자별 월정액 매장탭만 기억
@@ -1647,6 +1830,8 @@ function App(){
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,memo:x.memo||"",requestedBy:x.requested_by||null,completedBy:x.completed_by||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
+      try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,createdAt:x.created_at};}));}catch(e){setPosts([]);}
+      try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
       setLoading(false);
     })();
   },[currentUser]);
@@ -1737,10 +1922,39 @@ function App(){
   }
   async function handleDeleteSub(s){if(!window.confirm("\""+s.name+"\" 정보를 삭제할까요?"))return;try{await sb.from("subscriptions").delete().eq("id",s.id);setSubs(function(prev){return prev.filter(function(x){return x.id!==s.id;});});setSubModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
 
+  function handleWritePost(form){
+    var row={id:form.id,author_id:myId,title:form.title,content:form.content,created_at:new Date().toISOString()};
+    return sb.from("board_posts").insert(row).then(function(){
+      setPosts(function(prev){return[{id:row.id,authorId:row.author_id,title:row.title,content:row.content,createdAt:row.created_at},...prev];});
+      setWritingPost(false);
+    });
+  }
+  function handleDeletePost(p){
+    if(!window.confirm("\""+p.title+"\" 글을 삭제할까요? 댓글도 함께 삭제됩니다."))return;
+    sb.from("board_posts").delete().eq("id",p.id).then(function(){
+      setPosts(function(prev){return prev.filter(function(x){return x.id!==p.id;});});
+      setComments(function(prev){return prev.filter(function(c){return c.postId!==p.id;});});
+      setPostModal(null);
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
+  function handleAddComment(form){
+    var row={id:form.id,post_id:form.postId,author_id:myId,content:form.content,created_at:new Date().toISOString()};
+    return sb.from("board_comments").insert(row).then(function(){
+      setComments(function(prev){return[...prev,{id:row.id,postId:row.post_id,authorId:row.author_id,content:row.content,createdAt:row.created_at}];});
+    });
+  }
+  function handleDeleteComment(c){
+    if(!window.confirm("댓글을 삭제할까요?"))return;
+    sb.from("board_comments").delete().eq("id",c.id).then(function(){
+      setComments(function(prev){return prev.filter(function(x){return x.id!==c.id;});});
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
+
   var MAIN_TABS=[
     {id:"work",label:"근무 관리",icon:<CalIcon size={13}/>},
     {id:"order",label:"재고 주문",icon:<PkgIcon size={13}/>},
     {id:"sub",label:"월정액 명단",icon:<ListIcon size={13}/>},
+    {id:"board",label:"직원 게시판",icon:<ListIcon size={13}/>},
     {id:"todo",label:"할 일 목록",icon:<ListIcon size={13}/>},
   ];
   var WORK_SUB=[
@@ -1840,6 +2054,11 @@ function App(){
               <SubscriptionView subs={subs} storeId={subStoreTab} onAdd={function(m){setSubModal({defaultMonth:m});}} onItemClick={function(s){setSubModal(s);}}/>
             </TabErrorBoundary>
           )}
+          {mainTab==="board"&&(
+            <TabErrorBoundary key="board">
+              <BoardView posts={posts} comments={comments} currentUser={currentUser} onWrite={function(){setWritingPost(true);}} onItemClick={function(p){setPostModal(p);}}/>
+            </TabErrorBoundary>
+          )}
           {mainTab==="todo"&&(
             <TabErrorBoundary key="todo">
               <TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>
@@ -1851,6 +2070,8 @@ function App(){
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
+      {writingPost&&<BoardWriteModal onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
+      {postModal!==null&&<BoardPostModal post={postModal} comments={comments} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
