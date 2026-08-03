@@ -1265,9 +1265,10 @@ function SubscriptionView({subs,storeId,onAdd,onItemClick}){
 }
 
 // ── BoardWriteModal (새 글 작성) ──
-function BoardWriteModal({onClose,onSave}){
+function BoardWriteModal({categories,onClose,onSave}){
   var [title,setTitle]=useState("");
   var [content,setContent]=useState("");
+  var [categoryId,setCategoryId]=useState((categories&&categories[0]&&categories[0].id)||"");
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
 
@@ -1276,7 +1277,7 @@ function BoardWriteModal({onClose,onSave}){
     if(!title.trim()){setErr("제목을 입력해주세요.");return;}
     if(!content.trim()){setErr("내용을 입력해주세요.");return;}
     setSaving(true);
-    onSave({id:uid(),title:title.trim(),content:content.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:uid(),title:title.trim(),content:content.trim(),categoryId:categoryId||null}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -1286,6 +1287,22 @@ function BoardWriteModal({onClose,onSave}){
           <h2 style={{fontSize:17,fontWeight:700}}>새 글 작성</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
+        {categories&&categories.length>0&&(
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:6}}>분류</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {categories.map(function(c){return(
+                <button key={c.id} type="button" onClick={function(){setCategoryId(c.id);}}
+                  style={{padding:"5px 13px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                    border:"1.5px solid "+(categoryId===c.id?"#2563EB":"#E2E8F0"),
+                    background:categoryId===c.id?"#EFF6FF":"#fff",
+                    color:categoryId===c.id?"#2563EB":"#94A3B8"}}>
+                  {c.name}
+                </button>
+              );})}
+            </div>
+          </div>
+        )}
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:13,fontWeight:500,marginBottom:4}}>제목 *</label>
           <input value={title} onChange={function(e){setTitle(e.target.value);setErr("");}}
@@ -1309,7 +1326,7 @@ function BoardWriteModal({onClose,onSave}){
 }
 
 // ── BoardPostModal (글 상세 + 댓글) ──
-function BoardPostModal({post,comments,currentUser,onClose,onDeletePost,onAddComment,onDeleteComment}){
+function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePost,onAddComment,onDeleteComment}){
   var [commentText,setCommentText]=useState("");
   var [posting,setPosting]=useState(false);
 
@@ -1325,12 +1342,16 @@ function BoardPostModal({post,comments,currentUser,onClose,onDeletePost,onAddCom
   }
 
   var canDeletePost=currentUser.isAdmin||post.authorId===currentUser.id;
+  var postCategory=(categories||[]).find(function(x){return x.id===post.categoryId;});
 
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:560}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
-          <h2 style={{fontSize:17,fontWeight:700,flex:1,paddingRight:12}}>{post.title}</h2>
+          <div style={{flex:1,paddingRight:12}}>
+            {postCategory&&<span className="tag" style={{background:"#F1F5F9",color:"#475569",marginBottom:6,display:"inline-block"}}>{postCategory.name}</span>}
+            <h2 style={{fontSize:17,fontWeight:700}}>{post.title}</h2>
+          </div>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",flexShrink:0}}><X size={18}/></button>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,fontSize:12,color:"#94A3B8"}}>
@@ -1392,27 +1413,107 @@ function BoardPostModal({post,comments,currentUser,onClose,onDeletePost,onAddCom
   );
 }
 
+// ── BoardCategoryManageModal (관리자 전용) ──
+function BoardCategoryManageModal({categories,onClose,onAdd,onRename,onDelete}){
+  var [newName,setNewName]=useState("");
+  var [editingId,setEditingId]=useState(null);
+  var [editingName,setEditingName]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submitAdd(e){
+    e.preventDefault();
+    if(!newName.trim())return;
+    setSaving(true);
+    onAdd(newName.trim()).then(function(){setNewName("");setSaving(false);}).catch(function(){setSaving(false);});
+  }
+  function startEdit(c){setEditingId(c.id);setEditingName(c.name);}
+  function submitRename(c){
+    if(!editingName.trim()){setEditingId(null);return;}
+    onRename(c.id,editingName.trim()).then(function(){setEditingId(null);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <h2 style={{fontSize:17,fontWeight:700}}>게시판 분류 관리</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:20}}>
+          {categories.length===0&&<p style={{fontSize:12,color:"#94A3B8",marginBottom:10}}>등록된 분류가 없어요.</p>}
+          {categories.map(function(c){return(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
+              {editingId===c.id?(
+                <>
+                  <input value={editingName} onChange={function(e){setEditingName(e.target.value);}}
+                    autoFocus style={{flex:1,padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:5,fontSize:13,outline:"none"}}/>
+                  <button onClick={function(){submitRename(c);}} style={{padding:"4px 10px",background:"#2563EB",color:"#fff",border:"none",borderRadius:5,fontSize:11,fontWeight:600,cursor:"pointer"}}>저장</button>
+                  <button onClick={function(){setEditingId(null);}} style={{padding:"4px 10px",background:"#F1F5F9",color:"#64748B",border:"none",borderRadius:5,fontSize:11,cursor:"pointer"}}>취소</button>
+                </>
+              ):(
+                <>
+                  <span style={{flex:1,fontSize:13,fontWeight:600}}>{c.name}</span>
+                  <button onClick={function(){startEdit(c);}} style={{padding:"4px 10px",background:"#F8FAFC",color:"#374151",border:"1px solid #E2E8F0",borderRadius:5,fontSize:11,cursor:"pointer"}}>수정</button>
+                  <button onClick={function(){if(window.confirm("\""+c.name+"\" 분류를 삭제할까요? 해당 분류의 글은 분류 없음으로 남습니다."))onDelete(c.id);}}
+                    style={{padding:"4px 10px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:5,fontSize:11,cursor:"pointer"}}>삭제</button>
+                </>
+              )}
+            </div>
+          );})}
+        </div>
+        <form onSubmit={submitAdd} style={{display:"flex",gap:8}}>
+          <input value={newName} onChange={function(e){setNewName(e.target.value);}}
+            style={{flex:1,padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:13,outline:"none"}} placeholder="새 분류 이름"/>
+          <button type="submit" disabled={saving||!newName.trim()}
+            style={{padding:"8px 16px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:13,border:"none",cursor:"pointer",fontWeight:600,opacity:(saving||!newName.trim())?0.5:1}}>
+            추가
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── BoardView ──
-function BoardView({posts,comments,currentUser,onWrite,onItemClick}){
+function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,onManageCategories}){
+  var [filterCat,setFilterCat]=useState("all");
+
+  function categoryName(id){var c=categories.find(function(x){return x.id===id;});return c?c.name:null;}
+
   var sorted=useMemo(function(){
-    return [...posts].sort(function(a,b){return(b.createdAt||"")>(a.createdAt||"")?1:-1;});
-  },[posts]);
+    var l=[...posts];
+    if(filterCat!=="all")l=l.filter(function(p){return p.categoryId===filterCat;});
+    return l.sort(function(a,b){return(b.createdAt||"")>(a.createdAt||"")?1:-1;});
+  },[posts,filterCat]);
 
   function commentCount(postId){return comments.filter(function(c){return c.postId===postId;}).length;}
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
+        {categories.length>0&&(
+          <select value={filterCat} onChange={function(e){setFilterCat(e.target.value);}}
+            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 분류</option>
+            {categories.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}
+          </select>
+        )}
         <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{sorted.length}개 글</span>
-        <button onClick={onWrite} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 글쓰기</button>
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          {currentUser.isAdmin&&(
+            <button onClick={onManageCategories} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:12,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>분류 관리</button>
+          )}
+          <button onClick={onWrite} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 글쓰기</button>
+        </div>
       </div>
       <div className="tbl-wrap">
         {sorted.length===0?(
-          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>등록된 글이 없어요.</div>
+          <div style={{padding:40,textAlign:"center",fontSize:13,color:"#94A3B8"}}>{posts.length===0?"등록된 글이 없어요.":"해당 분류에 글이 없어요."}</div>
         ):(
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>분류</th>
                 <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>제목</th>
                 <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>작성자</th>
                 <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>댓글</th>
@@ -1420,8 +1521,11 @@ function BoardView({posts,comments,currentUser,onWrite,onItemClick}){
               </tr>
             </thead>
             <tbody>
-              {sorted.map(function(p,i){return(
+              {sorted.map(function(p,i){var catName=categoryName(p.categoryId);return(
                 <tr key={p.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(p);}} style={{cursor:"pointer"}}>
+                  <td style={{padding:"11px 14px",textAlign:"center"}}>
+                    {catName?<span className="tag" style={{background:"#F1F5F9",color:"#475569"}}>{catName}</span>:<span style={{fontSize:12,color:"#CBD5E1"}}>—</span>}
+                  </td>
                   <td style={{padding:"11px 16px",fontWeight:600,color:"#1E293B",maxWidth:320,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.title}</td>
                   <td style={{padding:"11px 14px",textAlign:"center"}}>
                     <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
@@ -1789,6 +1893,8 @@ function App(){
   var [comments,setComments]=useState([]);
   var [postModal,setPostModal]=useState(null);
   var [writingPost,setWritingPost]=useState(false);
+  var [categories,setCategories]=useState([]);
+  var [categoryManageModal,setCategoryManageModal]=useState(false);
 
   function handleLogin(user){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
@@ -1800,7 +1906,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);
   }
 
   // 로그인한 사용자별 월정액 매장탭만 기억
@@ -1830,8 +1936,9 @@ function App(){
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:x.status,memo:x.memo||"",requestedBy:x.requested_by||null,completedBy:x.completed_by||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
-      try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,createdAt:x.created_at};}));}catch(e){setPosts([]);}
+      try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,categoryId:x.category_id||null,createdAt:x.created_at};}));}catch(e){setPosts([]);}
       try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
+      try{var r8=await sb.from("board_categories").select("*").order("sort_order",{ascending:true});setCategories((r8.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setCategories([]);}
       setLoading(false);
     })();
   },[currentUser]);
@@ -1923,9 +2030,9 @@ function App(){
   async function handleDeleteSub(s){if(!window.confirm("\""+s.name+"\" 정보를 삭제할까요?"))return;try{await sb.from("subscriptions").delete().eq("id",s.id);setSubs(function(prev){return prev.filter(function(x){return x.id!==s.id;});});setSubModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
 
   function handleWritePost(form){
-    var row={id:form.id,author_id:myId,title:form.title,content:form.content,created_at:new Date().toISOString()};
+    var row={id:form.id,author_id:myId,title:form.title,content:form.content,category_id:form.categoryId||null,created_at:new Date().toISOString()};
     return sb.from("board_posts").insert(row).then(function(){
-      setPosts(function(prev){return[{id:row.id,authorId:row.author_id,title:row.title,content:row.content,createdAt:row.created_at},...prev];});
+      setPosts(function(prev){return[{id:row.id,authorId:row.author_id,title:row.title,content:row.content,categoryId:row.category_id,createdAt:row.created_at},...prev];});
       setWritingPost(false);
     });
   }
@@ -1949,6 +2056,24 @@ function App(){
       setComments(function(prev){return prev.filter(function(x){return x.id!==c.id;});});
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
+  function handleAddCategory(name){
+    var newId=uid();
+    var sortOrder=categories.length>0?Math.max.apply(null,categories.map(function(c){return c.sortOrder;}))+1:0;
+    return sb.from("board_categories").insert({id:newId,name:name,sort_order:sortOrder}).then(function(){
+      setCategories(function(prev){return[...prev,{id:newId,name:name,sortOrder:sortOrder}];});
+    });
+  }
+  function handleRenameCategory(id,name){
+    return sb.from("board_categories").update({name:name}).eq("id",id).then(function(){
+      setCategories(function(prev){return prev.map(function(c){return c.id===id?{...c,name:name}:c;});});
+    });
+  }
+  function handleDeleteCategory(id){
+    sb.from("board_categories").delete().eq("id",id).then(function(){
+      setCategories(function(prev){return prev.filter(function(c){return c.id!==id;});});
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
+
 
   var MAIN_TABS=[
     {id:"work",label:"근무 관리",icon:<CalIcon size={13}/>},
@@ -2056,7 +2181,7 @@ function App(){
           )}
           {mainTab==="board"&&(
             <TabErrorBoundary key="board">
-              <BoardView posts={posts} comments={comments} currentUser={currentUser} onWrite={function(){setWritingPost(true);}} onItemClick={function(p){setPostModal(p);}}/>
+              <BoardView posts={posts} comments={comments} categories={categories} currentUser={currentUser} onWrite={function(){setWritingPost(true);}} onItemClick={function(p){setPostModal(p);}} onManageCategories={function(){setCategoryManageModal(true);}}/>
             </TabErrorBoundary>
           )}
           {mainTab==="todo"&&(
@@ -2070,8 +2195,9 @@ function App(){
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
-      {writingPost&&<BoardWriteModal onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
-      {postModal!==null&&<BoardPostModal post={postModal} comments={comments} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
+      {writingPost&&<BoardWriteModal categories={categories} onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
+      {postModal!==null&&<BoardPostModal post={postModal} comments={comments} categories={categories} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
+      {categoryManageModal&&<BoardCategoryManageModal categories={categories} onClose={function(){setCategoryManageModal(false);}} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
