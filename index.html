@@ -808,6 +808,8 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
 
 // ── WorkListView ──
 function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
+  var DOW_KR=["일","월","화","수","목","금","토"];
+  function dowOf(dateStr10){return DOW_KR[new Date(dateStr10+"T12:00:00").getDay()];}
   var today=new Date();
   var curMonth=today.getFullYear()+"-"+pad(today.getMonth()+1);
   var [filter,setFilter]=useState({staff:"all",month:curMonth});
@@ -820,12 +822,17 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
     if(filter.month)l=l.filter(function(w){return w.startAt&&w.startAt.slice(0,7)===filter.month;});
     return l.sort(function(a,b){var av=a[sort.key]||"",bv=b[sort.key]||"";var c=av<bv?-1:av>bv?1:0;return sort.dir==="asc"?c:-c;});
   },[works,filter,sort]);
-  var staffTotals=useMemo(function(){
+  var monthFiltered=useMemo(function(){
+    var l=[...works];
+    if(filter.month)l=l.filter(function(w){return w.startAt&&w.startAt.slice(0,7)===filter.month;});
+    return l;
+  },[works,filter.month]);
+  var allStaffTotals=useMemo(function(){
     var map={};
-    STAFF.forEach(function(s){map[s.id]={name:s.name,color:s.color,hours:0,count:0};});
-    filtered.forEach(function(w){if(!map[w.staffId])return;var h=calcHours(w.startAt,w.endAt)||0;map[w.staffId].hours+=h;map[w.staffId].count+=1;});
+    STAFF.forEach(function(s){map[s.id]={id:s.id,name:s.name,color:s.color,hours:0,count:0};});
+    monthFiltered.forEach(function(w){if(!map[w.staffId])return;var h=calcHours(w.startAt,w.endAt)||0;map[w.staffId].hours+=h;map[w.staffId].count+=1;});
     return Object.values(map).filter(function(x){return x.count>0;});
-  },[filtered]);
+  },[monthFiltered]);
   function toggleSort(k){setSort(function(s){return s.key===k?{...s,dir:s.dir==="asc"?"desc":"asc"}:{key:k,dir:"desc"};});}
   function SI({k}){if(sort.key!==k)return <CD size={11} style={{opacity:0.3}}/>;return sort.dir==="asc"?<CU size={11}/>:<CD size={11}/>;}
   var canEdit=function(w){return currentUser.isAdmin||w.staffId===currentUser.id;};
@@ -836,10 +843,6 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
-        <select value={filter.staff} onChange={function(e){setFilter({...filter,staff:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
-          <option value="all">전체 직원</option>
-          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
-        </select>
         <select value={filter.month} onChange={function(e){setFilter({...filter,month:e.target.value});}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="">전체 기간</option>
           {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
@@ -851,17 +854,24 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
           </button>
         )}
       </div>
-      {staffTotals.length>0&&(
-        <div style={{background:"#1E293B",padding:"10px 20px",display:"flex",flexWrap:"wrap",gap:10,flexShrink:0,borderBottom:"2px solid #334155"}}>
-          <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",alignSelf:"center",marginRight:4}}>합계</span>
-          {staffTotals.map(function(s){return(
-            <div key={s.name} style={{display:"flex",alignItems:"center",gap:6,background:"rgba(255,255,255,.07)",borderRadius:8,padding:"5px 12px"}}>
+      {allStaffTotals.length>0&&(
+        <div style={{background:"#1E293B",padding:"10px 20px",display:"flex",flexWrap:"wrap",gap:8,flexShrink:0,borderBottom:"2px solid #334155"}}>
+          <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",alignSelf:"center",marginRight:2}}>합계</span>
+          <button onClick={function(){setFilter({...filter,staff:"all"});}}
+            style={{display:"flex",alignItems:"center",gap:6,borderRadius:8,padding:"5px 12px",border:"none",cursor:"pointer",
+              background:filter.staff==="all"?"#2563EB":"rgba(255,255,255,.07)"}}>
+            <span style={{fontSize:11,fontWeight:700,color:filter.staff==="all"?"#fff":"#F1F5F9"}}>전체보기</span>
+          </button>
+          {allStaffTotals.map(function(s){var active=filter.staff===s.id;return(
+            <button key={s.id} onClick={function(){setFilter({...filter,staff:active?"all":s.id});}}
+              style={{display:"flex",alignItems:"center",gap:6,borderRadius:8,padding:"5px 12px",border:active?"1.5px solid "+s.color:"none",cursor:"pointer",
+                background:active?s.color+"22":"rgba(255,255,255,.07)"}}>
               <span style={{width:8,height:8,borderRadius:"50%",background:s.color,display:"inline-block"}}/>
               <span style={{fontSize:11,fontWeight:600,color:"#F1F5F9"}}>{s.name}</span>
               <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>·</span>
               <span className="ml-mono" style={{fontSize:11,fontWeight:700,color:"#7DD3FC"}}>{fmtHours(s.hours)}</span>
               <span style={{fontSize:10,color:"#64748B"}}>({s.count}일)</span>
-            </div>
+            </button>
           );})}
         </div>
       )}
@@ -891,7 +901,10 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
                         ?<input type="checkbox" checked={isCk} onChange={function(){toggleCheck(w.id,w);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
                         :<span style={{display:"inline-block",width:16,height:16}}/>}
                     </td>
-                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:11,color:"#374151"}}>{w.startAt?w.startAt.slice(0,10):""}</td>
+                    <td className="ml-mono" style={{padding:"9px 14px",fontSize:11,color:"#374151",whiteSpace:"nowrap"}}>
+                      {w.startAt?w.startAt.slice(0,10):""}
+                      {w.startAt&&<span style={{marginLeft:4,color:"#94A3B8"}}>({dowOf(w.startAt.slice(0,10))})</span>}
+                    </td>
                     <td style={{padding:"9px 14px"}}><span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:8,height:8,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontWeight:600,color:"#1E293B"}}>{staffName(w.staffId)}</span></span></td>
                     <td style={{padding:"9px 14px"}}><span className="tag" style={{background:sb2.bg,color:sb2.color}}>{w.storeId}</span></td>
                     <td className="ml-mono" style={{padding:"9px 14px",fontSize:11,color:"#374151"}}>{fmtTime(w.startAt)}</td>
