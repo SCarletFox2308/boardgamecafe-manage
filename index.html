@@ -121,6 +121,73 @@ th{position:sticky;top:0;z-index:2;background:#334155;}
 .sort-btn{cursor:pointer;user-select:none;}
 `;
 
+// ── DayDetailModal (날짜별 근무 상세) ──
+function DayDetailModal({date,works,currentUser,onClose,onEditWork}){
+  var dayWorks=useMemo(function(){
+    return works.filter(function(w){return w.startAt&&w.startAt.slice(0,10)===date;})
+      .sort(function(a,b){return(a.startAt||"")>(b.startAt||"")?1:-1;});
+  },[works,date]);
+
+  var byStore=useMemo(function(){
+    var map={};
+    STORES.forEach(function(s){map[s.id]=dayWorks.filter(function(w){return w.storeId===s.id;});});
+    return map;
+  },[dayWorks]);
+
+  var d=new Date(date+"T12:00:00");
+  var DOW=["일","월","화","수","목","금","토"];
+  var dateLabel=d.getFullYear()+"년 "+(d.getMonth()+1)+"월 "+d.getDate()+"일 ("+DOW[d.getDay()]+")";
+
+  function canEdit(w){return currentUser.isAdmin||w.staffId===currentUser.id;}
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:16,fontWeight:700}}>{dateLabel}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+
+        {dayWorks.length===0?(
+          <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"#94A3B8"}}>등록된 근무가 없어요.</div>
+        ):(
+          STORES.map(function(s){
+            var list=byStore[s.id]||[];
+            if(list.length===0)return null;
+            var b=s.badge;
+            return(
+              <div key={s.id} style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:8,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+                {list.map(function(w){
+                  var hours=calcHours(w.startAt,w.endAt);
+                  var sc=staffColor(w.staffId);
+                  var editable=canEdit(w);
+                  return(
+                    <div key={w.id} onClick={function(){if(editable)onEditWork(w);}}
+                      style={{display:"flex",alignItems:"center",gap:8,padding:"8px 4px",borderBottom:"1px solid #F1F5F9",cursor:editable?"pointer":"default"}}>
+                      <span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block",flexShrink:0}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#1E293B",width:52,flexShrink:0}}>{staffName(w.staffId)}</span>
+                      <span className="ml-mono" style={{fontSize:11,color:"#374151",flex:1}}>
+                        {fmtTime(w.startAt)} ~ {w.endAt?fmtTime(w.endAt):"미입력"}
+                      </span>
+                      {hours!=null&&<span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:999,background:"#F0FDF4",color:"#15803D",whiteSpace:"nowrap"}}>{fmtHours(hours)}</span>}
+                      {w.memo&&<span style={{fontSize:10,color:"#94A3B8",whiteSpace:"nowrap",maxWidth:60,overflow:"hidden",textOverflow:"ellipsis"}}>{w.memo}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })
+        )}
+
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+          <button type="button" onClick={onClose} style={{padding:"8px 20px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>닫기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── WorkModal ──
 function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSave,onDelete}){
   var isEdit=!!record;
@@ -611,7 +678,7 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
 
 // ── CalendarView ──
 var holidayCache2={};
-function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,filterStaff,filterStore}){
+function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWork,filterStaff,filterStore}){
   filterStaff=filterStaff||"all";filterStore=filterStore||"all";
   var today=new Date();
   var [year,setYear]=useState(today.getFullYear());
@@ -683,10 +750,13 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,filterSt
           var isSat=dow===6;
           var dayWorks=worksByDate[ds]||{};
           var dayEvents=eventsByDate[ds]||[];
-          var hasWork=STORES.some(function(s){return(dayWorks[s.id]||[]).length>0;});
           return(
             <div key={ds} className="cal-day" onClick={function(){onDayClick(ds);}}
-              style={{minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
+              style={{position:"relative",minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
+              <button onClick={function(e){e.stopPropagation();onAddWork(ds);}}
+                style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(148,163,184,.15)",color:"#94A3B8",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,padding:0,zIndex:1}}>
+                +
+              </button>
               <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
                 <span style={{fontSize:12,fontWeight:isToday?700:500,color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",background:isToday?"#3B82F6":"transparent"}}>
                   {day}
@@ -713,7 +783,7 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,filterSt
                     <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
                       {ws.map(function(w){return(
                         <button key={w.id} onClick={function(e){e.stopPropagation();onWorkClick(w);}}
-                          style={{fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3}}>
+                          style={{fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3,flexShrink:0}}>
                           {staffName(w.staffId)}
                         </button>
                       );})}
@@ -721,7 +791,6 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,filterSt
                   </div>
                 );
               })}
-              {!hasWork&&<div style={{fontSize:9,color:"#CBD5E1",marginTop:2}}>+ 등록</div>}
             </div>
           );
         })}
@@ -729,7 +798,7 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,filterSt
       <div style={{display:"flex",flexWrap:"wrap",gap:10,marginTop:16,padding:"12px 16px",background:"#fff",borderRadius:10,border:"1px solid #E2E8F0"}}>
         <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",marginRight:4}}>직원</span>
         {STAFF.map(function(s){return(
-          <span key={s.id} style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:"1px solid "+s.color+"44"}}>{s.name}</span>
+          <span key={s.id} style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:4,background:s.color+"22",color:s.color,border:"1px solid "+s.color+"44",whiteSpace:"nowrap",flexShrink:0}}>{s.name}</span>
         );})}
         <span style={{fontSize:10,color:"#94A3B8",marginLeft:8}}>날짜 클릭 시 근무 등록</span>
       </div>
@@ -2103,6 +2172,7 @@ function App(){
   var [events,setEvents]=useState([]);
   var [eventVotes,setEventVotes]=useState([]);
   var [eventModal,setEventModal]=useState(null);
+  var [dayDetailModal,setDayDetailModal]=useState(null); // 날짜 문자열 또는 null
 
   function handleLogin(user){
     try{localStorage.setItem(STORAGE_KEY,JSON.stringify(user));}catch(e){}
@@ -2403,12 +2473,13 @@ function App(){
               <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
               <div style={{flex:1,overflow:"auto"}}>
                 <CalendarView works={works} events={events}
-                  onDayClick={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}}
+                  onDayClick={function(ds){setDayDetailModal(ds);}}
                   onWorkClick={function(w){
                     if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                     else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                   }}
                   onEventClick={function(ev){setEventModal(ev);}}
+                  onAddWork={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}}
                   filterStaff={calFilterStaff} filterStore={calFilterStore}/>
               </div>
             </div>
@@ -2447,6 +2518,11 @@ function App(){
             </TabErrorBoundary>
           )}
         </>
+      )}
+      {dayDetailModal!==null&&(
+        <DayDetailModal date={dayDetailModal} works={works} currentUser={currentUser}
+          onClose={function(){setDayDetailModal(null);}}
+          onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}/>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
