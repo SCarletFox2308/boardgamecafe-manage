@@ -993,7 +993,6 @@ function CompletedOrdersView({items,orders}){
                 <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>발주</th>
                 <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>주문</th>
                 <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>수령</th>
-                <th style={{padding:"9px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>완료일</th>
               </tr>
             </thead>
             <tbody>
@@ -1008,10 +1007,18 @@ function CompletedOrdersView({items,orders}){
                       {c&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}}>{it.category}</span>}
                     </td>
                     <td style={{padding:"8px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span></td>
-                    <td style={{padding:"8px 14px",color:"#7C3AED"}}>{o.requestedBy?staffName(o.requestedBy):"—"}</td>
-                    <td style={{padding:"8px 14px",color:"#1E40AF"}}>{o.orderedBy?staffName(o.orderedBy):"—"}</td>
-                    <td style={{padding:"8px 14px",color:"#059669"}}>{o.completedBy?staffName(o.completedBy):"—"}</td>
-                    <td className="ml-mono" style={{padding:"8px 14px",textAlign:"right",color:"#374151",whiteSpace:"nowrap"}}>{o.changedAt?o.changedAt.slice(0,10):""}</td>
+                    <td style={{padding:"8px 14px"}}>
+                      <div style={{color:"#7C3AED",fontWeight:600}}>{o.requestedBy?staffName(o.requestedBy):"—"}</div>
+                      {o.requestedAt&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(o.requestedAt)}</div>}
+                    </td>
+                    <td style={{padding:"8px 14px"}}>
+                      <div style={{color:"#1E40AF",fontWeight:600}}>{o.orderedBy?staffName(o.orderedBy):"—"}</div>
+                      {o.orderedAt&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(o.orderedAt)}</div>}
+                    </td>
+                    <td style={{padding:"8px 14px"}}>
+                      <div style={{color:"#059669",fontWeight:600}}>{o.completedBy?staffName(o.completedBy):"—"}</div>
+                      {o.completedAt&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(o.completedAt)}</div>}
+                    </td>
                   </tr>
                 );
               })}
@@ -1133,7 +1140,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
                       {o.requestedBy?(
                         <>
                           <div style={{fontSize:11,fontWeight:600,color:"#7C3AED"}}>{staffName(o.requestedBy)}</div>
-                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.status==="발주"?fmtDateTime(o.changedAt):""}</div>
+                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.requestedAt?fmtDateTime(o.requestedAt):""}</div>
                         </>
                       ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
                     </div>
@@ -1151,7 +1158,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
                       {o.completedBy?(
                         <>
                           <div style={{fontSize:11,fontWeight:600,color:"#059669"}}>{staffName(o.completedBy)}</div>
-                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.status==="수령"?fmtDateTime(o.changedAt):""}</div>
+                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.completedAt?fmtDateTime(o.completedAt):""}</div>
                         </>
                       ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
                     </div>
@@ -2295,7 +2302,7 @@ function App(){
       // 2. 나머지 데이터
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
       try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
-      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:normalizeStatus(x.status),memo:x.memo||"",requestedBy:x.requested_by||null,orderedBy:x.ordered_by||null,orderedAt:x.ordered_at||null,completedBy:x.completed_by||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
+      try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:normalizeStatus(x.status),memo:x.memo||"",requestedBy:x.requested_by||null,requestedAt:x.requested_at||null,orderedBy:x.ordered_by||null,orderedAt:x.ordered_at||null,completedBy:x.completed_by||null,completedAt:x.completed_at||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
       try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,categoryId:x.category_id||null,createdAt:x.created_at};}));}catch(e){setPosts([]);}
@@ -2348,17 +2355,18 @@ function App(){
     }catch(e){alert("삭제 실패: "+e.message);}
   }
   async function handleAddOrder(item,storeId){
-    var row={id:uid(),item_id:item.id,store_id:storeId,status:"발주",memo:"",requested_by:myId,changed_at:new Date().toISOString()};
+    var now=new Date().toISOString();
+    var row={id:uid(),item_id:item.id,store_id:storeId,status:"발주",memo:"",requested_by:myId,requested_at:now,changed_at:now};
     try{
       await sb.from("order_history").insert(row);
-      setOrders(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,memo:"",requestedBy:myId,orderedBy:null,orderedAt:null,completedBy:null,changedAt:row.changed_at},...prev];});
+      setOrders(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,memo:"",requestedBy:myId,requestedAt:now,orderedBy:null,orderedAt:null,completedBy:null,completedAt:null,changedAt:row.changed_at},...prev];});
     }catch(e){alert("발주 추가 실패: "+e.message);}
   }
   async function handleUpdateOrderStatus(orderId,newStatus){
     var now=new Date().toISOString();
     var updates={status:newStatus,changed_at:now};
     if(newStatus==="주문"){updates.ordered_by=myId;updates.ordered_at=now;}
-    if(newStatus==="수령")updates.completed_by=myId;
+    if(newStatus==="수령"){updates.completed_by=myId;updates.completed_at=now;}
     try{
       await sb.from("order_history").update(updates).eq("id",orderId);
       setOrders(function(prev){return prev.map(function(o){
@@ -2366,7 +2374,8 @@ function App(){
         return{...o,status:newStatus,changedAt:now,
           orderedBy:newStatus==="주문"?myId:o.orderedBy,
           orderedAt:newStatus==="주문"?now:o.orderedAt,
-          completedBy:newStatus==="수령"?myId:o.completedBy};
+          completedBy:newStatus==="수령"?myId:o.completedBy,
+          completedAt:newStatus==="수령"?now:o.completedAt};
       });});
     }catch(e){alert("상태 변경 실패: "+e.message);}
   }
