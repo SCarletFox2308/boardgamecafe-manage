@@ -1017,7 +1017,7 @@ function CompletedOrdersView({items,orders}){
                     </td>
                     <td style={{padding:"8px 14px"}}>
                       <div style={{color:"#059669",fontWeight:600}}>{o.completedBy?staffName(o.completedBy):"—"}</div>
-                      {o.completedAt&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(o.completedAt)}</div>}
+                      {(o.completedAt||o.completedBy)&&<div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{fmtDateTime(o.completedAt||o.changedAt)}</div>}
                     </td>
                   </tr>
                 );
@@ -1140,7 +1140,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
                       {o.requestedBy?(
                         <>
                           <div style={{fontSize:11,fontWeight:600,color:"#7C3AED"}}>{staffName(o.requestedBy)}</div>
-                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.requestedAt?fmtDateTime(o.requestedAt):""}</div>
+                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.requestedAt?fmtDateTime(o.requestedAt):(o.status==="발주"?fmtDateTime(o.changedAt):"")}</div>
                         </>
                       ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
                     </div>
@@ -1158,7 +1158,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
                       {o.completedBy?(
                         <>
                           <div style={{fontSize:11,fontWeight:600,color:"#059669"}}>{staffName(o.completedBy)}</div>
-                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.completedAt?fmtDateTime(o.completedAt):""}</div>
+                          <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.completedAt?fmtDateTime(o.completedAt):(o.status==="수령"?fmtDateTime(o.changedAt):"")}</div>
                         </>
                       ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
                     </div>
