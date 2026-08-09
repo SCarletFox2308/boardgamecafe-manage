@@ -1051,13 +1051,13 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
   var prevStatusCfg2=prevStatusId?statusCfg(prevStatusId):null;
 
   function confirmMove(){
-    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,statusCfg(o.status).next);});
+    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,statusCfg(o.status).next,o.status);});
     setChecked(new Set());
     setConfirming(null);
   }
   function confirmMovePrev(){
     if(!prevStatusId)return;
-    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,prevStatusId);});
+    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,prevStatusId,o.status);});
     setChecked(new Set());
     setConfirming(null);
   }
@@ -2409,20 +2409,35 @@ function App(){
       setOrders(function(prev){return[{id:row.id,itemId:row.item_id,storeId:row.store_id,status:row.status,memo:"",requestedBy:myId,requestedAt:now,orderedBy:null,orderedAt:null,completedBy:null,completedAt:null,changedAt:row.changed_at,isUrgent:!!isUrgent},...prev];});
     }catch(e){alert("발주 추가 실패: "+e.message);}
   }
-  async function handleUpdateOrderStatus(orderId,newStatus){
+  async function handleUpdateOrderStatus(orderId,newStatus,currentStatus){
     var now=new Date().toISOString();
+    var isBackward=currentStatus&&STATUSES.findIndex(function(s){return s.id===newStatus;})<STATUSES.findIndex(function(s){return s.id===currentStatus;});
     var updates={status:newStatus,changed_at:now};
     if(newStatus==="주문"){updates.ordered_by=myId;updates.ordered_at=now;}
     if(newStatus==="수령"){updates.completed_by=myId;updates.completed_at=now;}
+    if(isBackward){
+      // 되돌아갈 때는 새 상태보다 이후 단계의 담당자/시각을 모두 비움
+      var newIdx=STATUSES.findIndex(function(s){return s.id===newStatus;});
+      var orderIdx=STATUSES.findIndex(function(s){return s.id==="주문";});
+      var receiveIdx=STATUSES.findIndex(function(s){return s.id==="수령";});
+      if(newIdx<orderIdx){updates.ordered_by=null;updates.ordered_at=null;}
+      if(newIdx<receiveIdx){updates.completed_by=null;updates.completed_at=null;}
+    }
     try{
       await sb.from("order_history").update(updates).eq("id",orderId);
       setOrders(function(prev){return prev.map(function(o){
         if(o.id!==orderId)return o;
-        return{...o,status:newStatus,changedAt:now,
-          orderedBy:newStatus==="주문"?myId:o.orderedBy,
-          orderedAt:newStatus==="주문"?now:o.orderedAt,
-          completedBy:newStatus==="수령"?myId:o.completedBy,
-          completedAt:newStatus==="수령"?now:o.completedAt};
+        var next={...o,status:newStatus,changedAt:now};
+        if(newStatus==="주문"){next.orderedBy=myId;next.orderedAt=now;}
+        if(newStatus==="수령"){next.completedBy=myId;next.completedAt=now;}
+        if(isBackward){
+          var newIdx2=STATUSES.findIndex(function(s){return s.id===newStatus;});
+          var orderIdx2=STATUSES.findIndex(function(s){return s.id==="주문";});
+          var receiveIdx2=STATUSES.findIndex(function(s){return s.id==="수령";});
+          if(newIdx2<orderIdx2){next.orderedBy=null;next.orderedAt=null;}
+          if(newIdx2<receiveIdx2){next.completedBy=null;next.completedAt=null;}
+        }
+        return next;
       });});
     }catch(e){alert("상태 변경 실패: "+e.message);}
   }
