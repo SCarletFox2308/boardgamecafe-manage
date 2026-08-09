@@ -1241,7 +1241,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
 
 // ── OrderView ──
 function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onDeleteOrders}){
-  var [orderTab,setOrderTab]=useState("list"); // list | 미플 | 아카이브
+  var [orderTab,setOrderTab]=useState("status"); // list | status | completed
   var [search,setSearch]=useState("");
   var [checked,setChecked]=useState(new Set());
   var [confirmStore,setConfirmStore]=useState(null); // "미플" | "아카이브" | null
@@ -1272,7 +1272,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
   }
 
   var ORDER_TABS=[
-    {id:"list",label:"물품 목록"},
+    {id:"list",label:"상품 발주"},
     {id:"status",label:"주문현황"},
     {id:"completed",label:"완료된 주문"},
   ];
@@ -1296,7 +1296,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
         )}
       </div>
 
-      {/* 물품 목록 탭 */}
+      {/* 상품 발주 탭 */}
       {orderTab==="list"&&(
         <>
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
