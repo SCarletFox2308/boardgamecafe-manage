@@ -685,7 +685,6 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
 }
 
 // ── CalendarView ──
-var holidayCache2={};
 function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWork,filterStaff,filterStore}){
   filterStaff=filterStaff||"all";filterStore=filterStore||"all";
   var today=new Date();
@@ -1110,64 +1109,68 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
         {filteredOrders.length===0?(
           <div style={{padding:40,textAlign:"center",fontSize:12,color:"#94A3B8"}}>주문 내역이 없어요.</div>
         ):(
-          <div>
-            <div style={{padding:"8px 16px",background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",gap:10}}>
-              <input type="checkbox" checked={filteredOrders.length>0&&checked.size===filteredOrders.length} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-              <span style={{fontSize:10,fontWeight:700,color:"#64748B"}}>전체 선택</span>
-            </div>
-            {filteredOrders.map(function(o){
-              var it=itemOf(o.itemId);
-              var c=it&&it.category?catCfg(it.category):null;
-              var b=storeBadge(o.storeId);
-              var cfg=statusCfg(o.status);
-              var isCk=checked.has(o.id);
-              return(
-                <div key={o.id} onClick={function(){toggleCheck(o.id);}}
-                  style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer",background:isCk?"#EFF6FF":"transparent"}}>
-                  <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(o.id);}} onClick={function(e){e.stopPropagation();}}
-                    style={{accentColor:"#3B82F6",cursor:"pointer",marginTop:3,flexShrink:0}}/>
-                  <div style={{flex:1,minWidth:0,display:"flex",flexWrap:"wrap",alignItems:"flex-start",gap:12}}>
-                    <div style={{minWidth:110,flexShrink:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
-                        <span style={{fontSize:13,fontWeight:700,color:"#1E293B"}}>{itemName(o.itemId)}</span>
-                        {c&&<span style={{fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:999,background:c.bg,color:c.color,whiteSpace:"nowrap"}}>{it.category}</span>}
-                      </div>
-                      <span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span>
-                      <span className="tag" style={{background:cfg.bg,color:cfg.color,marginLeft:4}}>{o.status}</span>
-                    </div>
-                    <div style={{minWidth:90,flexShrink:0}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",marginBottom:2}}>발주</div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"9px 10px",textAlign:"center",width:36}}>
+                  <input type="checkbox" checked={filteredOrders.length>0&&checked.size===filteredOrders.length} onChange={toggleAll} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                </th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                <th style={{padding:"9px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                <th style={{padding:"9px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>상태</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>발주</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>주문</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>수령</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.map(function(o,i){
+                var it=itemOf(o.itemId);
+                var c=it&&it.category?catCfg(it.category):null;
+                var b=storeBadge(o.storeId);
+                var cfg=statusCfg(o.status);
+                var isCk=checked.has(o.id);
+                return(
+                  <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){toggleCheck(o.id);}} style={{cursor:"pointer",background:isCk?"#EFF6FF":undefined}}>
+                    <td style={{padding:"8px 10px",textAlign:"center"}}>
+                      <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(o.id);}} onClick={function(e){e.stopPropagation();}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                    </td>
+                    <td style={{padding:"8px 14px",fontWeight:600,color:"#1E293B"}}>
+                      {itemName(o.itemId)}
+                      {c&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}}>{it.category}</span>}
+                      {o.memo&&<div style={{fontSize:10,color:"#94A3B8",fontWeight:400,marginTop:2}}>{o.memo}</div>}
+                    </td>
+                    <td style={{padding:"8px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span></td>
+                    <td style={{padding:"8px 14px",textAlign:"center"}}><span className="tag" style={{background:cfg.bg,color:cfg.color}}>{o.status}</span></td>
+                    <td style={{padding:"8px 14px"}}>
                       {o.requestedBy?(
                         <>
-                          <div style={{fontSize:11,fontWeight:600,color:"#7C3AED"}}>{staffName(o.requestedBy)}</div>
+                          <div style={{color:"#7C3AED",fontWeight:600}}>{staffName(o.requestedBy)}</div>
                           <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.requestedAt?fmtDateTime(o.requestedAt):(o.status==="발주"?fmtDateTime(o.changedAt):"")}</div>
                         </>
-                      ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
-                    </div>
-                    <div style={{minWidth:90,flexShrink:0}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",marginBottom:2}}>주문</div>
+                      ):<span style={{color:"#CBD5E1"}}>—</span>}
+                    </td>
+                    <td style={{padding:"8px 14px"}}>
                       {o.orderedBy?(
                         <>
-                          <div style={{fontSize:11,fontWeight:600,color:"#1E40AF"}}>{staffName(o.orderedBy)}</div>
+                          <div style={{color:"#1E40AF",fontWeight:600}}>{staffName(o.orderedBy)}</div>
                           <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.orderedAt?fmtDateTime(o.orderedAt):""}</div>
                         </>
-                      ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
-                    </div>
-                    <div style={{minWidth:90,flexShrink:0}}>
-                      <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",marginBottom:2}}>수령</div>
+                      ):<span style={{color:"#CBD5E1"}}>—</span>}
+                    </td>
+                    <td style={{padding:"8px 14px"}}>
                       {o.completedBy?(
                         <>
-                          <div style={{fontSize:11,fontWeight:600,color:"#059669"}}>{staffName(o.completedBy)}</div>
+                          <div style={{color:"#059669",fontWeight:600}}>{staffName(o.completedBy)}</div>
                           <div className="ml-mono" style={{fontSize:9,color:"#94A3B8"}}>{o.completedAt?fmtDateTime(o.completedAt):(o.status==="수령"?fmtDateTime(o.changedAt):"")}</div>
                         </>
-                      ):<div style={{fontSize:11,color:"#CBD5E1"}}>—</div>}
-                    </div>
-                    {o.memo&&<div style={{fontSize:11,color:"#64748B",flexBasis:"100%"}}>{o.memo}</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      ):<span style={{color:"#CBD5E1"}}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
