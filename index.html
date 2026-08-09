@@ -61,7 +61,8 @@ const CATEGORIES=[
 const STATUSES=[
   {id:"발주",next:"주문",bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
   {id:"주문",next:"수령",bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
-  {id:"수령",next:"발주",bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
+  {id:"수령",next:"완료",bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
+  {id:"완료",next:null,bg:"#F1F5F9",color:"#475569",dot:"#94A3B8"},
 ];
 // 예전 명칭 → 새 명칭 매핑 (레거시 데이터 호환)
 function normalizeStatus(s){
@@ -939,20 +940,107 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
   );
 }
 
+// ── CompletedOrdersView (완료된 주문 - 최근 6개월/2000건, 물품/매장 필터) ──
+function CompletedOrdersView({items,orders}){
+  var [filterStore,setFilterStore]=useState("all");
+  var [filterItem,setFilterItem]=useState("all");
+  var [filterFrom,setFilterFrom]=useState(function(){var d=new Date();d.setMonth(d.getMonth()-6);return d.toISOString().slice(0,10);});
+  var [filterTo,setFilterTo]=useState(new Date().toISOString().slice(0,10));
+
+  function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
+
+  var completedOrders=useMemo(function(){
+    return orders.filter(function(o){
+      if(o.status!=="완료")return false;
+      if(filterStore!=="all"&&o.storeId!==filterStore)return false;
+      if(filterItem!=="all"&&o.itemId!==filterItem)return false;
+      if(filterFrom&&o.changedAt&&o.changedAt.slice(0,10)<filterFrom)return false;
+      if(filterTo&&o.changedAt&&o.changedAt.slice(0,10)>filterTo)return false;
+      return true;
+    }).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,2000);
+  },[orders,filterStore,filterItem,filterFrom,filterTo]);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
+        <select value={filterStore} onChange={function(e){setFilterStore(e.target.value);}}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 매장</option>
+          {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.id}</option>;})}
+        </select>
+        <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
+          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+          <option value="all">전체 품목</option>
+          {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+        </select>
+        <span style={{fontSize:10,color:"#94A3B8"}}>기간</span>
+        <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
+          style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
+        <span style={{fontSize:10,color:"#94A3B8"}}>~</span>
+        <input type="date" value={filterTo} onChange={function(e){setFilterTo(e.target.value);}}
+          style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
+        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{completedOrders.length}건</span>
+      </div>
+      <div className="tbl-wrap">
+        {completedOrders.length===0?(
+          <div style={{padding:40,textAlign:"center",fontSize:12,color:"#94A3B8"}}>완료된 주문이 없어요.</div>
+        ):(
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{background:"#334155",color:"#E2E8F0"}}>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>품목명</th>
+                <th style={{padding:"9px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>발주</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>주문</th>
+                <th style={{padding:"9px 14px",textAlign:"left",fontWeight:600}}>수령</th>
+                <th style={{padding:"9px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>완료일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {completedOrders.map(function(o,i){
+                var it=items.find(function(x){return x.id===o.itemId;});
+                var c=it&&it.category?catCfg(it.category):null;
+                var b=storeBadge(o.storeId);
+                return(
+                  <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                    <td style={{padding:"8px 14px",fontWeight:600,color:"#1E293B"}}>
+                      {itemName(o.itemId)}
+                      {c&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:999,background:c.bg,color:c.color}}>{it.category}</span>}
+                    </td>
+                    <td style={{padding:"8px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{o.storeId}</span></td>
+                    <td style={{padding:"8px 14px",color:"#7C3AED"}}>{o.requestedBy?staffName(o.requestedBy):"—"}</td>
+                    <td style={{padding:"8px 14px",color:"#1E40AF"}}>{o.orderedBy?staffName(o.orderedBy):"—"}</td>
+                    <td style={{padding:"8px 14px",color:"#059669"}}>{o.completedBy?staffName(o.completedBy):"—"}</td>
+                    <td className="ml-mono" style={{padding:"8px 14px",textAlign:"right",color:"#374151",whiteSpace:"nowrap"}}>{o.changedAt?o.changedAt.slice(0,10):""}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── OrderStatusView (통합 주문현황: 발주/주문/수령 모두 한 화면) ──
 function OrderStatusView({items,orders,onUpdateOrderStatus}){
   var [filterStore,setFilterStore]=useState("all"); // all | 미플 | 아카이브
+  var [filterStatus,setFilterStatus]=useState("all"); // all | 발주 | 주문 | 수령
   var [checked,setChecked]=useState(new Set());
   var [confirming,setConfirming]=useState(false);
+
+  var ACTIVE_STATUSES=STATUSES.filter(function(s){return s.id!=="완료";}); // 완료는 별도 탭
 
   function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
   function itemOf(itemId){return items.find(function(x){return x.id===itemId;});}
 
   var filteredOrders=useMemo(function(){
-    var l=orders;
+    var l=orders.filter(function(o){return o.status!=="완료";});
     if(filterStore!=="all")l=l.filter(function(o){return o.storeId===filterStore;});
+    if(filterStatus!=="all")l=l.filter(function(o){return o.status===filterStatus;});
     return [...l].sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
-  },[orders,filterStore]);
+  },[orders,filterStore,filterStatus]);
 
   function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
   function toggleAll(){checked.size===filteredOrders.length&&filteredOrders.length>0?setChecked(new Set()):setChecked(new Set(filteredOrders.map(function(o){return o.id;})));}
@@ -976,6 +1064,24 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
           <option value="all">전체 매장</option>
           {STORES.map(function(s){return <option key={s.id} value={s.id}>{s.id}</option>;})}
         </select>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+          <button onClick={function(){setFilterStatus("all");setChecked(new Set());}}
+            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+              border:"1.5px solid "+(filterStatus==="all"?"#334155":"#E2E8F0"),
+              background:filterStatus==="all"?"#334155":"#fff",
+              color:filterStatus==="all"?"#fff":"#94A3B8"}}>
+            전체
+          </button>
+          {ACTIVE_STATUSES.map(function(st){var active=filterStatus===st.id;return(
+            <button key={st.id} onClick={function(){setFilterStatus(active?"all":st.id);setChecked(new Set());}}
+              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                border:"1.5px solid "+(active?st.dot:"#E2E8F0"),
+                background:active?st.bg:"#fff",
+                color:active?st.color:"#94A3B8"}}>
+              {st.id}
+            </button>
+          );})}
+        </div>
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filteredOrders.length}건</span>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
           {checked.size>0&&<span style={{fontSize:10,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
@@ -1111,6 +1217,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
   var ORDER_TABS=[
     {id:"list",label:"물품 목록"},
     {id:"status",label:"주문현황"},
+    {id:"completed",label:"완료된 주문"},
   ];
 
   return(
@@ -1208,6 +1315,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
 
       {/* 미플 / 아카이브 탭 */}
       {orderTab==="status"&&<OrderStatusView items={items} orders={orders} onUpdateOrderStatus={onUpdateOrderStatus}/>}
+      {orderTab==="completed"&&<CompletedOrdersView items={items} orders={orders}/>}
 
       {/* 일괄 주문 확인 팝업 */}
       {confirmStore&&(
