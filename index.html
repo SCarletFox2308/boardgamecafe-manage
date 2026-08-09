@@ -1212,14 +1212,16 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
     return items.filter(function(it){return checked.has(it.id);});
   },[items,checked]);
 
-  var [confirmUrgent,setConfirmUrgent]=useState(false);
+  var [urgentItems,setUrgentItems]=useState(new Set());
+
+  function toggleUrgent(id){setUrgentItems(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
 
   function confirmOrder(){
     if(!confirmStore)return;
-    checkedItems.forEach(function(it){onAddOrder(it,confirmStore,confirmUrgent);});
+    checkedItems.forEach(function(it){onAddOrder(it,confirmStore,urgentItems.has(it.id));});
     setChecked(new Set());
     setConfirmStore(null);
-    setConfirmUrgent(false);
+    setUrgentItems(new Set());
   }
 
   var ORDER_TABS=[
@@ -1319,21 +1321,22 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
 
       {/* 일괄 주문 확인 팝업 */}
       {confirmStore&&(
-        <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget){setConfirmStore(null);setConfirmUrgent(false);}}}>
+        <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget){setConfirmStore(null);setUrgentItems(new Set());}}}>
           <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
-            <h2 style={{fontSize:15,fontWeight:700,marginBottom:12}}>선택한 {checkedItems.length}개 항목을 [{confirmStore}]로 발주하시겠습니까?</h2>
-            <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:14,maxHeight:220,overflowY:"auto",border:"1px solid #E2E8F0"}}>
-              {checkedItems.map(function(it){return(
-                <div key={it.id} style={{fontSize:12,color:"#374151",padding:"3px 0"}}>· {it.name}</div>
+            <h2 style={{fontSize:15,fontWeight:700,marginBottom:6}}>선택한 {checkedItems.length}개 항목을 [{confirmStore}]로 발주하시겠습니까?</h2>
+            <p style={{fontSize:11,color:"#94A3B8",marginBottom:12}}>품목별로 긴급 여부를 설정할 수 있어요.</p>
+            <div style={{background:"#F8FAFC",borderRadius:8,padding:"6px 8px",marginBottom:20,maxHeight:280,overflowY:"auto",border:"1px solid #E2E8F0"}}>
+              {checkedItems.map(function(it){var urgent=urgentItems.has(it.id);return(
+                <label key={it.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",cursor:"pointer",borderRadius:6,background:urgent?"#FEF2F2":"transparent"}}>
+                  <input type="checkbox" checked={urgent} onChange={function(){toggleUrgent(it.id);}} style={{width:15,height:15,accentColor:"#DC2626",cursor:"pointer",flexShrink:0}}/>
+                  <span style={{fontSize:12,color:"#374151",flex:1}}>{it.name}</span>
+                  {urgent&&<span style={{fontSize:11,fontWeight:700,color:"#DC2626"}}>🚨 긴급</span>}
+                </label>
               );})}
             </div>
-            <label style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,cursor:"pointer",padding:"8px 12px",background:confirmUrgent?"#FEF2F2":"#F8FAFC",borderRadius:8,border:"1px solid "+(confirmUrgent?"#FECACA":"#E2E8F0")}}>
-              <input type="checkbox" checked={confirmUrgent} onChange={function(e){setConfirmUrgent(e.target.checked);}} style={{width:16,height:16,accentColor:"#DC2626",cursor:"pointer"}}/>
-              <span style={{fontSize:13,fontWeight:600,color:confirmUrgent?"#DC2626":"#374151"}}>🚨 긴급 발주</span>
-            </label>
             <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-              <button onClick={function(){setConfirmStore(null);setConfirmUrgent(false);}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-              <button onClick={confirmOrder} style={{padding:"8px 18px",background:confirmUrgent?"#DC2626":"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>
+              <button onClick={function(){setConfirmStore(null);setUrgentItems(new Set());}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+              <button onClick={confirmOrder} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>
             </div>
           </div>
         </div>
