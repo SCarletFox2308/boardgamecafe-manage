@@ -57,6 +57,10 @@ const STATUSES=[
   {id:"수령",next:"완료",bg:"#DCFCE7",color:"#14532D",dot:"#22C55E"},
   {id:"완료",next:null,bg:"#F1F5F9",color:"#475569",dot:"#94A3B8"},
 ];
+function prevStatus(s){
+  var idx=STATUSES.findIndex(function(x){return x.next===s;});
+  return idx>=0?STATUSES[idx].id:null;
+}
 // 예전 명칭 → 새 명칭 매핑 (레거시 데이터 호환)
 function normalizeStatus(s){
   if(s==="구매요청")return"발주";
@@ -1009,12 +1013,12 @@ function CompletedOrdersView({items,orders}){
 }
 
 // ── OrderStatusView (통합 주문현황: 발주/주문/수령 모두 한 화면) ──
-function OrderStatusView({items,orders,onUpdateOrderStatus}){
+function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
   var [filterStore,setFilterStore]=useState("all"); // all | 미플 | 아카이브
   var [filterStatus,setFilterStatus]=useState("all"); // all | 발주 | 주문 | 수령
   var [filterUrgent,setFilterUrgent]=useState(false);
   var [checked,setChecked]=useState(new Set());
-  var [confirming,setConfirming]=useState(false);
+  var [confirming,setConfirming]=useState(null); // "next" | "prev" | "delete" | null
 
   var ACTIVE_STATUSES=STATUSES.filter(function(s){return s.id!=="완료";}); // 완료는 별도 탭
 
@@ -1042,11 +1046,27 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
 
   var allSameStatus=checkedOrders.length>0&&checkedOrders.every(function(o){return o.status===checkedOrders[0].status;});
   var nextStatusCfg=allSameStatus?statusCfg(statusCfg(checkedOrders[0].status).next):null;
+  var canGoPrev=allSameStatus&&checkedOrders.length>0&&!!prevStatus(checkedOrders[0].status);
+  var prevStatusId=canGoPrev?prevStatus(checkedOrders[0].status):null;
+  var prevStatusCfg2=prevStatusId?statusCfg(prevStatusId):null;
 
   function confirmMove(){
     checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,statusCfg(o.status).next);});
     setChecked(new Set());
-    setConfirming(false);
+    setConfirming(null);
+  }
+  function confirmMovePrev(){
+    if(!prevStatusId)return;
+    checkedOrders.forEach(function(o){onUpdateOrderStatus(o.id,prevStatusId);});
+    setChecked(new Set());
+    setConfirming(null);
+  }
+  function confirmDelete(){
+    var ids=checkedOrders.map(function(o){return o.id;});
+    onDeleteOrders(ids).then(function(){
+      setChecked(new Set());
+      setConfirming(null);
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
 
   return(
@@ -1083,12 +1103,34 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
           🚨 긴급만
         </button>
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filteredOrders.length}건</span>
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
           {checked.size>0&&<span style={{fontSize:10,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
           <button onClick={function(){
               if(checked.size===0){alert("항목을 선택해주세요.");return;}
+              setConfirming("delete");
+            }}
+            style={{padding:"6px 10px",borderRadius:999,fontSize:11,fontWeight:600,cursor:checked.size>0?"pointer":"not-allowed",
+              border:"1.5px solid "+(checked.size>0?"#FECACA":"#E2E8F0"),
+              background:checked.size>0?"#FEF2F2":"#F1F5F9",
+              color:checked.size>0?"#DC2626":"#CBD5E1"}}>
+            삭제
+          </button>
+          <button onClick={function(){
+              if(checked.size===0){alert("항목을 선택해주세요.");return;}
               if(!allSameStatus){alert("같은 상태의 항목만 함께 이동할 수 있어요.");return;}
-              setConfirming(true);
+              if(!canGoPrev){alert("더 이전 단계가 없어요.");return;}
+              setConfirming("prev");
+            }}
+            style={{padding:"6px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:(checked.size>0&&canGoPrev)?"pointer":"not-allowed",
+              border:"1.5px solid "+(prevStatusCfg2?prevStatusCfg2.dot:"#E2E8F0"),
+              background:prevStatusCfg2?(prevStatusCfg2.bg||"#fff"):"#F1F5F9",
+              color:prevStatusCfg2?prevStatusCfg2.color:"#CBD5E1"}}>
+            ← {prevStatusCfg2?prevStatusCfg2.id:"이전 단계"}로
+          </button>
+          <button onClick={function(){
+              if(checked.size===0){alert("항목을 선택해주세요.");return;}
+              if(!allSameStatus){alert("같은 상태의 항목만 함께 이동할 수 있어요.");return;}
+              setConfirming("next");
             }}
             style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,cursor:checked.size>0?"pointer":"not-allowed",
               border:"1.5px solid "+(nextStatusCfg?nextStatusCfg.dot:"#E2E8F0"),
@@ -1171,17 +1213,23 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
       </div>
 
       {confirming&&(
-        <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)setConfirming(false);}}>
+        <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)setConfirming(null);}}>
           <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
-            <h2 style={{fontSize:15,fontWeight:700,marginBottom:12}}>선택한 {checkedOrders.length}개 항목을 [{nextStatusCfg?nextStatusCfg.id:""}]로 변경하시겠습니까?</h2>
+            <h2 style={{fontSize:15,fontWeight:700,marginBottom:12}}>
+              {confirming==="next"&&("선택한 "+checkedOrders.length+"개 항목을 ["+(nextStatusCfg?nextStatusCfg.id:"")+"]로 변경하시겠습니까?")}
+              {confirming==="prev"&&("선택한 "+checkedOrders.length+"개 항목을 ["+(prevStatusCfg2?prevStatusCfg2.id:"")+"]로 되돌리시겠습니까?")}
+              {confirming==="delete"&&("선택한 "+checkedOrders.length+"개 항목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없어요.")}
+            </h2>
             <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:20,maxHeight:220,overflowY:"auto",border:"1px solid #E2E8F0"}}>
               {checkedOrders.map(function(o){return(
                 <div key={o.id} style={{fontSize:12,color:"#374151",padding:"3px 0"}}>· {itemName(o.itemId)} ({o.storeId})</div>
               );})}
             </div>
             <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
-              <button onClick={function(){setConfirming(false);}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
-              <button onClick={confirmMove} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>
+              <button onClick={function(){setConfirming(null);}} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+              {confirming==="next"&&<button onClick={confirmMove} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>}
+              {confirming==="prev"&&<button onClick={confirmMovePrev} style={{padding:"8px 18px",background:"#64748B",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>확인</button>}
+              {confirming==="delete"&&<button onClick={confirmDelete} style={{padding:"8px 18px",background:"#DC2626",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>삭제</button>}
             </div>
           </div>
         </div>
@@ -1192,7 +1240,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
 
 
 // ── OrderView ──
-function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus}){
+function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onDeleteOrders}){
   var [orderTab,setOrderTab]=useState("list"); // list | 미플 | 아카이브
   var [search,setSearch]=useState("");
   var [checked,setChecked]=useState(new Set());
@@ -1315,7 +1363,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
       )}
 
       {/* 미플 / 아카이브 탭 */}
-      {orderTab==="status"&&<OrderStatusView items={items} orders={orders} onUpdateOrderStatus={onUpdateOrderStatus}/>}
+      {orderTab==="status"&&<OrderStatusView items={items} orders={orders} onUpdateOrderStatus={onUpdateOrderStatus} onDeleteOrders={onDeleteOrders}/>}
       {orderTab==="completed"&&<CompletedOrdersView items={items} orders={orders}/>}
 
       {/* 일괄 주문 확인 팝업 */}
@@ -2378,6 +2426,11 @@ function App(){
       });});
     }catch(e){alert("상태 변경 실패: "+e.message);}
   }
+  function handleDeleteOrders(orderIds){
+    return sb.from("order_history").delete().in("id",orderIds).then(function(){
+      setOrders(function(prev){return prev.filter(function(o){return orderIds.indexOf(o.id)<0;});});
+    });
+  }
 
   async function handleSaveTodo(form){
     var isEdit=!!(todoModal&&todoModal.id);
@@ -2595,7 +2648,7 @@ function App(){
           )}
           {mainTab==="order"&&(
             <TabErrorBoundary key="order">
-              <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus}/>
+              <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus} onDeleteOrders={handleDeleteOrders}/>
             </TabErrorBoundary>
           )}
           {mainTab==="sub"&&(
