@@ -1023,7 +1023,13 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
     var l=orders.filter(function(o){return o.status!=="완료";});
     if(filterStore!=="all")l=l.filter(function(o){return o.storeId===filterStore;});
     if(filterStatus!=="all")l=l.filter(function(o){return o.status===filterStatus;});
-    return [...l].sort(function(a,b){return b.changedAt>a.changedAt?1:-1;});
+    return [...l].sort(function(a,b){
+      var at=a.requestedAt||a.changedAt||"";
+      var bt=b.requestedAt||b.changedAt||"";
+      if(at!==bt)return bt>at?1:-1;
+      var an=itemName(a.itemId),bn=itemName(b.itemId);
+      return an.localeCompare(bn,"ko");
+    });
   },[orders,filterStore,filterStatus]);
 
   function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
