@@ -51,13 +51,6 @@ const TODO_STORES=[
 ];
 const STAFF_COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#BE185D","#065F46"];
 var STAFF=[]; // DB에서 동적으로 로드됨
-const CATEGORIES=[
-  {id:"음료",     bg:"#DBEAFE",color:"#1E40AF"},
-  {id:"음식",     bg:"#FEF3C7",color:"#92400E"},
-  {id:"직원",     bg:"#F3E8FF",color:"#6B21A8"},
-  {id:"게임관리", bg:"#DCFCE7",color:"#14532D"},
-  {id:"잡화",     bg:"#F1F5F9",color:"#475569"},
-];
 const STATUSES=[
   {id:"발주",next:"주문",bg:"#FEF3C7",color:"#92400E",dot:"#F59E0B"},
   {id:"주문",next:"수령",bg:"#DBEAFE",color:"#1E40AF",dot:"#3B82F6"},
@@ -87,7 +80,6 @@ function storeBadge(sid){var s=STORES.find(function(x){return x.id===sid;});retu
 function staffColor(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.color:"#6B7280";}
 function staffName(sid){var s=STAFF.find(function(x){return x.id===sid;});return s?s.name:sid||"—";}
 function statusCfg(s){return STATUSES.find(function(x){return x.id===s;})||STATUSES[1];}
-function catCfg(c){return CATEGORIES.find(function(x){return x.id===c;})||{bg:"#F1F5F9",color:"#475569"};}
 function todoBadge(sid){var s=TODO_STORES.find(function(x){return x.id===sid;});return s?s.badge:{bg:"#F1F5F9",color:"#475569"};}
 function getDow(ds){return new Date(ds+"T12:00:00").getDay();}
 function getDatesForDows(startDs,endDs,dows){
@@ -371,7 +363,6 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
 function ItemDetailModal({item,history,onClose,onSave,onDelete}){
   var isNew=!item.id;
   var [name,setName]=useState(item.name||"");
-  var [category,setCategory]=useState(item.category||"");
   var [link,setLink]=useState(item.link||"");
   var [memo,setMemo]=useState(item.memo||"");
   var [saving,setSaving]=useState(false);
@@ -389,7 +380,7 @@ function ItemDetailModal({item,history,onClose,onSave,onDelete}){
     e.preventDefault();
     if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
     setSaving(true);
-    onSave({id:item.id||uid(),name:name.trim(),category:category,link:link.trim(),memo:memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:item.id||uid(),name:name.trim(),link:link.trim(),memo:memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -2279,7 +2270,7 @@ function App(){
       }catch(e){console.warn("staff load error",e);}
       // 2. 나머지 데이터
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
-      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,category:x.category||"",link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
+      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:normalizeStatus(x.status),memo:x.memo||"",requestedBy:x.requested_by||null,requestedAt:x.requested_at||null,orderedBy:x.ordered_by||null,orderedAt:x.ordered_at||null,completedBy:x.completed_by||null,completedAt:x.completed_at||null,changedAt:x.changed_at};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
@@ -2318,8 +2309,8 @@ function App(){
   async function handleSaveItem(form){
     var isNew=!form.id||!orderItems.find(function(x){return x.id===form.id;});
     try{
-      if(isNew){await sb.from("order_items").insert({id:form.id,name:form.name,category:form.category||null,link:form.link,memo:form.memo});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,category:form.category||"",link:form.link,memo:form.memo}];});}
-      else{await sb.from("order_items").update({name:form.name,category:form.category||null,link:form.link,memo:form.memo}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,category:form.category||"",link:form.link,memo:form.memo}:x;});});}
+      if(isNew){await sb.from("order_items").insert({id:form.id,name:form.name,link:form.link,memo:form.memo});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,link:form.link,memo:form.memo}];});}
+      else{await sb.from("order_items").update({name:form.name,link:form.link,memo:form.memo}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,link:form.link,memo:form.memo}:x;});});}
       setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
