@@ -1027,7 +1027,6 @@ function OrderStatusView({items,orders,onUpdateOrderStatus}){
     if(filterStatus!=="all")l=l.filter(function(o){return o.status===filterStatus;});
     if(filterUrgent)l=l.filter(function(o){return o.isUrgent;});
     return [...l].sort(function(a,b){
-      if(!!a.isUrgent!==!!b.isUrgent)return a.isUrgent?-1:1;
       var at=a.requestedAt||a.changedAt||"";
       var bt=b.requestedAt||b.changedAt||"";
       if(at!==bt)return bt>at?1:-1;
