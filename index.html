@@ -92,13 +92,21 @@ function getDatesForDows(startDs,endDs,dows){
   return result;
 }
 var holidayCache={};
+var holidayAllDataPromise=null;
 function fetchHolidays(year){
   if(holidayCache[year]!==undefined)return Promise.resolve(holidayCache[year]);
-  var url="https://www.googleapis.com/calendar/v3/calendars/ko.south_korea%23holiday%40group.v.calendar.google.com/events?key=AIzaSyB6_HCHduvd5dxQEr2-2yXPDUoJmXHOZ4c&timeMin="+year+"-01-01T00:00:00Z&timeMax="+year+"-12-31T23:59:59Z&singleEvents=true&maxResults=50";
-  return fetch(url).then(function(r){return r.ok?r.json():Promise.reject();}).then(function(d){
+  if(!holidayAllDataPromise){
+    holidayAllDataPromise=fetch("https://holidays.hyunbin.page/basic.json").then(function(r){return r.ok?r.json():Promise.reject();});
+  }
+  return holidayAllDataPromise.then(function(all){
+    var yearData=all[String(year)]||{};
     var map={};
-    (d.items||[]).forEach(function(ev){var dt=(ev.start&&ev.start.date||"").slice(0,10);if(dt)map[dt]=ev.summary||"공휴일";});
-    holidayCache[year]=map;return map;
+    Object.keys(yearData).forEach(function(dt){
+      var names=yearData[dt];
+      map[dt]=Array.isArray(names)?names.join(", "):names;
+    });
+    holidayCache[year]=map;
+    return map;
   }).catch(function(){
     var fixed={};
     [[1,1,"신정"],[3,1,"삼일절"],[5,5,"어린이날"],[6,6,"현충일"],[8,15,"광복절"],[10,3,"개천절"],[10,9,"한글날"],[12,25,"크리스마스"]].forEach(function(x){fixed[year+"-"+pad(x[0])+"-"+pad(x[1])]=x[2];});
@@ -193,7 +201,7 @@ function DayDetailModal({date,works,currentUser,onClose,onEditWork}){
 }
 
 // ── WorkModal ──
-function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSave,onDelete}){
+function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,normalHours,onClose,onSave,onDelete}){
   var isEdit=!!record;
   var now=new Date();
   var initDate=defaultDate||dateStr(now);
@@ -208,25 +216,44 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
     memo:record.memo||"",
   }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T"+(initIsWeekendGuess?"12:00":"14:00"),endAt:initDate+"T23:00",memo:""});
 
-  // 공휴일 정보를 실시간으로 가져와서 신규 등록 시 시작시간 자동 보정 (사용자가 아직 손대지 않았을 때만)
+  // 정규 근무시간 조회 (매장별/요일별/공휴일별)
+  function normalHoursFor(storeId,dateStr10,hMap){
+    var dow=getDow(dateStr10);
+    var isHol=hMap&&!!hMap[dateStr10];
+    var findRule=function(d){return(normalHours||[]).find(function(h){return h.storeId===storeId&&h.dow===d;});};
+    var rule=isHol?findRule(-1):null;
+    if(!rule||(!rule.startTime&&!rule.endTime))rule=findRule(dow);
+    return rule;
+  }
+
+  // 사용자가 시간을 직접 건드리지 않았을 때만 자동 보정 대상
   var [startTouched,setStartTouched]=useState(false);
+  var [endTouched,setEndTouched]=useState(false);
+
+  function applySuggestedTime(storeId,hMap){
+    if(isEdit)return;
+    if(startTouched&&endTouched)return;
+    var rule=normalHoursFor(storeId,initDate,hMap);
+    var dow=getDow(initDate);
+    var isHoliday=(hMap&&!!hMap[initDate])||dow===0||dow===6;
+    var fallbackStart=isHoliday?"12:00":"14:00";
+    var suggestedStart=(rule&&rule.startTime)||fallbackStart;
+    var suggestedEnd=(rule&&rule.endTime)||null;
+    setForm(function(prev){
+      var next={...prev};
+      if(!startTouched)next.startAt=initDate+"T"+suggestedStart;
+      if(!endTouched&&suggestedEnd)next.endAt=initDate+"T"+suggestedEnd;
+      return next;
+    });
+  }
+
+  // 공휴일 정보를 실시간으로 가져와서 신규 등록 시 시간 자동 보정 (사용자가 아직 손대지 않았을 때만)
   useEffect(function(){
     if(isEdit)return;
     var yr=initDate.slice(0,4);
     fetchHolidays(yr).then(function(h){
       setHolidayMap(h);
-      if(startTouched)return;
-      var dow=getDow(initDate);
-      var isHoliday=!!h[initDate]||dow===0||dow===6;
-      var suggestedTime=isHoliday?"12:00":"14:00";
-      setForm(function(prev){
-        // 이미 편집된 경우가 아니면(초기값 그대로일 때만) 보정
-        var curTime=prev.startAt.slice(11);
-        if(curTime==="14:00"||curTime==="12:00"){
-          return{...prev,startAt:initDate+"T"+suggestedTime};
-        }
-        return prev;
-      });
+      applySuggestedTime(form.storeId,h);
     });
   },[]);
   var [repeat,setRepeat]=useState(false);
@@ -303,7 +330,7 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
           <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>매장 *</label>
           <div style={{display:"flex",gap:10}}>
             {STORES.map(function(s){var b=s.badge;return(
-              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});applySuggestedTime(s.id,holidayMap);}}
                 style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,border:"2px solid "+(form.storeId===s.id?b.color:"#E2E8F0"),background:form.storeId===s.id?b.bg:"#fff",color:form.storeId===s.id?b.color:"#374151",cursor:"pointer"}}>
                 {s.id}
               </button>
@@ -319,7 +346,7 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
           </div>
           <div>
             <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>퇴근 시간</label>
-            <input type="datetime-local" value={form.endAt} onChange={function(e){setForm({...form,endAt:e.target.value});}}
+            <input type="datetime-local" value={form.endAt} onChange={function(e){setForm({...form,endAt:e.target.value});setEndTouched(true);}}
               className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.endAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:12,outline:"none"}}/>
             {err.endAt&&<p style={{fontSize:11,color:"#EF4444",marginTop:3}}>{err.endAt}</p>}
           </div>
@@ -801,10 +828,14 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
                 <span style={{fontSize:12,fontWeight:isToday?700:500,color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",background:isToday?"#3B82F6":"transparent"}}>
                   {day}
                 </span>
-                {holiday&&<span style={{fontSize:9,color:"#EF4444",fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{holiday}</span>}
               </div>
-              {dayEvents.length>0&&(
+              {(holiday||dayEvents.length>0)&&(
                 <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
+                  {holiday&&(
+                    <div style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#FEE2E2",color:"#991B1B",lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {holiday}
+                    </div>
+                  )}
                   {dayEvents.map(function(ev){return(
                     <button key={ev.id} onClick={function(e){e.stopPropagation();onEventClick(ev);}}
                       style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#F3E8FF",color:"#6B21A8",border:"1px solid #E9D5FF",cursor:"pointer",lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"left",display:"block"}}>
@@ -850,6 +881,7 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
 // ── NormalHoursModal (요일별/매장별 정규 근무시간 설정) ──
 function NormalHoursModal({normalHours,onClose,onSave}){
   var DOW_KR=["일","월","화","수","목","금","토"];
+  var HOLIDAY_DOW=-1; // 공휴일 전용 코드
   // key: storeId+"_"+dow
   function keyOf(storeId,dow){return storeId+"_"+dow;}
   var initial=useMemo(function(){
@@ -881,6 +913,11 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           entries.push({storeId:s.id,dow:d,startTime:r.start||null,endTime:r.end||null});
         }
       }
+      var hk=keyOf(s.id,HOLIDAY_DOW);
+      var hr=rows[hk];
+      if(hr&&(hr.start||hr.end)){
+        entries.push({storeId:s.id,dow:HOLIDAY_DOW,startTime:hr.start||null,endTime:hr.end||null});
+      }
     });
     onSave(entries).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
   }
@@ -892,17 +929,31 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           <h2 style={{fontSize:16,fontWeight:700}}>정규 근무시간 설정</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>요일·매장별로 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요. 비워두면 해당 요일은 하이라이트하지 않아요.</p>
+        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>요일·매장별로 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요. 공휴일 설정은 요일 설정보다 우선 적용돼요. 비워두면 해당 항목은 하이라이트하지 않아요.</p>
         <div style={{maxHeight:420,overflowY:"auto"}}>
-          {STORES.map(function(s){var b=s.badge;return(
+          {STORES.map(function(s){var b=s.badge;var hk=keyOf(s.id,HOLIDAY_DOW);var hr=rows[hk]||{start:"",end:""};return(
             <div key={s.id} style={{marginBottom:16}}>
               <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:8,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9",background:"#FEF2F2",margin:"0 -4px",paddingLeft:4,paddingRight:4,borderRadius:4}}>
+                <span style={{width:44,fontSize:12,fontWeight:700,color:"#DC2626"}}>공휴일</span>
+                <input type="time" value={hr.start} onChange={function(e){updateRow(s.id,HOLIDAY_DOW,"start",e.target.value);}}
+                  style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:100}}/>
+                <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
+                <input type="time" value={hr.end} onChange={function(e){updateRow(s.id,HOLIDAY_DOW,"end",e.target.value);}}
+                  style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:100}}/>
+                {(hr.start||hr.end)&&(
+                  <button type="button" onClick={function(){updateRow(s.id,HOLIDAY_DOW,"start","");updateRow(s.id,HOLIDAY_DOW,"end","");}}
+                    style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",color:"#FCA5A5",padding:2}}>
+                    <X size={13}/>
+                  </button>
+                )}
+              </div>
               {DOW_KR.map(function(dowLabel,d){
                 var k=keyOf(s.id,d);
                 var r=rows[k]||{start:"",end:""};
                 return(
                   <div key={d} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9"}}>
-                    <span style={{width:24,fontSize:12,fontWeight:600,color:(d===0?"#EF4444":d===6?"#3B82F6":"#374151")}}>{dowLabel}</span>
+                    <span style={{width:44,fontSize:12,fontWeight:600,color:(d===0?"#EF4444":d===6?"#3B82F6":"#374151")}}>{dowLabel}</span>
                     <input type="time" value={r.start} onChange={function(e){updateRow(s.id,d,"start",e.target.value);}}
                       style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:100}}/>
                     <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
@@ -931,7 +982,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   );
 }
 
-function WorkListView({works,currentUser,normalHours,onEdit,onDelete,onBulkDelete,onOpenHoursModal}){
+function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,onBulkDelete,onOpenHoursModal}){
   var DOW_KR=["일","월","화","수","목","금","토"];
   function dowOf(dateStr10){return DOW_KR[new Date(dateStr10+"T12:00:00").getDay()];}
   var today=new Date();
@@ -973,8 +1024,11 @@ function WorkListView({works,currentUser,normalHours,onEdit,onDelete,onBulkDelet
 
   function isAbnormal(w){
     if(!w.startAt)return false;
-    var dow=new Date(w.startAt.slice(0,10)+"T12:00:00").getDay();
-    var rule=normalHoursMap[w.storeId+"_"+dow];
+    var ds=w.startAt.slice(0,10);
+    var dow=new Date(ds+"T12:00:00").getDay();
+    var isHol=holidayMap&&!!holidayMap[ds];
+    var rule=isHol?normalHoursMap[w.storeId+"_-1"]:null;
+    if(!rule||(!rule.start&&!rule.end))rule=normalHoursMap[w.storeId+"_"+dow];
     if(!rule||(!rule.start&&!rule.end))return false;
     var actualStart=fmtTime(w.startAt);
     var actualEnd=w.endAt?fmtTime(w.endAt):null;
@@ -2488,6 +2542,7 @@ function App(){
   var [orderCategoryManageModal,setOrderCategoryManageModal]=useState(false);
   var [normalHours,setNormalHours]=useState([]);
   var [hoursModal,setHoursModal]=useState(false);
+  var [appHolidayMap,setAppHolidayMap]=useState({});
   var [events,setEvents]=useState([]);
   var [eventVotes,setEventVotes]=useState([]);
   var [eventModal,setEventModal]=useState(null);
@@ -2504,7 +2559,21 @@ function App(){
     setCurrentUser(null);
     setLoading(true);
     setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);
+    setAppHolidayMap({});
   }
+
+  useEffect(function(){
+    if(!works||works.length===0)return;
+    var years=new Set();
+    works.forEach(function(w){if(w.startAt)years.add(w.startAt.slice(0,4));});
+    years.add(String(new Date().getFullYear()));
+    Promise.all([...years].map(function(y){return fetchHolidays(y);})).then(function(maps){
+      var merged={};
+      maps.forEach(function(m){Object.assign(merged,m);});
+      setAppHolidayMap(merged);
+    });
+  },[works]);
+
 
   // 로그인한 사용자별 월정액 매장탭만 기억
   useEffect(function(){
@@ -2867,7 +2936,7 @@ function App(){
           {mainTab==="work"&&workSubTab==="list"&&(
             <TabErrorBoundary key="work-list">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <WorkListView works={works} currentUser={currentUser} normalHours={normalHours}
+              <WorkListView works={works} currentUser={currentUser} normalHours={normalHours} holidayMap={appHolidayMap}
                 onEdit={function(w){
                   if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                   else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
@@ -2903,7 +2972,7 @@ function App(){
           onClose={function(){setDayDetailModal(null);}}
           onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}/>
       )}
-      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
+      {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} normalHours={normalHours} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
