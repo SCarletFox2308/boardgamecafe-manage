@@ -364,11 +364,12 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
 }
 
 // ── ItemDetailModal ──
-function ItemDetailModal({item,history,onClose,onSave,onDelete}){
+function ItemDetailModal({item,history,orderCategories,onClose,onSave,onDelete}){
   var isNew=!item.id;
   var [name,setName]=useState(item.name||"");
   var [link,setLink]=useState(item.link||"");
   var [memo,setMemo]=useState(item.memo||"");
+  var [categoryId,setCategoryId]=useState(item.categoryId||"");
   var [saving,setSaving]=useState(false);
   var [err,setErr]=useState("");
 
@@ -384,7 +385,7 @@ function ItemDetailModal({item,history,onClose,onSave,onDelete}){
     e.preventDefault();
     if(!name.trim()){setErr("품목명을 입력해주세요.");return;}
     setSaving(true);
-    onSave({id:item.id||uid(),name:name.trim(),link:link.trim(),memo:memo.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:item.id||uid(),name:name.trim(),link:link.trim(),memo:memo.trim(),categoryId:categoryId||null}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -400,6 +401,29 @@ function ItemDetailModal({item,history,onClose,onSave,onDelete}){
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:12,outline:"none"}} placeholder="예: 음료수, 컵"/>
           {err&&<p style={{fontSize:11,color:"#EF4444",marginTop:3}}>{err}</p>}
         </div>
+        {orderCategories&&orderCategories.length>0&&(
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>카테고리</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              <button type="button" onClick={function(){setCategoryId("");}}
+                style={{padding:"5px 13px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
+                  border:"1.5px solid "+(categoryId===""?"#334155":"#E2E8F0"),
+                  background:categoryId===""?"#334155":"#fff",
+                  color:categoryId===""?"#fff":"#94A3B8"}}>
+                없음
+              </button>
+              {orderCategories.map(function(c){return(
+                <button key={c.id} type="button" onClick={function(){setCategoryId(c.id);}}
+                  style={{padding:"5px 13px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",
+                    border:"1.5px solid "+(categoryId===c.id?"#2563EB":"#E2E8F0"),
+                    background:categoryId===c.id?"#EFF6FF":"#fff",
+                    color:categoryId===c.id?"#2563EB":"#94A3B8"}}>
+                  {c.name}
+                </button>
+              );})}
+            </div>
+          </div>
+        )}
         <div style={{marginBottom:12}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>주문 링크</label>
           <input value={link} onChange={function(e){setLink(e.target.value);}}
@@ -1240,17 +1264,27 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
 
 
 // ── OrderView ──
-function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onDeleteOrders}){
+function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddItem,onAddOrder,onUpdateOrderStatus,onDeleteOrders,onManageOrderCategories}){
   var [orderTab,setOrderTab]=useState("status"); // list | status | completed
   var [search,setSearch]=useState("");
+  var [filterCat,setFilterCat]=useState("all");
   var [checked,setChecked]=useState(new Set());
   var [confirmStore,setConfirmStore]=useState(null); // "미플" | "아카이브" | null
+
+  function catName(id){var c=orderCategories.find(function(x){return x.id===id;});return c?c.name:null;}
+  function catOrder(id){var c=orderCategories.find(function(x){return x.id===id;});return c?c.sortOrder:999999;}
 
   var filteredItems=useMemo(function(){
     var l=items;
     if(search.trim())l=l.filter(function(it){return it.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
-    return l;
-  },[items,search]);
+    if(filterCat!=="all")l=l.filter(function(it){return(it.categoryId||"")===(filterCat==="none"?"":filterCat);});
+    return [...l].sort(function(a,b){
+      var ao=a.categoryId?catOrder(a.categoryId):999998;
+      var bo=b.categoryId?catOrder(b.categoryId):999998;
+      if(ao!==bo)return ao-bo;
+      return a.name.localeCompare(b.name,"ko");
+    });
+  },[items,search,filterCat,orderCategories]);
 
   function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
   function toggleAll(){checked.size===filteredItems.length&&filteredItems.length>0?setChecked(new Set()):setChecked(new Set(filteredItems.map(function(i){return i.id;})));}
@@ -1302,7 +1336,18 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
             <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…"
               style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:140}}/>
+            {orderCategories.length>0&&(
+              <select value={filterCat} onChange={function(e){setFilterCat(e.target.value);}}
+                style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+                <option value="all">전체 카테고리</option>
+                <option value="none">카테고리 없음</option>
+                {orderCategories.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}
+              </select>
+            )}
             <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filteredItems.length}개</span>
+            {currentUser&&currentUser.isAdmin&&(
+              <button onClick={onManageOrderCategories} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>카테고리 관리</button>
+            )}
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
               {checked.size>0&&<span style={{fontSize:10,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
               <button onClick={function(){if(checked.size===0){alert("품목을 선택해주세요.");return;}setConfirmStore("미플");}}
@@ -1332,6 +1377,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
                 <tbody>
                   {filteredItems.map(function(item,i){
                     var isCk=checked.has(item.id);
+                    var cn=item.categoryId?catName(item.categoryId):null;
                     return(
                       <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
                         <td style={{padding:"11px 10px",textAlign:"center"}}>
@@ -1343,6 +1389,7 @@ function OrderView({items,orders,onItemClick,onAddItem,onAddOrder,onUpdateOrderS
                               style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
                               {item.name}
                             </button>
+                            {cn&&<span className="tag" style={{background:"#F1F5F9",color:"#475569",fontSize:9}}>{cn}</span>}
                           </div>
                           {item.memo&&<div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{item.memo}</div>}
                         </td>
@@ -1826,7 +1873,7 @@ function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePo
 }
 
 // ── BoardCategoryManageModal (관리자 전용) ──
-function BoardCategoryManageModal({categories,onClose,onAdd,onRename,onDelete}){
+function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDelete}){
   var [newName,setNewName]=useState("");
   var [editingId,setEditingId]=useState(null);
   var [editingName,setEditingName]=useState("");
@@ -1848,7 +1895,7 @@ function BoardCategoryManageModal({categories,onClose,onAdd,onRename,onDelete}){
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <h2 style={{fontSize:16,fontWeight:700}}>게시판 분류 관리</h2>
+          <h2 style={{fontSize:16,fontWeight:700}}>{title||"분류 관리"}</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
         <div style={{marginBottom:20}}>
@@ -2307,6 +2354,8 @@ function App(){
   var [writingPost,setWritingPost]=useState(false);
   var [categories,setCategories]=useState([]);
   var [categoryManageModal,setCategoryManageModal]=useState(false);
+  var [orderCategories,setOrderCategories]=useState([]);
+  var [orderCategoryManageModal,setOrderCategoryManageModal]=useState(false);
   var [events,setEvents]=useState([]);
   var [eventVotes,setEventVotes]=useState([]);
   var [eventModal,setEventModal]=useState(null);
@@ -2322,7 +2371,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);
   }
 
   // 로그인한 사용자별 월정액 매장탭만 기억
@@ -2348,13 +2397,14 @@ function App(){
       }catch(e){console.warn("staff load error",e);}
       // 2. 나머지 데이터
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
-      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,link:x.link||"",memo:x.memo||""};}).reverse().reverse());}catch(e){setOrderItems([]);}
+      try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,link:x.link||"",memo:x.memo||"",categoryId:x.category_id||null};}).reverse().reverse());}catch(e){setOrderItems([]);}
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:normalizeStatus(x.status),memo:x.memo||"",requestedBy:x.requested_by||null,requestedAt:x.requested_at||null,orderedBy:x.ordered_by||null,orderedAt:x.ordered_at||null,completedBy:x.completed_by||null,completedAt:x.completed_at||null,changedAt:x.changed_at,isUrgent:!!x.is_urgent};}));}catch(e){setOrders([]);}
       try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
       try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,categoryId:x.category_id||null,createdAt:x.created_at};}));}catch(e){setPosts([]);}
       try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
       try{var r8=await sb.from("board_categories").select("*").order("sort_order",{ascending:true});setCategories((r8.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setCategories([]);}
+      try{var r11=await sb.from("order_categories").select("*").order("sort_order",{ascending:true});setOrderCategories((r11.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setOrderCategories([]);}
       try{var r9=await sb.from("events").select("*").order("event_date",{ascending:true}).limit(500);setEvents((r9.data||[]).map(function(x){return{id:x.id,title:x.title,eventDate:x.event_date,eventTime:x.event_time||"",location:x.location||"",authorId:x.author_id};}));}catch(e){setEvents([]);}
       try{var r10=await sb.from("event_votes").select("*").limit(2000);setEventVotes((r10.data||[]).map(function(x){return{id:x.id,eventId:x.event_id,staffId:x.staff_id,response:x.response};}));}catch(e){setEventVotes([]);}
       setLoading(false);
@@ -2387,8 +2437,8 @@ function App(){
   async function handleSaveItem(form){
     var isNew=!form.id||!orderItems.find(function(x){return x.id===form.id;});
     try{
-      if(isNew){await sb.from("order_items").insert({id:form.id,name:form.name,link:form.link,memo:form.memo});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,link:form.link,memo:form.memo}];});}
-      else{await sb.from("order_items").update({name:form.name,link:form.link,memo:form.memo}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,link:form.link,memo:form.memo}:x;});});}
+      if(isNew){await sb.from("order_items").insert({id:form.id,name:form.name,link:form.link,memo:form.memo,category_id:form.categoryId||null});setOrderItems(function(prev){return[...prev,{id:form.id,name:form.name,link:form.link,memo:form.memo,categoryId:form.categoryId||null}];});}
+      else{await sb.from("order_items").update({name:form.name,link:form.link,memo:form.memo,category_id:form.categoryId||null}).eq("id",form.id);setOrderItems(function(prev){return prev.map(function(x){return x.id===form.id?{...x,name:form.name,link:form.link,memo:form.memo,categoryId:form.categoryId||null}:x;});});}
       setItemModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
@@ -2521,6 +2571,24 @@ function App(){
   function handleDeleteCategory(id){
     sb.from("board_categories").delete().eq("id",id).then(function(){
       setCategories(function(prev){return prev.filter(function(c){return c.id!==id;});});
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
+
+  function handleAddOrderCategory(name){
+    var newId=uid();
+    var sortOrder=orderCategories.length>0?Math.max.apply(null,orderCategories.map(function(c){return c.sortOrder;}))+1:0;
+    return sb.from("order_categories").insert({id:newId,name:name,sort_order:sortOrder}).then(function(){
+      setOrderCategories(function(prev){return[...prev,{id:newId,name:name,sortOrder:sortOrder}];});
+    });
+  }
+  function handleRenameOrderCategory(id,name){
+    return sb.from("order_categories").update({name:name}).eq("id",id).then(function(){
+      setOrderCategories(function(prev){return prev.map(function(c){return c.id===id?{...c,name:name}:c;});});
+    });
+  }
+  function handleDeleteOrderCategory(id){
+    sb.from("order_categories").delete().eq("id",id).then(function(){
+      setOrderCategories(function(prev){return prev.filter(function(c){return c.id!==id;});});
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
 
@@ -2663,7 +2731,7 @@ function App(){
           )}
           {mainTab==="order"&&(
             <TabErrorBoundary key="order">
-              <OrderView items={orderItems} orders={orders} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus} onDeleteOrders={handleDeleteOrders}/>
+              <OrderView items={orderItems} orders={orders} orderCategories={orderCategories} currentUser={currentUser} onItemClick={function(item){setItemModal(item);}} onAddItem={function(){setItemModal({});}} onAddOrder={handleAddOrder} onUpdateOrderStatus={handleUpdateOrderStatus} onDeleteOrders={handleDeleteOrders} onManageOrderCategories={function(){setOrderCategoryManageModal(true);}}/>
             </TabErrorBoundary>
           )}
           {mainTab==="sub"&&(
@@ -2690,12 +2758,13 @@ function App(){
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
-      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
+      {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
+      {orderCategoryManageModal&&<BoardCategoryManageModal categories={orderCategories} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {writingPost&&<BoardWriteModal categories={categories} onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
       {postModal!==null&&<BoardPostModal post={postModal} comments={comments} categories={categories} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onEditPost={handleEditPost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
-      {categoryManageModal&&<BoardCategoryManageModal categories={categories} onClose={function(){setCategoryManageModal(false);}} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory}/>}
+      {categoryManageModal&&<BoardCategoryManageModal categories={categories} title="게시판 분류 관리" onClose={function(){setCategoryManageModal(false);}} onAdd={handleAddCategory} onRename={handleRenameCategory} onDelete={handleDeleteCategory}/>}
       {staffManageModal&&<StaffManageModal staffList={staffList} onStaffChange={function(updated){setStaffList(updated);STAFF.length=0;updated.forEach(function(s){STAFF.push(s);});}} onClose={function(){setStaffManageModal(false);}}/>}
     </div>
   );
