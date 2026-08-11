@@ -722,7 +722,7 @@ function EventModal({event,votes,defaultDate,currentUser,onClose,onSave,onDelete
 }
 
 // ── CalendarFilterBar ──
-function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore}){
+function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore,onAddEvent}){
   return(
     <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
       <span style={{fontSize:10,fontWeight:700,color:"#94A3B8"}}>필터</span>
@@ -740,6 +740,7 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
         <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
           style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
       )}
+      <button onClick={onAddEvent} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F3E8FF",color:"#6B21A8",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E9D5FF",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>📌 이벤트 등록</button>
     </div>
   );
 }
@@ -982,7 +983,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   );
 }
 
-function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,onBulkDelete,onOpenHoursModal}){
+function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,onBulkDelete}){
   var DOW_KR=["일","월","화","수","목","금","토"];
   function dowOf(dateStr10){return DOW_KR[new Date(dateStr10+"T12:00:00").getDay()];}
   var today=new Date();
@@ -1045,7 +1046,6 @@ function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,
           {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
         </select>
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filtered.length}건</span>
-        <button onClick={onOpenHoursModal} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>하이라이트 설정</button>
         {checked.size>0&&(
           <button onClick={handleBulkDelete} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
             <Trash2 size={12}/> {checked.size}건 삭제
@@ -2899,7 +2899,7 @@ function App(){
               {t.icon}{t.label}
             </button>
           );})}
-          <button onClick={function(){setEventModal({date:null});}} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F3E8FF",color:"#6B21A8",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E9D5FF",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>📌 이벤트 등록</button>
+          <button onClick={function(){setHoursModal(true);}} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>정규시간관리</button>
           <button onClick={function(){setWorkModal({date:null,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}><Plus size={12}/> 근무 등록</button>
         </div>
       )}
@@ -2918,7 +2918,7 @@ function App(){
           {mainTab==="work"&&workSubTab==="cal"&&(
             <TabErrorBoundary key="work-cal">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore}/>
+              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore} onAddEvent={function(){setEventModal({date:null});}}/>
               <div style={{flex:1,overflow:"auto"}}>
                 <CalendarView works={works} events={events}
                   onDayClick={function(ds){setDayDetailModal(ds);}}
@@ -2941,7 +2941,7 @@ function App(){
                   if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                   else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                 }}
-                onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork} onOpenHoursModal={function(){setHoursModal(true);}}/>
+                onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
             </div>
             </TabErrorBoundary>
           )}
