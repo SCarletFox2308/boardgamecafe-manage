@@ -1039,14 +1039,14 @@ function WorkListView({works,currentUser,normalHours,onEdit,onDelete,onBulkDelet
               {filtered.map(function(w,i){
                 var hours=calcHours(w.startAt,w.endAt);var sb2=storeBadge(w.storeId);var sc=staffColor(w.staffId);var isCk=checked.has(w.id);var hasPermission=canEdit(w);var abnormal=isAbnormal(w);
                 return(
-                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")} style={abnormal?{background:"#FEF2F2"}:undefined}>
+                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")} title={abnormal?"정규 근무시간과 달라요":undefined}
+                    style={abnormal?{background:"#FFFBEB",borderLeft:"3px solid #F59E0B"}:{borderLeft:"3px solid transparent"}}>
                     <td style={{padding:"9px 10px",textAlign:"center"}}>
                       {hasPermission
                         ?<input type="checkbox" checked={isCk} onChange={function(){toggleCheck(w.id,w);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
                         :<span style={{display:"inline-block",width:16,height:16}}/>}
                     </td>
                     <td className="ml-mono" style={{padding:"9px 14px",fontSize:11,color:"#374151",whiteSpace:"nowrap"}}>
-                      {abnormal&&<span title="정규 근무시간과 다름" style={{marginRight:4}}>⚠️</span>}
                       {w.startAt?w.startAt.slice(0,10):""}
                       {w.startAt&&<span style={{marginLeft:4,color:"#94A3B8"}}>({dowOf(w.startAt.slice(0,10))})</span>}
                     </td>
