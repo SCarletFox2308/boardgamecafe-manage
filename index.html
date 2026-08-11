@@ -11,7 +11,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;}
+html,body{height:100%;overflow:hidden;}
 #root{height:100%;}
 #root:empty::before{content:"불러오는 중입니다.";display:block;padding:40px;text-align:center;color:#64748B;font-family:sans-serif;}
 </style>
@@ -108,7 +108,7 @@ function fetchHolidays(year){
 
 const CSS=`
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
-.ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;min-height:100vh;background:#F1F5F9;max-width:100vw;overflow-x:hidden;}
+.ml-root{font-family:"Noto Sans KR",-apple-system,sans-serif;display:flex;flex-direction:column;height:100vh;height:100dvh;background:#F1F5F9;max-width:100vw;overflow:hidden;}
 .ml-mono{font-family:"IBM Plex Mono",monospace;}
 .ml-inp:focus,.ml-sel:focus{outline:2px solid #2563EB;outline-offset:2px;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;}
@@ -2579,7 +2579,7 @@ function App(){
   return(
     <div className="ml-root">
       <style>{CSS}</style>
-      <div style={{background:"#1E293B",padding:"14px 20px 0"}}>
+      <div style={{background:"#1E293B",padding:"14px 20px 0",position:"sticky",top:0,zIndex:20}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:8}}>
           <div>
             <div className="ml-mono" style={{fontSize:9,letterSpacing:".12em",textTransform:"uppercase",color:"#94A3B8"}}>업무 관리</div>
@@ -2608,7 +2608,7 @@ function App(){
         </div>
       </div>
       {mainTab==="work"&&(
-        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",position:"sticky",top:0,zIndex:19}}>
           {WORK_SUB.map(function(t){return(
             <button key={t.id} onClick={function(){setWorkSubTab(t.id);}}
               style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,background:workSubTab===t.id?"#1E293B":"transparent",color:workSubTab===t.id?"#F8FAFC":"#64748B"}}>
@@ -2620,7 +2620,7 @@ function App(){
         </div>
       )}
       {mainTab==="sub"&&(
-        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{background:"#F1F5F9",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",position:"sticky",top:0,zIndex:19}}>
           {STORES.map(function(s){return(
             <button key={s.id} onClick={function(){setSubStoreTab(s.id);}}
               style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,background:subStoreTab===s.id?"#1E293B":"transparent",color:subStoreTab===s.id?"#F8FAFC":"#64748B"}}>
