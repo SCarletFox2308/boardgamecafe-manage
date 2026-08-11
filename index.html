@@ -198,12 +198,37 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
   var now=new Date();
   var initDate=defaultDate||dateStr(now);
   var initStaffId=isEdit?record.staffId:(forceStaffId||defaultStaffId||STAFF[0]&&STAFF[0].id||"");
+  var initDow0=getDow(initDate);
+  var initIsWeekendGuess=(initDow0===0||initDow0===6); // 공휴일 조회 전까지는 주말만으로 1차 추정
+  var [holidayMap,setHolidayMap]=useState(null);
   var [form,setForm]=useState(isEdit?{
     staffId:record.staffId,storeId:record.storeId,
     startAt:record.startAt?toLocalISO(new Date(record.startAt)):"",
     endAt:record.endAt?toLocalISO(new Date(record.endAt)):"",
     memo:record.memo||"",
-  }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T14:00",endAt:initDate+"T23:00",memo:""});
+  }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T"+(initIsWeekendGuess?"12:00":"14:00"),endAt:initDate+"T23:00",memo:""});
+
+  // 공휴일 정보를 실시간으로 가져와서 신규 등록 시 시작시간 자동 보정 (사용자가 아직 손대지 않았을 때만)
+  var [startTouched,setStartTouched]=useState(false);
+  useEffect(function(){
+    if(isEdit)return;
+    var yr=initDate.slice(0,4);
+    fetchHolidays(yr).then(function(h){
+      setHolidayMap(h);
+      if(startTouched)return;
+      var dow=getDow(initDate);
+      var isHoliday=!!h[initDate]||dow===0||dow===6;
+      var suggestedTime=isHoliday?"12:00":"14:00";
+      setForm(function(prev){
+        // 이미 편집된 경우가 아니면(초기값 그대로일 때만) 보정
+        var curTime=prev.startAt.slice(11);
+        if(curTime==="14:00"||curTime==="12:00"){
+          return{...prev,startAt:initDate+"T"+suggestedTime};
+        }
+        return prev;
+      });
+    });
+  },[]);
   var [repeat,setRepeat]=useState(false);
   var initDow=getDow(initDate);
   var [repeatDows,setRepeatDows]=useState([initDow]);
@@ -288,7 +313,7 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,onClose,onSav
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
           <div>
             <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>{repeat?"시작일+출근 *":"출근 시간 *"}</label>
-            <input type="datetime-local" value={form.startAt} onChange={function(e){setForm({...form,startAt:e.target.value});}}
+            <input type="datetime-local" value={form.startAt} onChange={function(e){setForm({...form,startAt:e.target.value});setStartTouched(true);}}
               className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid "+(err.startAt?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:12,outline:"none"}}/>
             {err.startAt&&<p style={{fontSize:11,color:"#EF4444",marginTop:3}}>{err.startAt}</p>}
           </div>
@@ -822,7 +847,91 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
 }
 
 // ── WorkListView ──
-function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
+// ── NormalHoursModal (요일별/매장별 정규 근무시간 설정) ──
+function NormalHoursModal({normalHours,onClose,onSave}){
+  var DOW_KR=["일","월","화","수","목","금","토"];
+  // key: storeId+"_"+dow
+  function keyOf(storeId,dow){return storeId+"_"+dow;}
+  var initial=useMemo(function(){
+    var m={};
+    (normalHours||[]).forEach(function(h){m[keyOf(h.storeId,h.dow)]={start:h.startTime||"",end:h.endTime||""};});
+    return m;
+  },[normalHours]);
+  var [rows,setRows]=useState(initial);
+  var [saving,setSaving]=useState(false);
+
+  function updateRow(storeId,dow,field,value){
+    var k=keyOf(storeId,dow);
+    setRows(function(prev){
+      var cur=prev[k]||{start:"",end:""};
+      var next={...cur};
+      next[field]=value;
+      return{...prev,[k]:next};
+    });
+  }
+
+  function submit(){
+    setSaving(true);
+    var entries=[];
+    STORES.forEach(function(s){
+      for(var d=0;d<7;d++){
+        var k=keyOf(s.id,d);
+        var r=rows[k];
+        if(r&&(r.start||r.end)){
+          entries.push({storeId:s.id,dow:d,startTime:r.start||null,endTime:r.end||null});
+        }
+      }
+    });
+    onSave(entries).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:560}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+          <h2 style={{fontSize:16,fontWeight:700}}>정규 근무시간 설정</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>요일·매장별로 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요. 비워두면 해당 요일은 하이라이트하지 않아요.</p>
+        <div style={{maxHeight:420,overflowY:"auto"}}>
+          {STORES.map(function(s){var b=s.badge;return(
+            <div key={s.id} style={{marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:b.color,marginBottom:8,padding:"2px 8px",background:b.bg,borderRadius:4,display:"inline-block"}}>{s.id}</div>
+              {DOW_KR.map(function(dowLabel,d){
+                var k=keyOf(s.id,d);
+                var r=rows[k]||{start:"",end:""};
+                return(
+                  <div key={d} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9"}}>
+                    <span style={{width:24,fontSize:12,fontWeight:600,color:(d===0?"#EF4444":d===6?"#3B82F6":"#374151")}}>{dowLabel}</span>
+                    <input type="time" value={r.start} onChange={function(e){updateRow(s.id,d,"start",e.target.value);}}
+                      style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:100}}/>
+                    <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
+                    <input type="time" value={r.end} onChange={function(e){updateRow(s.id,d,"end",e.target.value);}}
+                      style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:100}}/>
+                    {(r.start||r.end)&&(
+                      <button type="button" onClick={function(){updateRow(s.id,d,"start","");updateRow(s.id,d,"end","");}}
+                        style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",color:"#CBD5E1",padding:2}}>
+                        <X size={13}/>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );})}
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+          <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+          <button type="button" onClick={submit} disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600,opacity:saving?0.6:1}}>
+            {saving?"저장 중…":"저장"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkListView({works,currentUser,normalHours,onEdit,onDelete,onBulkDelete,onOpenHoursModal}){
   var DOW_KR=["일","월","화","수","목","금","토"];
   function dowOf(dateStr10){return DOW_KR[new Date(dateStr10+"T12:00:00").getDay()];}
   var today=new Date();
@@ -855,6 +964,25 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
   function toggleCheck(id,w){if(!canEdit(w))return;setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
   function toggleAll(){checked.size===checkable.length&&checkable.length>0?setChecked(new Set()):setChecked(new Set(checkable.map(function(w){return w.id;})));}
   function handleBulkDelete(){if(checked.size===0)return;if(!window.confirm("선택한 "+checked.size+"건의 근무 기록을 삭제할까요?"))return;onBulkDelete([...checked]);setChecked(new Set());}
+
+  var normalHoursMap=useMemo(function(){
+    var m={};
+    (normalHours||[]).forEach(function(h){m[h.storeId+"_"+h.dow]={start:h.startTime,end:h.endTime};});
+    return m;
+  },[normalHours]);
+
+  function isAbnormal(w){
+    if(!w.startAt)return false;
+    var dow=new Date(w.startAt.slice(0,10)+"T12:00:00").getDay();
+    var rule=normalHoursMap[w.storeId+"_"+dow];
+    if(!rule||(!rule.start&&!rule.end))return false;
+    var actualStart=fmtTime(w.startAt);
+    var actualEnd=w.endAt?fmtTime(w.endAt):null;
+    if(rule.start&&actualStart!==rule.start)return true;
+    if(rule.end&&actualEnd&&actualEnd!==rule.end)return true;
+    return false;
+  }
+
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 20px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,flexShrink:0}}>
@@ -863,6 +991,7 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
           {months.map(function(m){return <option key={m} value={m}>{m}</option>;})}
         </select>
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filtered.length}건</span>
+        <button onClick={onOpenHoursModal} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>하이라이트 설정</button>
         {checked.size>0&&(
           <button onClick={handleBulkDelete} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
             <Trash2 size={12}/> {checked.size}건 삭제
@@ -908,15 +1037,16 @@ function WorkListView({works,currentUser,onEdit,onDelete,onBulkDelete}){
             </thead>
             <tbody>
               {filtered.map(function(w,i){
-                var hours=calcHours(w.startAt,w.endAt);var sb2=storeBadge(w.storeId);var sc=staffColor(w.staffId);var isCk=checked.has(w.id);var hasPermission=canEdit(w);
+                var hours=calcHours(w.startAt,w.endAt);var sb2=storeBadge(w.storeId);var sc=staffColor(w.staffId);var isCk=checked.has(w.id);var hasPermission=canEdit(w);var abnormal=isAbnormal(w);
                 return(
-                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                  <tr key={w.id} className={"ml-row "+(i%2===0?"even":"odd")} style={abnormal?{background:"#FEF2F2"}:undefined}>
                     <td style={{padding:"9px 10px",textAlign:"center"}}>
                       {hasPermission
                         ?<input type="checkbox" checked={isCk} onChange={function(){toggleCheck(w.id,w);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
                         :<span style={{display:"inline-block",width:16,height:16}}/>}
                     </td>
                     <td className="ml-mono" style={{padding:"9px 14px",fontSize:11,color:"#374151",whiteSpace:"nowrap"}}>
+                      {abnormal&&<span title="정규 근무시간과 다름" style={{marginRight:4}}>⚠️</span>}
                       {w.startAt?w.startAt.slice(0,10):""}
                       {w.startAt&&<span style={{marginLeft:4,color:"#94A3B8"}}>({dowOf(w.startAt.slice(0,10))})</span>}
                     </td>
@@ -2356,6 +2486,8 @@ function App(){
   var [categoryManageModal,setCategoryManageModal]=useState(false);
   var [orderCategories,setOrderCategories]=useState([]);
   var [orderCategoryManageModal,setOrderCategoryManageModal]=useState(false);
+  var [normalHours,setNormalHours]=useState([]);
+  var [hoursModal,setHoursModal]=useState(false);
   var [events,setEvents]=useState([]);
   var [eventVotes,setEventVotes]=useState([]);
   var [eventModal,setEventModal]=useState(null);
@@ -2371,7 +2503,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);
   }
 
   // 로그인한 사용자별 월정액 매장탭만 기억
@@ -2405,6 +2537,7 @@ function App(){
       try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
       try{var r8=await sb.from("board_categories").select("*").order("sort_order",{ascending:true});setCategories((r8.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setCategories([]);}
       try{var r11=await sb.from("order_categories").select("*").order("sort_order",{ascending:true});setOrderCategories((r11.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setOrderCategories([]);}
+      try{var r12=await sb.from("normal_hours").select("*");setNormalHours((r12.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,dow:x.dow,startTime:x.start_time||"",endTime:x.end_time||""};}));}catch(e){setNormalHours([]);}
       try{var r9=await sb.from("events").select("*").order("event_date",{ascending:true}).limit(500);setEvents((r9.data||[]).map(function(x){return{id:x.id,title:x.title,eventDate:x.event_date,eventTime:x.event_time||"",location:x.location||"",authorId:x.author_id};}));}catch(e){setEvents([]);}
       try{var r10=await sb.from("event_votes").select("*").limit(2000);setEventVotes((r10.data||[]).map(function(x){return{id:x.id,eventId:x.event_id,staffId:x.staff_id,response:x.response};}));}catch(e){setEventVotes([]);}
       setLoading(false);
@@ -2592,6 +2725,20 @@ function App(){
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
 
+  function handleSaveNormalHours(entries){
+    // entries: [{storeId,dow,startTime,endTime}]
+    var rows=entries.map(function(e){return{id:e.storeId+"_"+e.dow,store_id:e.storeId,dow:e.dow,start_time:e.startTime,end_time:e.endTime,updated_at:new Date().toISOString()};});
+    var allKeys=[];
+    STORES.forEach(function(s){for(var d=0;d<7;d++)allKeys.push(s.id+"_"+d);});
+    var providedIds=rows.map(function(r){return r.id;});
+    var toDelete=allKeys.filter(function(k){return providedIds.indexOf(k)<0;});
+    var p1=rows.length>0?sb.from("normal_hours").upsert(rows,{onConflict:"id"}):Promise.resolve();
+    var p2=toDelete.length>0?sb.from("normal_hours").delete().in("id",toDelete):Promise.resolve();
+    return Promise.all([p1,p2]).then(function(){
+      setNormalHours(entries.map(function(e){return{id:e.storeId+"_"+e.dow,storeId:e.storeId,dow:e.dow,startTime:e.startTime||"",endTime:e.endTime||""};}));
+    });
+  }
+
   function handleSaveEvent(form){
     var isEdit=!!(eventModal&&eventModal.id);
     if(isEdit){
@@ -2720,12 +2867,12 @@ function App(){
           {mainTab==="work"&&workSubTab==="list"&&(
             <TabErrorBoundary key="work-list">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <WorkListView works={works} currentUser={currentUser}
+              <WorkListView works={works} currentUser={currentUser} normalHours={normalHours}
                 onEdit={function(w){
                   if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                   else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                 }}
-                onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork}/>
+                onDelete={handleDeleteWork} onBulkDelete={handleBulkDeleteWork} onOpenHoursModal={function(){setHoursModal(true);}}/>
             </div>
             </TabErrorBoundary>
           )}
@@ -2757,6 +2904,7 @@ function App(){
           onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}/>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
+      {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {orderCategoryManageModal&&<BoardCategoryManageModal categories={orderCategories} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory}/>}
