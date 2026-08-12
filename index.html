@@ -1034,13 +1034,22 @@ function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,
     (normalHours||[]).forEach(function(h){if(h.staffId!=null&&h.dow!=null)m[h.staffId+"_"+h.dow]={start:h.startTime,end:h.endTime};});
     return m;
   },[normalHours]);
+  var staffHasAnyRule=useMemo(function(){
+    var s=new Set();
+    (normalHours||[]).forEach(function(h){if(h.staffId!=null)s.add(h.staffId);});
+    return s;
+  },[normalHours]);
 
   function isAbnormal(w){
     if(!w.startAt)return false;
+    if(!staffHasAnyRule.has(w.staffId))return false; // 이 직원은 정규시간 자체를 설정 안 함 → 하이라이트 대상 아님
     var ds=w.startAt.slice(0,10);
     var dow=new Date(ds+"T12:00:00").getDay();
     var rule=staffDowMap[w.staffId+"_"+dow];
-    if(!rule||(!rule.start&&!rule.end))return false;
+    if(!rule||(!rule.start&&!rule.end)){
+      // 이 직원은 다른 요일엔 규칙이 있는데 이 요일엔 없음 → 원래 근무하지 않는 요일에 근무한 것으로 간주해 하이라이트
+      return true;
+    }
     var actualStart=fmtTime(w.startAt);
     var actualEnd=w.endAt?fmtTime(w.endAt):null;
     if(rule.start&&actualStart!==rule.start)return true;
