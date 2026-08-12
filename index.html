@@ -217,10 +217,18 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,normalHours,o
     memo:record.memo||"",
   }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T"+(initIsWeekendGuess?"12:00":"14:00"),endAt:initDate+"T23:00",memo:""});
 
-  // 정규 근무시간 조회 (직원+요일별)
+  // 정규 근무시간 조회 (직원+요일별, 등록하려는 날짜 시점에 유효했던 규칙 기준)
   function normalHoursFor(staffId,dateStr10){
     var dow=getDow(dateStr10);
-    var staffRule=(normalHours||[]).find(function(h){return h.staffId===staffId&&h.dow===dow;});
+    var candidates=(normalHours||[]).filter(function(h){
+      if(h.staffId!==staffId||h.dow!==dow)return false;
+      if(h.validFrom&&dateStr10<h.validFrom)return false;
+      if(h.validTo&&dateStr10>h.validTo)return false;
+      return true;
+    });
+    if(candidates.length===0)return null;
+    candidates.sort(function(a,b){return(b.validFrom||"")>(a.validFrom||"")?1:-1;});
+    var staffRule=candidates[0];
     return staffRule?{start:staffRule.startTime,end:staffRule.endTime}:null;
   }
 
@@ -888,16 +896,21 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   for(var h=0;h<24;h++)TIME_OPTIONS.push(pad(h)+":00");
 
   var [selectedStaffId,setSelectedStaffId]=useState(STAFF[0]&&STAFF[0].id||"");
+  var [showHistory,setShowHistory]=useState(false);
+
+  var activeRules=useMemo(function(){
+    return(normalHours||[]).filter(function(h){return h.validTo===null;});
+  },[normalHours]);
 
   // key: staffId+"_"+dow -> {start,end}
   var initialRows=useMemo(function(){
     var m={};
-    (normalHours||[]).forEach(function(h){
+    activeRules.forEach(function(h){
       if(!h.staffId)return;
       m[h.staffId+"_"+h.dow]={start:h.startTime||"",end:h.endTime||""};
     });
     return m;
-  },[normalHours]);
+  },[activeRules]);
   var [rows,setRows]=useState(initialRows);
   var [saving,setSaving]=useState(false);
 
@@ -913,6 +926,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   }
 
   function submit(){
+    if(!window.confirm("저장하면 오늘부터 새 정규 근무시간이 적용돼요. 이전 설정은 이력으로 남고 과거 기록 조회에는 계속 사용돼요. 계속할까요?"))return;
     setSaving(true);
     var entries=[];
     STAFF.forEach(function(s){
@@ -929,6 +943,39 @@ function NormalHoursModal({normalHours,onClose,onSave}){
 
   var selectedStaff=STAFF.find(function(s){return s.id===selectedStaffId;});
 
+  var historyByStaff=useMemo(function(){
+    var m={};
+    (normalHours||[]).forEach(function(h){
+      if(!h.staffId)return;
+      if(!m[h.staffId])m[h.staffId]=[];
+      m[h.staffId].push(h);
+    });
+    Object.keys(m).forEach(function(sid){
+      m[sid].sort(function(a,b){return(b.validFrom||"")>(a.validFrom||"")?1:-1;});
+    });
+    return m;
+  },[normalHours]);
+
+  var selectedHistoryGroups=useMemo(function(){
+    var list=historyByStaff[selectedStaffId]||[];
+    var groups={};
+    list.forEach(function(h){
+      var key=h.validFrom||"—";
+      if(!groups[key])groups[key]=[];
+      groups[key].push(h);
+    });
+    var keys=Object.keys(groups).sort().reverse();
+    return keys.map(function(vf){
+      var g=groups[vf];
+      return{
+        validFrom:vf,
+        validTo:g[0].validTo,
+        isActive:g.some(function(h){return h.validTo===null;}),
+        items:g
+      };
+    });
+  },[historyByStaff,selectedStaffId]);
+
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:520}}>
@@ -936,7 +983,13 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           <h2 style={{fontSize:16,fontWeight:700}}>정규 근무시간 설정</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>직원별로 요일마다 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요.</p>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <p style={{fontSize:11,color:"#94A3B8"}}>직원별로 요일마다 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요. 저장 시 오늘부터 새로 적용돼요.</p>
+          <button type="button" onClick={function(){setShowHistory(!showHistory);}}
+            style={{flexShrink:0,marginLeft:10,padding:"4px 10px",background:showHistory?"#1E293B":"#F8FAFC",color:showHistory?"#fff":"#374151",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+            {showHistory?"편집으로":"이력 보기"}
+          </button>
+        </div>
 
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,fontWeight:700,color:"#64748B",marginBottom:8}}>직원별 요일 근무시간</div>
@@ -953,7 +1006,29 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           </div>
         </div>
 
-        {selectedStaff&&(
+        {showHistory?(
+          <div style={{maxHeight:360,overflowY:"auto",marginBottom:16}}>
+            {selectedStaff&&selectedHistoryGroups.length===0&&(
+              <p style={{fontSize:11,color:"#CBD5E1",padding:"12px 0"}}>등록된 이력이 없어요.</p>
+            )}
+            {selectedStaff&&selectedHistoryGroups.map(function(g){
+              return(
+                <div key={g.validFrom} style={{marginBottom:14,padding:"10px 12px",background:g.isActive?"#EFF6FF":"#F8FAFC",borderRadius:8,border:"1px solid "+(g.isActive?"#BFDBFE":"#E2E8F0")}}>
+                  <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":"#64748B",marginBottom:6}}>
+                    {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":""}
+                  </div>
+                  {g.items.map(function(h){return(
+                    <div key={h.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#374151",padding:"2px 0"}}>
+                      <span style={{width:20,fontWeight:600,color:(h.dow===0?"#EF4444":h.dow===6?"#3B82F6":"#374151")}}>{DOW_KR[h.dow]}</span>
+                      <span className="ml-mono">{h.startTime||"—"} ~ {h.endTime||"—"}</span>
+                    </div>
+                  );})}
+                </div>
+              );
+            })}
+          </div>
+        ):(
+        selectedStaff&&(
           <div style={{maxHeight:320,overflowY:"auto",marginBottom:16}}>
             {DOW_KR.map(function(dowLabel,d){
               var k=keyOf(selectedStaffId,d);
@@ -982,7 +1057,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
               );
             })}
           </div>
-        )}
+        ))}
 
         <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
           <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
@@ -1029,31 +1104,43 @@ function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,
   function toggleAll(){checked.size===checkable.length&&checkable.length>0?setChecked(new Set()):setChecked(new Set(checkable.map(function(w){return w.id;})));}
   function handleBulkDelete(){if(checked.size===0)return;if(!window.confirm("선택한 "+checked.size+"건의 근무 기록을 삭제할까요?"))return;onBulkDelete([...checked]);setChecked(new Set());}
 
-  var staffDowMap=useMemo(function(){
-    var m={};
-    (normalHours||[]).forEach(function(h){if(h.staffId!=null&&h.dow!=null)m[h.staffId+"_"+h.dow]={start:h.startTime,end:h.endTime};});
-    return m;
-  },[normalHours]);
-  var staffHasAnyRule=useMemo(function(){
-    var s=new Set();
-    (normalHours||[]).forEach(function(h){if(h.staffId!=null)s.add(h.staffId);});
-    return s;
-  },[normalHours]);
+  // 특정 날짜 기준으로 그 시점에 유효했던 규칙 하나를 찾음 (직원+요일)
+  function findRuleAt(staffId,dow,ds){
+    var candidates=(normalHours||[]).filter(function(h){
+      if(h.staffId!==staffId||h.dow!==dow)return false;
+      if(h.validFrom&&ds<h.validFrom)return false;
+      if(h.validTo&&ds>h.validTo)return false;
+      return true;
+    });
+    if(candidates.length===0)return null;
+    // 여러 개면 validFrom이 가장 최근인 것 사용
+    candidates.sort(function(a,b){return(b.validFrom||"")>(a.validFrom||"")?1:-1;});
+    return candidates[0];
+  }
+  // 특정 날짜 기준, 그 직원이 정규시간 관리 대상이었는지(그 시점에 규칙이 하나라도 있었는지)
+  function staffManagedAt(staffId,ds){
+    return(normalHours||[]).some(function(h){
+      if(h.staffId!==staffId)return false;
+      if(h.validFrom&&ds<h.validFrom)return false;
+      if(h.validTo&&ds>h.validTo)return false;
+      return true;
+    });
+  }
 
   function isAbnormal(w){
     if(!w.startAt)return false;
-    if(!staffHasAnyRule.has(w.staffId))return false; // 이 직원은 정규시간 자체를 설정 안 함 → 하이라이트 대상 아님
     var ds=w.startAt.slice(0,10);
+    if(!staffManagedAt(w.staffId,ds))return false; // 그 시점에 이 직원은 정규시간 관리 대상이 아니었음
     var dow=new Date(ds+"T12:00:00").getDay();
-    var rule=staffDowMap[w.staffId+"_"+dow];
-    if(!rule||(!rule.start&&!rule.end)){
-      // 이 직원은 다른 요일엔 규칙이 있는데 이 요일엔 없음 → 원래 근무하지 않는 요일에 근무한 것으로 간주해 하이라이트
+    var rule=findRuleAt(w.staffId,dow,ds);
+    if(!rule||(!rule.startTime&&!rule.endTime)){
+      // 그 시점 기준으로 이 요일엔 근무하지 않는 것으로 정의되어 있었음
       return true;
     }
     var actualStart=fmtTime(w.startAt);
     var actualEnd=w.endAt?fmtTime(w.endAt):null;
-    if(rule.start&&actualStart!==rule.start)return true;
-    if(rule.end&&actualEnd&&actualEnd!==rule.end)return true;
+    if(rule.startTime&&actualStart!==rule.startTime)return true;
+    if(rule.endTime&&actualEnd&&actualEnd!==rule.endTime)return true;
     return false;
   }
 
@@ -2715,7 +2802,7 @@ function App(){
       try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
       try{var r8=await sb.from("board_categories").select("*").order("sort_order",{ascending:true});setCategories((r8.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setCategories([]);}
       try{var r11=await sb.from("order_categories").select("*").order("sort_order",{ascending:true});setOrderCategories((r11.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setOrderCategories([]);}
-      try{var r12=await sb.from("normal_hours").select("*");setNormalHours((r12.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id||null,dow:x.dow!=null?x.dow:null,startTime:x.start_time||"",endTime:x.end_time||"",isHoliday:!!x.is_holiday};}));}catch(e){setNormalHours([]);}
+      try{var r12=await sb.from("normal_hours").select("*");setNormalHours((r12.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id||null,dow:x.dow!=null?x.dow:null,startTime:x.start_time||"",endTime:x.end_time||"",isHoliday:!!x.is_holiday,validFrom:x.valid_from||null,validTo:x.valid_to||null};}));}catch(e){setNormalHours([]);}
       try{var r9=await sb.from("events").select("*").order("event_date",{ascending:true}).limit(500);setEvents((r9.data||[]).map(function(x){return{id:x.id,title:x.title,eventDate:x.event_date,eventTime:x.event_time||"",location:x.location||"",authorId:x.author_id};}));}catch(e){setEvents([]);}
       try{var r10=await sb.from("event_votes").select("*").limit(2000);setEventVotes((r10.data||[]).map(function(x){return{id:x.id,eventId:x.event_id,staffId:x.staff_id,response:x.response};}));}catch(e){setEventVotes([]);}
       setLoading(false);
@@ -2921,13 +3008,19 @@ function App(){
 
   function handleSaveNormalHours(entries){
     // entries: [{id,staffId,dow,startTime,endTime,isHoliday}]
-    var rows=entries.map(function(e){return{id:e.id,staff_id:e.staffId||null,dow:e.dow!=null?e.dow:null,start_time:e.startTime,end_time:e.endTime,is_holiday:!!e.isHoliday,updated_at:new Date().toISOString()};});
-    // 전체 교체: 기존 행 다 지우고 새로 삽입 (규칙 개수가 적어 안전)
-    return sb.from("normal_hours").delete().neq("id","__none__").then(function(){
+    var today=dateStr(new Date());
+    var yesterday=(function(){var d=new Date();d.setDate(d.getDate()-1);return dateStr(d);})();
+    var rows=entries.map(function(e){return{id:e.id,staff_id:e.staffId||null,dow:e.dow!=null?e.dow:null,start_time:e.startTime,end_time:e.endTime,is_holiday:!!e.isHoliday,valid_from:today,valid_to:null,updated_at:new Date().toISOString()};});
+    // 현재 활성(valid_to가 null인) 규칙들을 어제 날짜로 종료 처리 후 새 규칙 삽입
+    return sb.from("normal_hours").update({valid_to:yesterday}).is("valid_to",null).then(function(){
       var p=rows.length>0?sb.from("normal_hours").insert(rows):Promise.resolve();
       return p;
     }).then(function(){
-      setNormalHours(entries.map(function(e){return{id:e.id,staffId:e.staffId||null,dow:e.dow!=null?e.dow:null,startTime:e.startTime||"",endTime:e.endTime||"",isHoliday:!!e.isHoliday};}));
+      setNormalHours(function(prev){
+        var closed=prev.map(function(h){return h.validTo===null?{...h,validTo:yesterday}:h;});
+        var fresh=entries.map(function(e){return{id:e.id,staffId:e.staffId||null,dow:e.dow!=null?e.dow:null,startTime:e.startTime||"",endTime:e.endTime||"",isHoliday:!!e.isHoliday,validFrom:today,validTo:null};});
+        return[...closed,...fresh];
+      });
     });
   }
 
