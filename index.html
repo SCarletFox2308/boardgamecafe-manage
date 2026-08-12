@@ -40,14 +40,15 @@ function CalIcon(p){return svg(p,16,16,"0 0 24 24",rect(3,4,18,18,2),line(16,2,1
 function PkgIcon(p){return svg(p,16,16,"0 0 24 24",path("m7.5 4.27 9 5.15"),path("M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"),path("m3.3 7 8.7 5 8.7-5"),path("M12 22V12"));}
 
 // ── 설정 ──
+// 매장 추가/삭제는 이 STORES 배열 하나만 수정하면 전체 사이트에 반영됩니다.
 const STORES=[
   {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
   {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
 ];
+// 할 일 목록 전용 담당 매장 = STORES + "본사"
 const TODO_STORES=[
-  {id:"미플",    label:"미플보드게임",      badge:{bg:"#FEF3C7",color:"#92400E"}},
-  {id:"아카이브", label:"보드게임 아카이브", badge:{bg:"#DBEAFE",color:"#1E40AF"}},
-  {id:"본사",    label:"본사",              badge:{bg:"#F3E8FF",color:"#6B21A8"}},
+  ...STORES,
+  {id:"본사", label:"본사", badge:{bg:"#F3E8FF",color:"#6B21A8"}},
 ];
 const STAFF_COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#BE185D","#065F46"];
 var STAFF=[]; // DB에서 동적으로 로드됨
@@ -527,7 +528,7 @@ function ItemDetailModal({item,history,orderCategories,onClose,onSave,onDelete})
 function TodoModal({todo,onClose,onSave,onDelete}){
   var isEdit=!!(todo&&todo.id);
   var [form,setForm]=useState({
-    title:todo&&todo.title||"",storeId:todo&&todo.storeId||"미플",staffId:todo&&todo.staffId||"",detail:todo&&todo.detail||"",
+    title:todo&&todo.title||"",storeId:todo&&todo.storeId||STORES[0].id,staffId:todo&&todo.staffId||"",detail:todo&&todo.detail||"",
   });
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
@@ -1551,14 +1552,12 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
             )}
             <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
               {checked.size>0&&<span style={{fontSize:10,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
-              <button onClick={function(){if(checked.size===0){alert("품목을 선택해주세요.");return;}setConfirmStore("미플");}}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid #F59E0B",background:checked.size>0?"#FEF3C7":"#F8FAFC",color:checked.size>0?"#92400E":"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
-                미플 주문
-              </button>
-              <button onClick={function(){if(checked.size===0){alert("품목을 선택해주세요.");return;}setConfirmStore("아카이브");}}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid #3B82F6",background:checked.size>0?"#DBEAFE":"#F8FAFC",color:checked.size>0?"#1E40AF":"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
-                아카이브 주문
-              </button>
+              {STORES.map(function(s){var b=s.badge;return(
+                <button key={s.id} onClick={function(){if(checked.size===0){alert("품목을 선택해주세요.");return;}setConfirmStore(s.id);}}
+                  style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,border:"1.5px solid "+b.color,background:checked.size>0?b.bg:"#F8FAFC",color:checked.size>0?b.color:"#CBD5E1",cursor:checked.size>0?"pointer":"not-allowed"}}>
+                  {s.id} 주문
+                </button>
+              );})}
             </div>
           </div>
           {orderCategories.length>0&&(
@@ -2575,7 +2574,7 @@ function App(){
   var [staffManageModal,setStaffManageModal]=useState(false);
   var [subs,setSubs]=useState([]);
   var [subModal,setSubModal]=useState(null);
-  var [subStoreTab,setSubStoreTab]=useState((savedTabs&&savedTabs.subStoreTab)||"미플");
+  var [subStoreTab,setSubStoreTab]=useState((savedTabs&&savedTabs.subStoreTab)||STORES[0].id);
   var [posts,setPosts]=useState([]);
   var [comments,setComments]=useState([]);
   var [postModal,setPostModal]=useState(null);
