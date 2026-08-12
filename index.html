@@ -1497,6 +1497,13 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
   },[searchedItems,orderCategories]);
 
   var [collapsedCats,setCollapsedCats]=useState(new Set());
+  var [collapsedInit,setCollapsedInit]=useState(false);
+  useEffect(function(){
+    if(collapsedInit)return;
+    if(orderCategories.length===0)return;
+    setCollapsedCats(new Set(orderCategories.map(function(c){return c.id;}).concat(["__none__"])));
+    setCollapsedInit(true);
+  },[orderCategories,collapsedInit]);
   function toggleCollapse(key){setCollapsedCats(function(prev){var n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});}
 
   var groupedItems=useMemo(function(){
