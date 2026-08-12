@@ -216,15 +216,10 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,normalHours,o
     memo:record.memo||"",
   }:{staffId:initStaffId,storeId:STORES[0].id,startAt:initDate+"T"+(initIsWeekendGuess?"12:00":"14:00"),endAt:initDate+"T23:00",memo:""});
 
-  // 정규 근무시간 조회 (직원+요일별, 공휴일 우선)
-  function normalHoursFor(staffId,dateStr10,hMap){
-    var isHol=hMap&&!!hMap[dateStr10];
-    var holidayRule=(normalHours||[]).find(function(h){return h.isHoliday;});
-    if(isHol&&holidayRule&&(holidayRule.startTime||holidayRule.endTime)){
-      return{start:holidayRule.startTime,end:holidayRule.endTime};
-    }
+  // 정규 근무시간 조회 (직원+요일별)
+  function normalHoursFor(staffId,dateStr10){
     var dow=getDow(dateStr10);
-    var staffRule=(normalHours||[]).find(function(h){return!h.isHoliday&&h.staffId===staffId&&h.dow===dow;});
+    var staffRule=(normalHours||[]).find(function(h){return h.staffId===staffId&&h.dow===dow;});
     return staffRule?{start:staffRule.startTime,end:staffRule.endTime}:null;
   }
 
@@ -235,7 +230,7 @@ function WorkModal({record,defaultDate,forceStaffId,defaultStaffId,normalHours,o
   function applySuggestedTime(staffId,hMap){
     if(isEdit)return;
     if(startTouched&&endTouched)return;
-    var rule=normalHoursFor(staffId,initDate,hMap);
+    var rule=normalHoursFor(staffId,initDate);
     var suggestedStart=rule&&rule.start;
     var suggestedEnd=rule&&rule.end;
     if(!suggestedStart){
@@ -891,20 +886,13 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   var TIME_OPTIONS=[];
   for(var h=0;h<24;h++)TIME_OPTIONS.push(pad(h)+":00");
 
-  var holidayRule=useMemo(function(){
-    return(normalHours||[]).find(function(h){return h.isHoliday;});
-  },[normalHours]);
-
-  var [holidayStart,setHolidayStart]=useState((holidayRule&&holidayRule.startTime)||"");
-  var [holidayEnd,setHolidayEnd]=useState((holidayRule&&holidayRule.endTime)||"");
-
   var [selectedStaffId,setSelectedStaffId]=useState(STAFF[0]&&STAFF[0].id||"");
 
   // key: staffId+"_"+dow -> {start,end}
   var initialRows=useMemo(function(){
     var m={};
     (normalHours||[]).forEach(function(h){
-      if(h.isHoliday||!h.staffId)return;
+      if(!h.staffId)return;
       m[h.staffId+"_"+h.dow]={start:h.startTime||"",end:h.endTime||""};
     });
     return m;
@@ -926,9 +914,6 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   function submit(){
     setSaving(true);
     var entries=[];
-    if(holidayStart||holidayEnd){
-      entries.push({id:"holiday",staffId:null,dow:null,startTime:holidayStart||null,endTime:holidayEnd||null,isHoliday:true});
-    }
     STAFF.forEach(function(s){
       for(var d=0;d<7;d++){
         var k=keyOf(s.id,d);
@@ -950,30 +935,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           <h2 style={{fontSize:16,fontWeight:700}}>정규 근무시간 설정</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>공휴일 시간이 요일별 시간보다 우선 적용돼요.</p>
-
-        <div style={{marginBottom:20,padding:"12px 14px",background:"#FEF2F2",borderRadius:8,border:"1px solid #FECACA"}}>
-          <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:8}}>공휴일 (모든 직원 공통, 최우선)</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <select value={holidayStart} onChange={function(e){setHolidayStart(e.target.value);}}
-              style={{padding:"6px 8px",border:"1px solid #FCA5A5",borderRadius:6,fontSize:12,outline:"none",background:"#fff",flex:1}}>
-              <option value="">시작 안 함</option>
-              {TIME_OPTIONS.map(function(t){return <option key={t} value={t}>{t}</option>;})}
-            </select>
-            <span style={{fontSize:11,color:"#94A3B8"}}>~</span>
-            <select value={holidayEnd} onChange={function(e){setHolidayEnd(e.target.value);}}
-              style={{padding:"6px 8px",border:"1px solid #FCA5A5",borderRadius:6,fontSize:12,outline:"none",background:"#fff",flex:1}}>
-              <option value="">종료 안 함</option>
-              {TIME_OPTIONS.map(function(t){return <option key={t} value={t}>{t}</option>;})}
-            </select>
-            {(holidayStart||holidayEnd)&&(
-              <button type="button" onClick={function(){setHolidayStart("");setHolidayEnd("");}}
-                style={{background:"none",border:"none",cursor:"pointer",color:"#FCA5A5",padding:2}}>
-                <X size={14}/>
-              </button>
-            )}
-          </div>
-        </div>
+        <p style={{fontSize:11,color:"#94A3B8",marginBottom:16}}>직원별로 요일마다 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요.</p>
 
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,fontWeight:700,color:"#64748B",marginBottom:8}}>직원별 요일 근무시간</div>
@@ -1066,26 +1028,17 @@ function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,
   function toggleAll(){checked.size===checkable.length&&checkable.length>0?setChecked(new Set()):setChecked(new Set(checkable.map(function(w){return w.id;})));}
   function handleBulkDelete(){if(checked.size===0)return;if(!window.confirm("선택한 "+checked.size+"건의 근무 기록을 삭제할까요?"))return;onBulkDelete([...checked]);setChecked(new Set());}
 
-  var holidayRule=useMemo(function(){
-    return(normalHours||[]).find(function(h){return h.isHoliday;});
-  },[normalHours]);
   var staffDowMap=useMemo(function(){
     var m={};
-    (normalHours||[]).forEach(function(h){if(!h.isHoliday&&h.staffId!=null&&h.dow!=null)m[h.staffId+"_"+h.dow]={start:h.startTime,end:h.endTime};});
+    (normalHours||[]).forEach(function(h){if(h.staffId!=null&&h.dow!=null)m[h.staffId+"_"+h.dow]={start:h.startTime,end:h.endTime};});
     return m;
   },[normalHours]);
 
   function isAbnormal(w){
     if(!w.startAt)return false;
     var ds=w.startAt.slice(0,10);
-    var isHol=holidayMap&&!!holidayMap[ds];
-    var rule=null;
-    if(isHol&&holidayRule&&(holidayRule.startTime||holidayRule.endTime)){
-      rule={start:holidayRule.startTime,end:holidayRule.endTime};
-    }else{
-      var dow=new Date(ds+"T12:00:00").getDay();
-      rule=staffDowMap[w.staffId+"_"+dow];
-    }
+    var dow=new Date(ds+"T12:00:00").getDay();
+    var rule=staffDowMap[w.staffId+"_"+dow];
     if(!rule||(!rule.start&&!rule.end))return false;
     var actualStart=fmtTime(w.startAt);
     var actualEnd=w.endAt?fmtTime(w.endAt):null;
