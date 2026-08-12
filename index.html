@@ -1470,6 +1470,22 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
     });
   },[items,search,filterCat,orderCategories]);
 
+  var searchedItems=useMemo(function(){
+    var l=items;
+    if(search.trim())l=l.filter(function(it){return it.name.toLowerCase().indexOf(search.trim().toLowerCase())>=0;});
+    return l;
+  },[items,search]);
+  var categoryCounts=useMemo(function(){
+    var m={};
+    orderCategories.forEach(function(c){m[c.id]=0;});
+    var noneCount=0;
+    searchedItems.forEach(function(it){
+      if(it.categoryId&&m[it.categoryId]!==undefined)m[it.categoryId]++;
+      else noneCount++;
+    });
+    return{byId:m,none:noneCount};
+  },[searchedItems,orderCategories]);
+
   function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
   function toggleAll(){checked.size===filteredItems.length&&filteredItems.length>0?setChecked(new Set()):setChecked(new Set(filteredItems.map(function(i){return i.id;})));}
 
@@ -1520,14 +1536,6 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
           <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
             <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="품목명 검색…"
               style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",width:140}}/>
-            {orderCategories.length>0&&(
-              <select value={filterCat} onChange={function(e){setFilterCat(e.target.value);}}
-                style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
-                <option value="all">전체 카테고리</option>
-                <option value="none">카테고리 없음</option>
-                {orderCategories.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}
-              </select>
-            )}
             <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filteredItems.length}개</span>
             {currentUser&&currentUser.isAdmin&&(
               <button onClick={onManageOrderCategories} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>카테고리 관리</button>
@@ -1544,6 +1552,33 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
               </button>
             </div>
           </div>
+          {orderCategories.length>0&&(
+            <div style={{background:"#1E293B",padding:"10px 16px",display:"flex",flexWrap:"wrap",gap:8,flexShrink:0,borderBottom:"2px solid #334155"}}>
+              <button onClick={function(){setFilterCat("all");}}
+                style={{display:"flex",alignItems:"center",gap:6,borderRadius:8,padding:"5px 12px",border:"none",cursor:"pointer",
+                  background:filterCat==="all"?"#2563EB":"rgba(255,255,255,.07)"}}>
+                <span style={{fontSize:11,fontWeight:700,color:filterCat==="all"?"#fff":"#F1F5F9"}}>전체보기</span>
+              </button>
+              {orderCategories.map(function(c){var active=filterCat===c.id;var cnt=categoryCounts.byId[c.id]||0;return(
+                <button key={c.id} onClick={function(){setFilterCat(active?"all":c.id);}}
+                  style={{display:"flex",alignItems:"center",gap:6,borderRadius:8,padding:"5px 12px",border:active?"1.5px solid #7DD3FC":"none",cursor:"pointer",
+                    background:active?"#7DD3FC22":"rgba(255,255,255,.07)"}}>
+                  <span style={{fontSize:11,fontWeight:600,color:"#F1F5F9"}}>{c.name}</span>
+                  <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>·</span>
+                  <span className="ml-mono" style={{fontSize:11,fontWeight:700,color:"#7DD3FC"}}>{cnt}개</span>
+                </button>
+              );})}
+              {categoryCounts.none>0&&(
+                <button onClick={function(){setFilterCat(filterCat==="none"?"all":"none");}}
+                  style={{display:"flex",alignItems:"center",gap:6,borderRadius:8,padding:"5px 12px",border:filterCat==="none"?"1.5px solid #94A3B8":"none",cursor:"pointer",
+                    background:filterCat==="none"?"#94A3B822":"rgba(255,255,255,.07)"}}>
+                  <span style={{fontSize:11,fontWeight:600,color:"#F1F5F9"}}>카테고리 없음</span>
+                  <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>·</span>
+                  <span className="ml-mono" style={{fontSize:11,fontWeight:700,color:"#7DD3FC"}}>{categoryCounts.none}개</span>
+                </button>
+              )}
+            </div>
+          )}
           <div className="tbl-wrap">
             {filteredItems.length===0?(
               <div style={{padding:40,textAlign:"center",fontSize:12,color:"#94A3B8"}}>{items.length===0?"품목을 추가해주세요.":"검색 결과가 없어요."}</div>
