@@ -1496,6 +1496,27 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
     return{byId:m,none:noneCount};
   },[searchedItems,orderCategories]);
 
+  var [collapsedCats,setCollapsedCats]=useState(new Set());
+  function toggleCollapse(key){setCollapsedCats(function(prev){var n=new Set(prev);n.has(key)?n.delete(key):n.add(key);return n;});}
+
+  var groupedItems=useMemo(function(){
+    var byCat={};
+    var noneItems=[];
+    filteredItems.forEach(function(it){
+      if(it.categoryId){
+        if(!byCat[it.categoryId])byCat[it.categoryId]=[];
+        byCat[it.categoryId].push(it);
+      }else{
+        noneItems.push(it);
+      }
+    });
+    var groups=orderCategories
+      .filter(function(c){return byCat[c.id]&&byCat[c.id].length>0;})
+      .map(function(c){return{key:c.id,name:c.name,items:byCat[c.id]};});
+    if(noneItems.length>0)groups.push({key:"__none__",name:"카테고리 없음",items:noneItems});
+    return groups;
+  },[filteredItems,orderCategories]);
+
   function toggleCheck(id){setChecked(function(prev){var n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n;});}
   function toggleAll(){checked.size===filteredItems.length&&filteredItems.length>0?setChecked(new Set()):setChecked(new Set(filteredItems.map(function(i){return i.id;})));}
 
@@ -1602,31 +1623,46 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredItems.map(function(item,i){
-                    var isCk=checked.has(item.id);
-                    var cn=item.categoryId?catName(item.categoryId):null;
+                  {groupedItems.map(function(group){
+                    var isCollapsed=collapsedCats.has(group.key);
+                    var groupChecked=group.items.filter(function(it){return checked.has(it.id);}).length;
                     return(
-                      <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
-                        <td style={{padding:"11px 10px",textAlign:"center"}}>
-                          <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(item.id);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
-                        </td>
-                        <td style={{padding:"11px 16px"}}>
-                          <div style={{display:"flex",alignItems:"center",gap:7}}>
-                            <button onClick={function(){onItemClick(item);}}
-                              style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
-                              {item.name}
+                      <React.Fragment key={group.key}>
+                        <tr>
+                          <td colSpan={3} style={{padding:0}}>
+                            <button onClick={function(){toggleCollapse(group.key);}}
+                              style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"9px 16px",background:"#F1F5F9",border:"none",borderTop:"1px solid #E2E8F0",borderBottom:"1px solid #E2E8F0",cursor:"pointer",textAlign:"left"}}>
+                              {isCollapsed?<CR size={13}/>:<CD size={13}/>}
+                              <span style={{fontSize:12,fontWeight:700,color:"#374151"}}>{group.name}</span>
+                              <span className="ml-mono" style={{fontSize:11,color:"#94A3B8"}}>{group.items.length}개</span>
+                              {groupChecked>0&&<span style={{fontSize:10,fontWeight:700,color:"#2563EB",marginLeft:"auto"}}>{groupChecked}개 선택됨</span>}
                             </button>
-                            {cn&&<span className="tag" style={{background:"#F1F5F9",color:"#475569",fontSize:9}}>{cn}</span>}
-                          </div>
-                          {item.memo&&<div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{item.memo}</div>}
-                        </td>
-                        <td style={{padding:"11px 10px",textAlign:"center"}}>
-                          <button onClick={function(){onItemClick(item);}}
-                            style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
-                            <Pencil size={12}/>
-                          </button>
-                        </td>
-                      </tr>
+                          </td>
+                        </tr>
+                        {!isCollapsed&&group.items.map(function(item,i){
+                          var isCk=checked.has(item.id);
+                          return(
+                            <tr key={item.id} className={"ml-row "+(i%2===0?"even":"odd")}>
+                              <td style={{padding:"11px 10px",textAlign:"center"}}>
+                                <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(item.id);}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
+                              </td>
+                              <td style={{padding:"11px 16px"}}>
+                                <button onClick={function(){onItemClick(item);}}
+                                  style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:"#1E293B",padding:0,textAlign:"left",textDecoration:"underline",textDecorationColor:"#CBD5E1"}}>
+                                  {item.name}
+                                </button>
+                                {item.memo&&<div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{item.memo}</div>}
+                              </td>
+                              <td style={{padding:"11px 10px",textAlign:"center"}}>
+                                <button onClick={function(){onItemClick(item);}}
+                                  style={{display:"inline-flex",alignItems:"center",padding:"4px 8px",border:"1px solid #E2E8F0",borderRadius:5,background:"#F8FAFC",color:"#64748B",cursor:"pointer"}}>
+                                  <Pencil size={12}/>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -2100,7 +2136,7 @@ function BoardPostModal({post,comments,categories,currentUser,onClose,onDeletePo
 }
 
 // ── BoardCategoryManageModal (관리자 전용) ──
-function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDelete}){
+function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDelete,onReorder}){
   var [newName,setNewName]=useState("");
   var [editingId,setEditingId]=useState(null);
   var [editingName,setEditingName]=useState("");
@@ -2117,6 +2153,8 @@ function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDel
     if(!editingName.trim()){setEditingId(null);return;}
     onRename(c.id,editingName.trim()).then(function(){setEditingId(null);});
   }
+  function moveUp(idx){if(idx<=0||!onReorder)return;onReorder(idx,idx-1);}
+  function moveDown(idx){if(idx>=categories.length-1||!onReorder)return;onReorder(idx,idx+1);}
 
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
@@ -2127,7 +2165,7 @@ function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDel
         </div>
         <div style={{marginBottom:20}}>
           {categories.length===0&&<p style={{fontSize:11,color:"#94A3B8",marginBottom:10}}>등록된 분류가 없어요.</p>}
-          {categories.map(function(c){return(
+          {categories.map(function(c,idx){return(
             <div key={c.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
               {editingId===c.id?(
                 <>
@@ -2138,6 +2176,18 @@ function BoardCategoryManageModal({categories,title,onClose,onAdd,onRename,onDel
                 </>
               ):(
                 <>
+                  {onReorder&&(
+                    <div style={{display:"flex",flexDirection:"column",gap:1}}>
+                      <button onClick={function(){moveUp(idx);}} disabled={idx===0}
+                        style={{padding:"0 4px",background:"none",border:"none",cursor:idx===0?"default":"pointer",color:idx===0?"#E2E8F0":"#94A3B8",lineHeight:1}}>
+                        <CU size={12}/>
+                      </button>
+                      <button onClick={function(){moveDown(idx);}} disabled={idx===categories.length-1}
+                        style={{padding:"0 4px",background:"none",border:"none",cursor:idx===categories.length-1?"default":"pointer",color:idx===categories.length-1?"#E2E8F0":"#94A3B8",lineHeight:1}}>
+                        <CD size={12}/>
+                      </button>
+                    </div>
+                  )}
                   <span style={{flex:1,fontSize:12,fontWeight:600}}>{c.name}</span>
                   <button onClick={function(){startEdit(c);}} style={{padding:"4px 10px",background:"#F8FAFC",color:"#374151",border:"1px solid #E2E8F0",borderRadius:5,fontSize:10,cursor:"pointer"}}>수정</button>
                   <button onClick={function(){if(window.confirm("\""+c.name+"\" 분류를 삭제할까요? 해당 분류의 글은 분류 없음으로 남습니다."))onDelete(c.id);}}
@@ -2836,6 +2886,22 @@ function App(){
       setOrderCategories(function(prev){return prev.filter(function(c){return c.id!==id;});});
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
+  function handleReorderOrderCategory(fromIdx,toIdx){
+    var sorted=[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;});
+    var a=sorted[fromIdx],b=sorted[toIdx];
+    if(!a||!b)return;
+    var aOrder=a.sortOrder,bOrder=b.sortOrder;
+    Promise.all([
+      sb.from("order_categories").update({sort_order:bOrder}).eq("id",a.id),
+      sb.from("order_categories").update({sort_order:aOrder}).eq("id",b.id)
+    ]).then(function(){
+      setOrderCategories(function(prev){return prev.map(function(c){
+        if(c.id===a.id)return{...c,sortOrder:bOrder};
+        if(c.id===b.id)return{...c,sortOrder:aOrder};
+        return c;
+      });});
+    }).catch(function(e){alert("순서 변경 실패: "+e.message);});
+  }
 
   function handleSaveNormalHours(entries){
     // entries: [{id,staffId,dow,startTime,endTime,isHoliday}]
@@ -3017,7 +3083,7 @@ function App(){
       {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
-      {orderCategoryManageModal&&<BoardCategoryManageModal categories={orderCategories} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory}/>}
+      {orderCategoryManageModal&&<BoardCategoryManageModal categories={[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory} onReorder={handleReorderOrderCategory}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {writingPost&&<BoardWriteModal categories={categories} onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
