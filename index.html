@@ -533,10 +533,10 @@ function ItemDetailModal({item,history,orderCategories,onClose,onSave,onDelete})
 }
 
 // ── TodoModal ──
-function TodoModal({todo,onClose,onSave,onDelete}){
+function TodoModal({todo,currentUser,todoCategories,onClose,onSave,onDelete}){
   var isEdit=!!(todo&&todo.id);
   var [form,setForm]=useState({
-    title:todo&&todo.title||"",storeId:todo&&todo.storeId||STORES[0].id,staffId:todo&&todo.staffId||"",detail:todo&&todo.detail||"",
+    title:todo&&todo.title||"",storeId:todo&&todo.storeId||STORES[0].id,detail:todo&&todo.detail||"",categoryId:todo&&todo.categoryId||"",
   });
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
@@ -545,7 +545,7 @@ function TodoModal({todo,onClose,onSave,onDelete}){
     e.preventDefault();
     if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
     setSaving(true);
-    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim()}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim(),categoryId:form.categoryId||null}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -555,6 +555,12 @@ function TodoModal({todo,onClose,onSave,onDelete}){
           <h2 style={{fontSize:16,fontWeight:700}}>{isEdit?"할 일 수정":"할 일 추가"}</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
+        {isEdit&&(
+          <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:6,fontSize:11,color:"#94A3B8"}}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(todo.staffId),display:"inline-block"}}/>
+            요청자: <span style={{fontWeight:600,color:"#374151"}}>{staffName(todo.staffId)}</span>
+          </div>
+        )}
         <div style={{marginBottom:14}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>제목 *</label>
           <input value={form.title} onChange={function(e){setForm({...form,title:e.target.value});setErr("");}}
@@ -572,21 +578,23 @@ function TodoModal({todo,onClose,onSave,onDelete}){
             );})}
           </div>
         </div>
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>담당자</label>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-            <button type="button" onClick={function(){setForm({...form,staffId:""});}}
-              style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===""?"#334155":"#E2E8F0"),background:form.staffId===""?"#334155":"#fff",color:form.staffId===""?"#fff":"#94A3B8"}}>
-              미정
-            </button>
-            {STAFF.map(function(s){return(
-              <button key={s.id} type="button" onClick={function(){setForm({...form,staffId:s.id});}}
-                style={{padding:"6px 14px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",border:"2px solid "+(form.staffId===s.id?s.color:"#E2E8F0"),background:form.staffId===s.id?s.color:"#fff",color:form.staffId===s.id?"#fff":"#94A3B8"}}>
-                {s.name}
+        {todoCategories&&todoCategories.length>0&&(
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>분류</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              <button type="button" onClick={function(){setForm({...form,categoryId:""});}}
+                style={{padding:"5px 13px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(form.categoryId===""?"#334155":"#E2E8F0"),background:form.categoryId===""?"#334155":"#fff",color:form.categoryId===""?"#fff":"#94A3B8"}}>
+                없음
               </button>
-            );})}
+              {todoCategories.map(function(c){return(
+                <button key={c.id} type="button" onClick={function(){setForm({...form,categoryId:c.id});}}
+                  style={{padding:"5px 13px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(form.categoryId===c.id?"#2563EB":"#E2E8F0"),background:form.categoryId===c.id?"#EFF6FF":"#fff",color:form.categoryId===c.id?"#2563EB":"#94A3B8"}}>
+                  {c.name}
+                </button>
+              );})}
+            </div>
           </div>
-        </div>
+        )}
         <div style={{marginBottom:20}}>
           <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>세부 내용</label>
           <textarea value={form.detail} onChange={function(e){setForm({...form,detail:e.target.value});}}
@@ -2386,16 +2394,126 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
   );
 }
 
+// ── TodoDetailModal (상태/참여자 관리) ──
+function TodoDetailModal({todo,assignees,memos,todoCategories,currentUser,onClose,onEdit,onJoin,onLeave,onComplete,onReopen,onAddMemo,onDeleteMemo}){
+  var catName=(function(){var c=(todoCategories||[]).find(function(x){return x.id===todo.categoryId;});return c?c.name:null;})();
+  var myAssignment=assignees.find(function(a){return a.staffId===currentUser.id;});
+  var isAssignee=!!myAssignment;
+  var canManage=currentUser.isAdmin||todo.staffId===currentUser.id||isAssignee;
+  var [memoText,setMemoText]=useState("");
+  var [posting,setPosting]=useState(false);
+
+  var sortedMemos=useMemo(function(){
+    return[...(memos||[])].sort(function(a,b){return(a.createdAt||"")>(b.createdAt||"")?1:-1;});
+  },[memos]);
+
+  function submitMemo(e){
+    e.preventDefault();
+    if(!memoText.trim())return;
+    setPosting(true);
+    onAddMemo({id:uid(),todoId:todo.id,content:memoText.trim()}).then(function(){setMemoText("");setPosting(false);}).catch(function(){setPosting(false);});
+  }
+
+  var statusCfg={
+    "대기":{bg:"#F1F5F9",color:"#475569"},
+    "진행중":{bg:"#DBEAFE",color:"#1E40AF"},
+    "완료":{bg:"#DCFCE7",color:"#14532D"},
+  }[todo.status]||{bg:"#F1F5F9",color:"#475569"};
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box fade-in" style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{flex:1,paddingRight:12}}>
+            <div style={{display:"flex",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+              <span className="tag" style={{background:statusCfg.bg,color:statusCfg.color}}>{todo.status}</span>
+              {catName&&<span className="tag" style={{background:"#F1F5F9",color:"#475569"}}>{catName}</span>}
+            </div>
+            <h2 style={{fontSize:16,fontWeight:700}}>{todo.title}</h2>
+          </div>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",flexShrink:0}}><X size={18}/></button>
+        </div>
+
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:11,color:"#94A3B8"}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(todo.staffId),display:"inline-block"}}/>
+          요청: <span style={{fontWeight:600,color:"#374151"}}>{staffName(todo.staffId)}</span>
+          <span className="ml-mono">{todo.createdAt?todo.createdAt.slice(0,10):""}</span>
+        </div>
+
+        {todo.detail&&(
+          <div style={{background:"#F8FAFC",borderRadius:8,padding:"12px 14px",marginBottom:16,fontSize:12,color:"#374151",whiteSpace:"pre-wrap",lineHeight:1.6,border:"1px solid #E2E8F0"}}>
+            {todo.detail}
+          </div>
+        )}
+
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#64748B",marginBottom:8}}>담당자 {assignees.length>0&&"("+assignees.length+")"}</div>
+          {assignees.length===0?(
+            <p style={{fontSize:11,color:"#CBD5E1",marginBottom:10}}>아직 참여한 사람이 없어요.</p>
+          ):(
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+              {assignees.map(function(a){return(
+                <span key={a.id} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:999,background:staffColor(a.staffId)+"22",border:"1px solid "+staffColor(a.staffId)+"44"}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(a.staffId),display:"inline-block"}}/>
+                  <span style={{fontSize:11,fontWeight:600,color:"#1E293B"}}>{staffName(a.staffId)}</span>
+                </span>
+              );})}
+            </div>
+          )}
+          {todo.status!=="완료"&&(
+            isAssignee?(
+              <button onClick={function(){onLeave(todo,myAssignment);}}
+                style={{padding:"6px 14px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                참여 취소
+              </button>
+            ):(
+              <button onClick={function(){onJoin(todo);}}
+                style={{padding:"6px 14px",background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                내가 할게요
+              </button>
+            )
+          )}
+        </div>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <button type="button" onClick={function(){onEdit(todo);}}
+            style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:12,color:"#374151",background:"#F8FAFC",cursor:"pointer"}}>
+            <Pencil size={13}/> 수정
+          </button>
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>닫기</button>
+            {todo.status==="완료"?(
+              canManage&&<button type="button" onClick={function(){onReopen(todo);}} style={{padding:"8px 18px",background:"#F59E0B",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>다시 열기</button>
+            ):(
+              canManage&&<button type="button" onClick={function(){onComplete(todo);}} style={{padding:"8px 18px",background:"#059669",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",fontWeight:600}}>완료 처리</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 // ── TodoView ──
-function TodoView({todos,onAdd,onItemClick}){
+function TodoView({todos,assigneesByTodo,todoCategories,currentUser,onAdd,onItemClick,onManageCategories}){
   var [filterStore,setFilterStore]=useState("all");
-  var [filterStaff,setFilterStaff]=useState("all");
+  var [filterStatus,setFilterStatus]=useState("all");
+  var [filterCat,setFilterCat]=useState("all");
+  var STATUS_LIST=["대기","진행중","완료"];
+  var statusCfgMap={
+    "대기":{bg:"#F1F5F9",color:"#475569"},
+    "진행중":{bg:"#DBEAFE",color:"#1E40AF"},
+    "완료":{bg:"#DCFCE7",color:"#14532D"},
+  };
+  function catName(id){var c=(todoCategories||[]).find(function(x){return x.id===id;});return c?c.name:null;}
+
   var filtered=useMemo(function(){
     var l=[...todos].sort(function(a,b){return b.createdAt>a.createdAt?1:-1;});
     if(filterStore!=="all")l=l.filter(function(t){return t.storeId===filterStore;});
-    if(filterStaff!=="all")l=l.filter(function(t){return t.staffId===filterStaff;});
+    if(filterStatus!=="all")l=l.filter(function(t){return(t.status||"대기")===filterStatus;});
+    if(filterCat!=="all")l=l.filter(function(t){return(t.categoryId||"")===(filterCat==="none"?"":filterCat);});
     return l;
-  },[todos,filterStore,filterStaff]);
+  },[todos,filterStore,filterStatus,filterCat]);
+
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
@@ -2403,13 +2521,30 @@ function TodoView({todos,onAdd,onItemClick}){
           <option value="all">전체 매장</option>
           {TODO_STORES.map(function(s){return <option key={s.id} value={s.id}>{s.label}</option>;})}
         </select>
-        <select value={filterStaff} onChange={function(e){setFilterStaff(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
-          <option value="all">전체 담당자</option>
-          <option value="">미정</option>
-          {STAFF.map(function(s){return <option key={s.id} value={s.id}>{s.name}</option>;})}
-        </select>
+        {todoCategories&&todoCategories.length>0&&(
+          <select value={filterCat} onChange={function(e){setFilterCat(e.target.value);}} style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 분류</option>
+            <option value="none">분류 없음</option>
+            {todoCategories.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}
+          </select>
+        )}
+        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+          <button onClick={function(){setFilterStatus("all");}}
+            style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:filterStatus==="all"?"#334155":"#E2E8F0",background:filterStatus==="all"?"#334155":"#fff",color:filterStatus==="all"?"#fff":"#94A3B8"}}>전체</button>
+          {STATUS_LIST.map(function(st){var cfg=statusCfgMap[st];var active=filterStatus===st;return(
+            <button key={st} onClick={function(){setFilterStatus(active?"all":st);}}
+              style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,border:"1.5px solid",cursor:"pointer",borderColor:active?cfg.color:"#E2E8F0",background:active?cfg.bg:"#fff",color:active?cfg.color:"#94A3B8"}}>
+              {st}
+            </button>
+          );})}
+        </div>
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filtered.length}건</span>
-        <button onClick={onAdd} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 할 일 추가</button>
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          {currentUser&&currentUser.isAdmin&&(
+            <button onClick={onManageCategories} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>분류 관리</button>
+          )}
+          <button onClick={onAdd} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"6px 14px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:11,fontWeight:600,border:"none",cursor:"pointer"}}><Plus size={12}/> 할 일 추가</button>
+        </div>
       </div>
       <div className="tbl-wrap">
         {filtered.length===0?<div style={{padding:40,textAlign:"center",fontSize:12,color:"#94A3B8"}}>{todos.length===0?"할 일을 추가해주세요.":"조건에 맞는 항목이 없어요."}</div>:(
@@ -2417,22 +2552,41 @@ function TodoView({todos,onAdd,onItemClick}){
             <thead>
               <tr style={{background:"#334155",color:"#E2E8F0"}}>
                 <th style={{padding:"10px 16px",textAlign:"left",fontWeight:600}}>할 일</th>
-                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당 매장</th>
-                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>담당자</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>상태</th>
+                <th style={{padding:"10px 14px",textAlign:"center",fontWeight:600,whiteSpace:"nowrap"}}>매장</th>
+                <th style={{padding:"10px 14px",textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>담당자</th>
                 <th style={{padding:"10px 14px",textAlign:"right",fontWeight:600,whiteSpace:"nowrap"}}>요청일</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(function(t,i){
-                var b=todoBadge(t.storeId);var sc=t.staffId?staffColor(t.staffId):null;
+                var b=todoBadge(t.storeId);
+                var cfg=statusCfgMap[t.status||"대기"];
+                var cn=catName(t.categoryId);
+                var assignees=assigneesByTodo[t.id]||[];
                 return(
                   <tr key={t.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){onItemClick(t);}} style={{cursor:"pointer"}}>
                     <td style={{padding:"11px 16px"}}>
-                      <div style={{fontWeight:600,color:"#1E293B",marginBottom:t.detail?3:0}}>{t.title}</div>
-                      {t.detail&&<div style={{fontSize:10,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:300}}>{t.detail}</div>}
+                      <div style={{fontWeight:600,color:"#1E293B",marginBottom:(t.detail||cn)?3:0}}>{t.title}</div>
+                      <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
+                        {cn&&<span className="tag" style={{background:"#F1F5F9",color:"#475569",fontSize:9}}>{cn}</span>}
+                        {t.detail&&<span style={{fontSize:10,color:"#94A3B8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:260}}>{t.detail}</span>}
+                      </div>
                     </td>
+                    <td style={{padding:"11px 14px",textAlign:"center"}}><span className="tag" style={{background:cfg.bg,color:cfg.color}}>{t.status||"대기"}</span></td>
                     <td style={{padding:"11px 14px",textAlign:"center"}}><span className="tag" style={{background:b.bg,color:b.color}}>{t.storeId||"—"}</span></td>
-                    <td style={{padding:"11px 14px",textAlign:"center"}}>{t.staffId?<span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:7,height:7,borderRadius:"50%",background:sc,display:"inline-block"}}/><span style={{fontSize:11,fontWeight:600,color:"#1E293B"}}>{staffName(t.staffId)}</span></span>:<span style={{fontSize:11,color:"#94A3B8"}}>미정</span>}</td>
+                    <td style={{padding:"11px 14px"}}>
+                      {assignees.length===0?<span style={{fontSize:11,color:"#94A3B8"}}>미정</span>:(
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {assignees.map(function(a){return(
+                            <span key={a.id} style={{display:"inline-flex",alignItems:"center",gap:4}}>
+                              <span style={{width:7,height:7,borderRadius:"50%",background:staffColor(a.staffId),display:"inline-block"}}/>
+                              <span style={{fontSize:11,fontWeight:600,color:"#1E293B"}}>{staffName(a.staffId)}</span>
+                            </span>
+                          );})}
+                        </div>
+                      )}
+                    </td>
                     <td className="ml-mono" style={{padding:"11px 16px",textAlign:"right",fontSize:10,color:"#94A3B8",whiteSpace:"nowrap"}}>{t.createdAt?t.createdAt.slice(0,10):"—"}</td>
                   </tr>
                 );
@@ -2724,6 +2878,10 @@ function App(){
   var [staffList,setStaffList]=useState([]);
   var [todos,setTodos]=useState([]);
   var [todoModal,setTodoModal]=useState(null);
+  var [todoDetailModal,setTodoDetailModal]=useState(null);
+  var [todoAssignees,setTodoAssignees]=useState([]); // 전체 배정 목록
+  var [todoCategories,setTodoCategories]=useState([]);
+  var [todoCategoryManageModal,setTodoCategoryManageModal]=useState(false);
   var [staffManageModal,setStaffManageModal]=useState(false);
   var [subs,setSubs]=useState([]);
   var [subModal,setSubModal]=useState(null);
@@ -2754,7 +2912,7 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);
+    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);setTodoAssignees([]);setTodoCategories([]);
     setAppHolidayMap({});
   }
 
@@ -2796,7 +2954,9 @@ function App(){
       try{var r=await sb.from("work_records").select("*").order("start_at",{ascending:false}).limit(1000);setWorks((r.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id,storeId:x.store_id,startAt:x.start_at,endAt:x.end_at,memo:x.memo||""};}).reverse().reverse());}catch(e){setWorks([]);}
       try{var r2=await sb.from("order_items").select("*").order("created_at",{ascending:true});setOrderItems((r2.data||[]).map(function(x){return{id:x.id,name:x.name,link:x.link||"",memo:x.memo||"",categoryId:x.category_id||null};}).reverse().reverse());}catch(e){setOrderItems([]);}
       try{var r3=await sb.from("order_history").select("*").order("changed_at",{ascending:false}).limit(2000);setOrders((r3.data||[]).map(function(x){return{id:x.id,itemId:x.item_id,storeId:x.store_id,status:normalizeStatus(x.status),memo:x.memo||"",requestedBy:x.requested_by||null,requestedAt:x.requested_at||null,orderedBy:x.ordered_by||null,orderedAt:x.ordered_at||null,completedBy:x.completed_by||null,completedAt:x.completed_at||null,changedAt:x.changed_at,isUrgent:!!x.is_urgent};}));}catch(e){setOrders([]);}
-      try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",createdAt:x.created_at};}).reverse().reverse());}catch(e){setTodos([]);}
+      try{var r4=await sb.from("todos").select("*").order("created_at",{ascending:false}).limit(500);setTodos((r4.data||[]).map(function(x){return{id:x.id,title:x.title,storeId:x.store_id||"",staffId:x.staff_id||"",detail:x.detail||"",status:x.status||"대기",categoryId:x.category_id||null,completedAt:x.completed_at||null,completedBy:x.completed_by||null,createdAt:x.created_at};}));}catch(e){setTodos([]);}
+      try{var r13=await sb.from("todo_assignees").select("*");setTodoAssignees((r13.data||[]).map(function(x){return{id:x.id,todoId:x.todo_id,staffId:x.staff_id,assignedAt:x.assigned_at};}));}catch(e){setTodoAssignees([]);}
+      try{var r14=await sb.from("todo_categories").select("*").order("sort_order",{ascending:true});setTodoCategories((r14.data||[]).map(function(x){return{id:x.id,name:x.name,sortOrder:x.sort_order||0};}));}catch(e){setTodoCategories([]);}
       try{var r5=await sb.from("subscriptions").select("*").order("created_at",{ascending:false}).limit(2000);setSubs((r5.data||[]).map(function(x){return{id:x.id,storeId:x.store_id,name:x.name,subDate:x.sub_date||"",groupName:x.group_name||"",reviewDone:!!x.review_done,memo:x.memo||""};}));}catch(e){setSubs([]);}
       try{var r6=await sb.from("board_posts").select("*").order("created_at",{ascending:false}).limit(1000);setPosts((r6.data||[]).map(function(x){return{id:x.id,authorId:x.author_id,title:x.title,content:x.content,categoryId:x.category_id||null,createdAt:x.created_at};}));}catch(e){setPosts([]);}
       try{var r7=await sb.from("board_comments").select("*").order("created_at",{ascending:true}).limit(5000);setComments((r7.data||[]).map(function(x){return{id:x.id,postId:x.post_id,authorId:x.author_id,content:x.content,createdAt:x.created_at};}));}catch(e){setComments([]);}
@@ -2898,12 +3058,91 @@ function App(){
   async function handleSaveTodo(form){
     var isEdit=!!(todoModal&&todoModal.id);
     try{
-      if(isEdit){await sb.from("todos").update({title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail}).eq("id",form.id);setTodos(function(prev){return prev.map(function(t){return t.id===form.id?{...t,title:form.title,storeId:form.storeId,staffId:form.staffId,detail:form.detail}:t;});});}
-      else{var row={id:form.id,title:form.title,store_id:form.storeId,staff_id:form.staffId||null,detail:form.detail,created_at:new Date().toISOString()};await sb.from("todos").insert(row);setTodos(function(prev){return[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id||"",detail:row.detail,createdAt:row.created_at},...prev];});}
+      if(isEdit){
+        await sb.from("todos").update({title:form.title,store_id:form.storeId,detail:form.detail,category_id:form.categoryId||null}).eq("id",form.id);
+        setTodos(function(prev){return prev.map(function(t){return t.id===form.id?{...t,title:form.title,storeId:form.storeId,detail:form.detail,categoryId:form.categoryId||null}:t;});});
+      }else{
+        var row={id:form.id,title:form.title,store_id:form.storeId,staff_id:myId,detail:form.detail,category_id:form.categoryId||null,status:"대기",created_at:new Date().toISOString()};
+        await sb.from("todos").insert(row);
+        setTodos(function(prev){return[{id:row.id,title:row.title,storeId:row.store_id,staffId:row.staff_id,detail:row.detail,categoryId:row.category_id,status:"대기",completedAt:null,completedBy:null,createdAt:row.created_at},...prev];});
+      }
       setTodoModal(null);
+      setTodoDetailModal(null);
     }catch(e){alert("저장 실패: "+e.message);}
   }
-  async function handleDeleteTodo(t){if(!window.confirm("\""+t.title+"\"을(를) 삭제할까요?"))return;try{await sb.from("todos").delete().eq("id",t.id);setTodos(function(prev){return prev.filter(function(x){return x.id!==t.id;});});setTodoModal(null);}catch(e){alert("삭제 실패: "+e.message);}}
+  async function handleDeleteTodo(t){
+    if(!window.confirm("\""+t.title+"\"을(를) 삭제할까요?"))return;
+    try{
+      await sb.from("todos").delete().eq("id",t.id);
+      setTodos(function(prev){return prev.filter(function(x){return x.id!==t.id;});});
+      setTodoAssignees(function(prev){return prev.filter(function(a){return a.todoId!==t.id;});});
+      setTodoModal(null);setTodoDetailModal(null);
+    }catch(e){alert("삭제 실패: "+e.message);}
+  }
+  function handleJoinTodo(t){
+    var row={id:uid(),todo_id:t.id,staff_id:myId,assigned_at:new Date().toISOString()};
+    sb.from("todo_assignees").insert(row).then(function(){
+      setTodoAssignees(function(prev){return[...prev,{id:row.id,todoId:row.todo_id,staffId:row.staff_id,assignedAt:row.assigned_at}];});
+      if((t.status||"대기")==="대기"){
+        sb.from("todos").update({status:"진행중"}).eq("id",t.id).then(function(){
+          setTodos(function(prev){return prev.map(function(x){return x.id===t.id?{...x,status:"진행중"}:x;});});
+          setTodoDetailModal(function(prev){return prev&&prev.id===t.id?{...prev,status:"진행중"}:prev;});
+        });
+      }
+    }).catch(function(e){alert("참여 실패: "+e.message);});
+  }
+  function handleLeaveTodo(t,assignment){
+    sb.from("todo_assignees").delete().eq("id",assignment.id).then(function(){
+      setTodoAssignees(function(prev){return prev.filter(function(a){return a.id!==assignment.id;});});
+    }).catch(function(e){alert("취소 실패: "+e.message);});
+  }
+  function handleCompleteTodo(t){
+    var now=new Date().toISOString();
+    sb.from("todos").update({status:"완료",completed_at:now,completed_by:myId}).eq("id",t.id).then(function(){
+      setTodos(function(prev){return prev.map(function(x){return x.id===t.id?{...x,status:"완료",completedAt:now,completedBy:myId}:x;});});
+      setTodoDetailModal(function(prev){return prev&&prev.id===t.id?{...prev,status:"완료",completedAt:now,completedBy:myId}:prev;});
+    }).catch(function(e){alert("완료 처리 실패: "+e.message);});
+  }
+  function handleReopenTodo(t){
+    var newStatus=(todoAssignees.filter(function(a){return a.todoId===t.id;}).length>0)?"진행중":"대기";
+    sb.from("todos").update({status:newStatus,completed_at:null,completed_by:null}).eq("id",t.id).then(function(){
+      setTodos(function(prev){return prev.map(function(x){return x.id===t.id?{...x,status:newStatus,completedAt:null,completedBy:null}:x;});});
+      setTodoDetailModal(function(prev){return prev&&prev.id===t.id?{...prev,status:newStatus,completedAt:null,completedBy:null}:prev;});
+    }).catch(function(e){alert("처리 실패: "+e.message);});
+  }
+  function handleAddTodoCategory(name){
+    var newId=uid();
+    var sortOrder=todoCategories.length>0?Math.max.apply(null,todoCategories.map(function(c){return c.sortOrder;}))+1:0;
+    return sb.from("todo_categories").insert({id:newId,name:name,sort_order:sortOrder}).then(function(){
+      setTodoCategories(function(prev){return[...prev,{id:newId,name:name,sortOrder:sortOrder}];});
+    });
+  }
+  function handleRenameTodoCategory(id,name){
+    return sb.from("todo_categories").update({name:name}).eq("id",id).then(function(){
+      setTodoCategories(function(prev){return prev.map(function(c){return c.id===id?{...c,name:name}:c;});});
+    });
+  }
+  function handleDeleteTodoCategory(id){
+    sb.from("todo_categories").delete().eq("id",id).then(function(){
+      setTodoCategories(function(prev){return prev.filter(function(c){return c.id!==id;});});
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
+  function handleReorderTodoCategory(fromIdx,toIdx){
+    var sorted=[...todoCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;});
+    var a=sorted[fromIdx],b=sorted[toIdx];
+    if(!a||!b)return;
+    var aOrder=a.sortOrder,bOrder=b.sortOrder;
+    Promise.all([
+      sb.from("todo_categories").update({sort_order:bOrder}).eq("id",a.id),
+      sb.from("todo_categories").update({sort_order:aOrder}).eq("id",b.id)
+    ]).then(function(){
+      setTodoCategories(function(prev){return prev.map(function(c){
+        if(c.id===a.id)return{...c,sortOrder:bOrder};
+        if(c.id===b.id)return{...c,sortOrder:aOrder};
+        return c;
+      });});
+    }).catch(function(e){alert("순서 변경 실패: "+e.message);});
+  }
 
   async function handleSaveSub(form){
     var isEdit=!!(subModal&&subModal.id);
@@ -3064,6 +3303,15 @@ function App(){
   }
 
 
+  var assigneesByTodo=useMemo(function(){
+    var m={};
+    todoAssignees.forEach(function(a){
+      if(!m[a.todoId])m[a.todoId]=[];
+      m[a.todoId].push(a);
+    });
+    return m;
+  },[todoAssignees]);
+
   var MAIN_TABS=[
     {id:"work",label:"근무",icon:<CalIcon size={13}/>},
     {id:"order",label:"주문",icon:<PkgIcon size={13}/>},
@@ -3178,7 +3426,7 @@ function App(){
           )}
           {mainTab==="todo"&&(
             <TabErrorBoundary key="todo">
-              <TodoView todos={todos} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoModal(t);}}/>
+              <TodoView todos={todos} assigneesByTodo={assigneesByTodo} todoCategories={todoCategories} currentUser={currentUser} onAdd={function(){setTodoModal({});}} onItemClick={function(t){setTodoDetailModal(t);}} onManageCategories={function(){setTodoCategoryManageModal(true);}}/>
             </TabErrorBoundary>
           )}
         </>
@@ -3193,7 +3441,12 @@ function App(){
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {orderCategoryManageModal&&<BoardCategoryManageModal categories={[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory} onReorder={handleReorderOrderCategory}/>}
-      {todoModal!==null&&<TodoModal todo={todoModal} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {todoModal!==null&&<TodoModal todo={todoModal} currentUser={currentUser} todoCategories={todoCategories} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {todoDetailModal!==null&&<TodoDetailModal todo={todoDetailModal} assignees={assigneesByTodo[todoDetailModal.id]||[]} todoCategories={todoCategories} currentUser={currentUser}
+        onClose={function(){setTodoDetailModal(null);}}
+        onEdit={function(t){setTodoDetailModal(null);setTodoModal(t);}}
+        onJoin={handleJoinTodo} onLeave={handleLeaveTodo} onComplete={handleCompleteTodo} onReopen={handleReopenTodo}/>}
+      {todoCategoryManageModal&&<BoardCategoryManageModal categories={[...todoCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="할 일 분류 관리" onClose={function(){setTodoCategoryManageModal(false);}} onAdd={handleAddTodoCategory} onRename={handleRenameTodoCategory} onDelete={handleDeleteTodoCategory} onReorder={handleReorderTodoCategory}/>}
       {subModal!==null&&<SubscriptionModal sub={subModal} storeId={subStoreTab} defaultMonth={subModal.defaultMonth} allSubs={subs.filter(function(s){return s.storeId===subStoreTab;})} onClose={function(){setSubModal(null);}} onSave={handleSaveSub} onDelete={handleDeleteSub}/>}
       {writingPost&&<BoardWriteModal categories={categories} onClose={function(){setWritingPost(false);}} onSave={handleWritePost}/>}
       {postModal!==null&&<BoardPostModal post={postModal} comments={comments} categories={categories} currentUser={currentUser} onClose={function(){setPostModal(null);}} onDeletePost={handleDeletePost} onEditPost={handleEditPost} onAddComment={handleAddComment} onDeleteComment={handleDeleteComment}/>}
