@@ -2395,24 +2395,11 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
 }
 
 // ── TodoDetailModal (상태/참여자 관리) ──
-function TodoDetailModal({todo,assignees,memos,todoCategories,currentUser,onClose,onEdit,onJoin,onLeave,onComplete,onReopen,onAddMemo,onDeleteMemo}){
+function TodoDetailModal({todo,assignees,todoCategories,currentUser,onClose,onEdit,onJoin,onLeave,onComplete,onReopen}){
   var catName=(function(){var c=(todoCategories||[]).find(function(x){return x.id===todo.categoryId;});return c?c.name:null;})();
   var myAssignment=assignees.find(function(a){return a.staffId===currentUser.id;});
   var isAssignee=!!myAssignment;
   var canManage=currentUser.isAdmin||todo.staffId===currentUser.id||isAssignee;
-  var [memoText,setMemoText]=useState("");
-  var [posting,setPosting]=useState(false);
-
-  var sortedMemos=useMemo(function(){
-    return[...(memos||[])].sort(function(a,b){return(a.createdAt||"")>(b.createdAt||"")?1:-1;});
-  },[memos]);
-
-  function submitMemo(e){
-    e.preventDefault();
-    if(!memoText.trim())return;
-    setPosting(true);
-    onAddMemo({id:uid(),todoId:todo.id,content:memoText.trim()}).then(function(){setMemoText("");setPosting(false);}).catch(function(){setPosting(false);});
-  }
 
   var statusCfg={
     "대기":{bg:"#F1F5F9",color:"#475569"},
@@ -2474,6 +2461,7 @@ function TodoDetailModal({todo,assignees,memos,todoCategories,currentUser,onClos
             )
           )}
         </div>
+
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <button type="button" onClick={function(){onEdit(todo);}}
