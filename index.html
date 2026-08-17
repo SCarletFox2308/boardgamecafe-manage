@@ -2487,7 +2487,7 @@ function TodoDetailModal({todo,subitems,assigneesBySubitem,todoCategories,curren
                     </span>
                   );})}
                   <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-                    {si.status!=="완료"&&(
+                    {!todo.closed&&si.status!=="완료"&&(
                       isMine?(
                         <button onClick={function(){onLeaveSub(si,myA);}}
                           style={{padding:"3px 10px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer"}}>
@@ -2500,16 +2500,18 @@ function TodoDetailModal({todo,subitems,assigneesBySubitem,todoCategories,curren
                         </button>
                       )
                     )}
-                    {si.status==="완료"?(
-                      <button onClick={function(){onReopenSub(si);}}
-                        style={{padding:"3px 10px",background:"#FEF3C7",color:"#92400E",border:"1px solid #FDE68A",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer"}}>
-                        다시 열기
-                      </button>
-                    ):(
-                      <button onClick={function(){onCompleteSub(si);}}
-                        style={{padding:"3px 10px",background:"#059669",color:"#fff",border:"none",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer"}}>
-                        완료
-                      </button>
+                    {!todo.closed&&(
+                      si.status==="완료"?(
+                        <button onClick={function(){onReopenSub(si);}}
+                          style={{padding:"3px 10px",background:"#FEF3C7",color:"#92400E",border:"1px solid #FDE68A",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                          취소
+                        </button>
+                      ):(
+                        <button onClick={function(){onCompleteSub(si);}}
+                          style={{padding:"3px 10px",background:"#059669",color:"#fff",border:"none",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                          완료
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -2522,10 +2524,12 @@ function TodoDetailModal({todo,subitems,assigneesBySubitem,todoCategories,curren
         </div>
 
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <button type="button" onClick={function(){onEdit(todo);}}
-            style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:12,color:"#374151",background:"#F8FAFC",cursor:"pointer"}}>
-            <Pencil size={13}/> 수정
-          </button>
+          {todo.closed?<span/>:(
+            <button type="button" onClick={function(){onEdit(todo);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:12,color:"#374151",background:"#F8FAFC",cursor:"pointer"}}>
+              <Pencil size={13}/> 수정
+            </button>
+          )}
           <div style={{display:"flex",gap:8}}>
             <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>닫기</button>
             {allDone&&!todo.closed&&(
