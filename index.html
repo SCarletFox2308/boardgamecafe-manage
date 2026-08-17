@@ -1528,7 +1528,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
                 var cfg=statusCfg(o.status);
                 var isCk=checked.has(o.id);
                 var isDup=isDuplicate(o);
-                var rowBg=isCk?"#EFF6FF":(isDup?"#FEE2E2":(o.isUrgent?"#FEF2F2":undefined));
+                var rowBg=isCk?"#EFF6FF":(isDup?"#FED7AA":(o.isUrgent?"#FEF2F2":undefined));
                 return(
                   <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){toggleCheck(o.id);}} title={isDup?"같은 매장에 동일 물품이 여러 건 있어요":undefined} style={{cursor:"pointer"}}>
                     <td style={{padding:"8px 6px",textAlign:"center",background:rowBg}}>
