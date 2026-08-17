@@ -1396,6 +1396,18 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
 
   var checkedOrders=useMemo(function(){return filteredOrders.filter(function(o){return checked.has(o.id);});},[filteredOrders,checked]);
 
+  var duplicateKeys=useMemo(function(){
+    var counts={};
+    filteredOrders.forEach(function(o){
+      var k=o.storeId+"_"+o.itemId;
+      counts[k]=(counts[k]||0)+1;
+    });
+    var dup=new Set();
+    Object.keys(counts).forEach(function(k){if(counts[k]>1)dup.add(k);});
+    return dup;
+  },[filteredOrders]);
+  function isDuplicate(o){return duplicateKeys.has(o.storeId+"_"+o.itemId);}
+
   var allSameStatus=checkedOrders.length>0&&checkedOrders.every(function(o){return o.status===checkedOrders[0].status;});
   var nextStatusCfg=allSameStatus?statusCfg(statusCfg(checkedOrders[0].status).next):null;
   var canGoPrev=allSameStatus&&checkedOrders.length>0&&!!prevStatus(checkedOrders[0].status);
@@ -1515,12 +1527,14 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
                 var b=storeBadge(o.storeId);
                 var cfg=statusCfg(o.status);
                 var isCk=checked.has(o.id);
+                var isDup=isDuplicate(o);
+                var rowBg=isCk?"#EFF6FF":(isDup?"#FEE2E2":(o.isUrgent?"#FEF2F2":undefined));
                 return(
-                  <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){toggleCheck(o.id);}} style={{cursor:"pointer",background:isCk?"#EFF6FF":(o.isUrgent?"#FEF2F2":undefined)}}>
-                    <td style={{padding:"8px 6px",textAlign:"center"}}>
+                  <tr key={o.id} className={"ml-row "+(i%2===0?"even":"odd")} onClick={function(){toggleCheck(o.id);}} title={isDup?"같은 매장에 동일 물품이 여러 건 있어요":undefined} style={{cursor:"pointer"}}>
+                    <td style={{padding:"8px 6px",textAlign:"center",background:rowBg}}>
                       <input type="checkbox" checked={isCk} onChange={function(){toggleCheck(o.id);}} onClick={function(e){e.stopPropagation();}} style={{accentColor:"#3B82F6",cursor:"pointer"}}/>
                     </td>
-                    <td style={{padding:"8px 8px",fontWeight:600,color:"#1E293B",overflow:"hidden"}}>
+                    <td style={{padding:"8px 8px",fontWeight:600,color:"#1E293B",overflow:"hidden",background:rowBg}}>
                       <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}}>
                         {o.isUrgent&&<span style={{fontSize:10,flexShrink:0}}>🚨</span>}
                         <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{itemName(o.itemId)}</span>
@@ -1532,7 +1546,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
                       </div>
                       {o.memo&&<div style={{fontSize:9,color:"#94A3B8",fontWeight:400,marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.memo}</div>}
                     </td>
-                    <td style={{padding:"8px 8px",overflow:"hidden"}}>
+                    <td style={{padding:"8px 8px",overflow:"hidden",background:rowBg}}>
                       {o.requestedBy?(
                         <>
                           <div style={{color:"#7C3AED",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{staffName(o.requestedBy)}</div>
@@ -1540,7 +1554,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
                         </>
                       ):<span style={{color:"#CBD5E1"}}>—</span>}
                     </td>
-                    <td style={{padding:"8px 8px",overflow:"hidden"}}>
+                    <td style={{padding:"8px 8px",overflow:"hidden",background:rowBg}}>
                       {o.orderedBy?(
                         <>
                           <div style={{color:"#1E40AF",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{staffName(o.orderedBy)}</div>
@@ -1548,7 +1562,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
                         </>
                       ):<span style={{color:"#CBD5E1"}}>—</span>}
                     </td>
-                    <td style={{padding:"8px 8px",overflow:"hidden"}}>
+                    <td style={{padding:"8px 8px",overflow:"hidden",background:rowBg}}>
                       {o.completedBy?(
                         <>
                           <div style={{color:"#059669",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{staffName(o.completedBy)}</div>
