@@ -952,6 +952,7 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
   },[activeRules]);
   var [rows,setRows]=useState(initialRows);
   var [saving,setSaving]=useState(false);
+  var [editingGroupIds,setEditingGroupIds]=useState(null); // 수정 모드일 때 기존 규칙 id 목록
 
   function keyOf(staffId,dow){return staffId+"_"+dow;}
   function updateRow(staffId,dow,field,value){
@@ -966,7 +967,7 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
 
   function submit(){
     if(!applyFrom){alert("적용 시작일을 선택해주세요.");return;}
-    if(!window.confirm(applyFrom+"부터 새 정규 근무시간이 적용돼요. 이전 설정은 이력으로 남고 과거 기록 조회에는 계속 사용돼요. 계속할까요?"))return;
+    if(!window.confirm(applyFrom+"부터 "+(editingGroupIds?"수정된":"새")+" 정규 근무시간이 적용돼요. 계속할까요?"))return;
     setSaving(true);
     var entries=[];
     STAFF.forEach(function(s){
@@ -978,7 +979,7 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
         }
       }
     });
-    onSave(entries,applyFrom).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
+    onSave(entries,applyFrom,editingGroupIds).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
   }
 
   var selectedStaff=STAFF.find(function(s){return s.id===selectedStaffId;});
@@ -1023,6 +1024,7 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
     });
     setRows(newRows);
     setApplyFrom(g.validFrom);
+    setEditingGroupIds(g.items.map(function(h){return h.id;}));
     setShowHistory(false);
   }
   function deleteGroup(g){
@@ -3404,12 +3406,13 @@ function App(){
     }).catch(function(e){alert("순서 변경 실패: "+e.message);});
   }
 
-  function handleSaveNormalHours(entries,applyFrom){
+  function handleSaveNormalHours(entries,applyFrom,editingGroupIds){
     // entries: [{id,staffId,dow,startTime,endTime,isHoliday}] - 새로 저장할 규칙(적용일=applyFrom)
     var fromDate=applyFrom||dateStr(new Date());
+    var excludeIds=editingGroupIds||[];
 
-    // 새 규칙들을 기존 규칙 목록에 합친 뒤, staffId+dow 그룹별로 validFrom 순 정렬하여 validTo 재계산
-    var merged=[...normalHours.map(function(h){return{...h};})];
+    // 수정 모드면 기존 규칙(같은 그룹)을 목록에서 제외하고 새 값으로 대체
+    var merged=normalHours.filter(function(h){return excludeIds.indexOf(h.id)<0;}).map(function(h){return{...h};});
     entries.forEach(function(e){
       merged.push({id:e.id,staffId:e.staffId||null,dow:e.dow!=null?e.dow:null,startTime:e.startTime||"",endTime:e.endTime||"",isHoliday:!!e.isHoliday,validFrom:fromDate,validTo:null});
     });
@@ -3439,7 +3442,10 @@ function App(){
 
     var rows=updated.map(function(h){return{id:h.id,staff_id:h.staffId,dow:h.dow,start_time:h.startTime||null,end_time:h.endTime||null,is_holiday:!!h.isHoliday,valid_from:h.validFrom,valid_to:h.validTo,updated_at:new Date().toISOString()};});
 
-    return sb.from("normal_hours").upsert(rows,{onConflict:"id"}).then(function(){
+    var deleteOld=excludeIds.length>0?sb.from("normal_hours").delete().in("id",excludeIds):Promise.resolve();
+    return deleteOld.then(function(){
+      return rows.length>0?sb.from("normal_hours").upsert(rows,{onConflict:"id"}):Promise.resolve();
+    }).then(function(){
       setNormalHours(updated);
     });
   }
