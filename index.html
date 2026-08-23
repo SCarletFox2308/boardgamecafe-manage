@@ -938,7 +938,12 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
   var [applyFrom,setApplyFrom]=useState(dateStr(new Date()));
 
   var activeRules=useMemo(function(){
-    return(normalHours||[]).filter(function(h){return h.validTo===null;});
+    var today=dateStr(new Date());
+    return(normalHours||[]).filter(function(h){
+      if(h.validFrom&&h.validFrom>today)return false; // 아직 시작 안 된 미래 예약 규칙 제외
+      if(h.validTo&&h.validTo<today)return false; // 이미 종료된 과거 규칙 제외
+      return true;
+    });
   },[normalHours]);
 
   // key: staffId+"_"+dow -> {start,end}
@@ -1006,12 +1011,16 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
       groups[key].push(h);
     });
     var keys=Object.keys(groups).sort().reverse();
+    var today=dateStr(new Date());
     return keys.map(function(vf){
       var g=groups[vf];
+      var isFuture=vf>today;
+      var isActive=!isFuture&&g.some(function(h){return h.validTo===null||h.validTo>=today;});
       return{
         validFrom:vf,
         validTo:g[0].validTo,
-        isActive:g.some(function(h){return h.validTo===null;}),
+        isActive:isActive,
+        isFuture:isFuture,
         items:g
       };
     });
@@ -1077,10 +1086,10 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
             )}
             {selectedStaff&&selectedHistoryGroups.map(function(g){
               return(
-                <div key={g.validFrom} style={{marginBottom:14,padding:"10px 12px",background:g.isActive?"#EFF6FF":"#F8FAFC",borderRadius:8,border:"1px solid "+(g.isActive?"#BFDBFE":"#E2E8F0")}}>
+                <div key={g.validFrom} style={{marginBottom:14,padding:"10px 12px",background:g.isActive?"#EFF6FF":g.isFuture?"#FFFBEB":"#F8FAFC",borderRadius:8,border:"1px solid "+(g.isActive?"#BFDBFE":g.isFuture?"#FDE68A":"#E2E8F0")}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                    <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":"#64748B"}}>
-                      {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":""}
+                    <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":g.isFuture?"#92400E":"#64748B"}}>
+                      {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":g.isFuture?"(예정)":""}
                     </div>
                     <div style={{display:"flex",gap:6}}>
                       <button type="button" onClick={function(){loadGroupForEdit(g);}}
