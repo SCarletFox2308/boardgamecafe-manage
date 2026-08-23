@@ -935,6 +935,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
 
   var [selectedStaffId,setSelectedStaffId]=useState(STAFF[0]&&STAFF[0].id||"");
   var [showHistory,setShowHistory]=useState(false);
+  var [applyFrom,setApplyFrom]=useState(dateStr(new Date()));
 
   var activeRules=useMemo(function(){
     return(normalHours||[]).filter(function(h){return h.validTo===null;});
@@ -964,7 +965,8 @@ function NormalHoursModal({normalHours,onClose,onSave}){
   }
 
   function submit(){
-    if(!window.confirm("저장하면 오늘부터 새 정규 근무시간이 적용돼요. 이전 설정은 이력으로 남고 과거 기록 조회에는 계속 사용돼요. 계속할까요?"))return;
+    if(!applyFrom){alert("적용 시작일을 선택해주세요.");return;}
+    if(!window.confirm(applyFrom+"부터 새 정규 근무시간이 적용돼요. 이전 설정은 이력으로 남고 과거 기록 조회에는 계속 사용돼요. 계속할까요?"))return;
     setSaving(true);
     var entries=[];
     STAFF.forEach(function(s){
@@ -976,7 +978,7 @@ function NormalHoursModal({normalHours,onClose,onSave}){
         }
       }
     });
-    onSave(entries).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
+    onSave(entries,applyFrom).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
   }
 
   var selectedStaff=STAFF.find(function(s){return s.id===selectedStaffId;});
@@ -1021,13 +1023,21 @@ function NormalHoursModal({normalHours,onClose,onSave}){
           <h2 style={{fontSize:16,fontWeight:700}}>정규 근무시간 설정</h2>
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-          <p style={{fontSize:11,color:"#94A3B8"}}>직원별로 요일마다 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요. 저장 시 오늘부터 새로 적용돼요.</p>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showHistory?16:10}}>
+          <p style={{fontSize:11,color:"#94A3B8"}}>직원별로 요일마다 정규 근무시간을 설정하면, 다른 시간의 근무 기록이 목록에서 하이라이트돼요.</p>
           <button type="button" onClick={function(){setShowHistory(!showHistory);}}
             style={{flexShrink:0,marginLeft:10,padding:"4px 10px",background:showHistory?"#1E293B":"#F8FAFC",color:showHistory?"#fff":"#374151",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
             {showHistory?"편집으로":"이력 보기"}
           </button>
         </div>
+
+        {!showHistory&&(
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,padding:"8px 12px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
+            <span style={{fontSize:11,fontWeight:600,color:"#1E40AF",whiteSpace:"nowrap"}}>적용 시작일</span>
+            <input type="date" value={applyFrom} onChange={function(e){setApplyFrom(e.target.value);}}
+              style={{padding:"5px 8px",border:"1px solid #93C5FD",borderRadius:6,fontSize:11,outline:"none",background:"#fff",flex:1}}/>
+          </div>
+        )}
 
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,fontWeight:700,color:"#64748B",marginBottom:8}}>직원별 요일 근무시간</div>
@@ -3368,21 +3378,43 @@ function App(){
     }).catch(function(e){alert("순서 변경 실패: "+e.message);});
   }
 
-  function handleSaveNormalHours(entries){
-    // entries: [{id,staffId,dow,startTime,endTime,isHoliday}]
-    var today=dateStr(new Date());
-    var yesterday=(function(){var d=new Date();d.setDate(d.getDate()-1);return dateStr(d);})();
-    var rows=entries.map(function(e){return{id:e.id,staff_id:e.staffId||null,dow:e.dow!=null?e.dow:null,start_time:e.startTime,end_time:e.endTime,is_holiday:!!e.isHoliday,valid_from:today,valid_to:null,updated_at:new Date().toISOString()};});
-    // 현재 활성(valid_to가 null인) 규칙들을 어제 날짜로 종료 처리 후 새 규칙 삽입
-    return sb.from("normal_hours").update({valid_to:yesterday}).is("valid_to",null).then(function(){
-      var p=rows.length>0?sb.from("normal_hours").insert(rows):Promise.resolve();
-      return p;
-    }).then(function(){
-      setNormalHours(function(prev){
-        var closed=prev.map(function(h){return h.validTo===null?{...h,validTo:yesterday}:h;});
-        var fresh=entries.map(function(e){return{id:e.id,staffId:e.staffId||null,dow:e.dow!=null?e.dow:null,startTime:e.startTime||"",endTime:e.endTime||"",isHoliday:!!e.isHoliday,validFrom:today,validTo:null};});
-        return[...closed,...fresh];
-      });
+  function handleSaveNormalHours(entries,applyFrom){
+    // entries: [{id,staffId,dow,startTime,endTime,isHoliday}] - 새로 저장할 규칙(적용일=applyFrom)
+    var fromDate=applyFrom||dateStr(new Date());
+
+    // 새 규칙들을 기존 규칙 목록에 합친 뒤, staffId+dow 그룹별로 validFrom 순 정렬하여 validTo 재계산
+    var merged=[...normalHours.map(function(h){return{...h};})];
+    entries.forEach(function(e){
+      merged.push({id:e.id,staffId:e.staffId||null,dow:e.dow!=null?e.dow:null,startTime:e.startTime||"",endTime:e.endTime||"",isHoliday:!!e.isHoliday,validFrom:fromDate,validTo:null});
+    });
+
+    var groups={};
+    merged.forEach(function(h){
+      var k=h.staffId+"_"+h.dow;
+      if(!groups[k])groups[k]=[];
+      groups[k].push(h);
+    });
+
+    var updated=[];
+    Object.keys(groups).forEach(function(k){
+      var list=groups[k].sort(function(a,b){return(a.validFrom||"")>(b.validFrom||"")?1:-1;});
+      for(var i=0;i<list.length;i++){
+        var next=list[i+1];
+        if(next){
+          var d=new Date((next.validFrom||fromDate)+"T12:00:00");
+          d.setDate(d.getDate()-1);
+          list[i].validTo=dateStr(d);
+        }else{
+          list[i].validTo=null; // 가장 최근 규칙은 계속 적용중
+        }
+        updated.push(list[i]);
+      }
+    });
+
+    var rows=updated.map(function(h){return{id:h.id,staff_id:h.staffId,dow:h.dow,start_time:h.startTime||null,end_time:h.endTime||null,is_holiday:!!h.isHoliday,valid_from:h.validFrom,valid_to:h.validTo,updated_at:new Date().toISOString()};});
+
+    return sb.from("normal_hours").upsert(rows,{onConflict:"id"}).then(function(){
+      setNormalHours(updated);
     });
   }
 
