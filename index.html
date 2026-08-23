@@ -928,7 +928,7 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
 // ── NormalHoursModal (요일별/매장별 정규 근무시간 설정) ──
 // ── NormalHoursModal (직원별 정규 근무시간 설정, 공휴일 우선) ──
 // ── NormalHoursModal (직원별 요일별 정규 근무시간, 공휴일 우선) ──
-function NormalHoursModal({normalHours,onClose,onSave}){
+function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
   var DOW_KR=["일","월","화","수","목","금","토"];
   var TIME_OPTIONS=[];
   for(var h=0;h<24;h++)TIME_OPTIONS.push(pad(h)+":00");
@@ -1016,6 +1016,20 @@ function NormalHoursModal({normalHours,onClose,onSave}){
     });
   },[historyByStaff,selectedStaffId]);
 
+  function loadGroupForEdit(g){
+    var newRows={};
+    g.items.forEach(function(h){
+      newRows[keyOf(h.staffId,h.dow)]={start:h.startTime||"",end:h.endTime||""};
+    });
+    setRows(newRows);
+    setApplyFrom(g.validFrom);
+    setShowHistory(false);
+  }
+  function deleteGroup(g){
+    if(!window.confirm(g.validFrom+" ~ "+(g.validTo||"현재")+" 기간의 정규 근무시간 설정을 삭제할까요?"))return;
+    onDeleteGroup(g.items.map(function(h){return h.id;}));
+  }
+
   return(
     <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-box fade-in" style={{padding:24,color:"#1E293B",maxWidth:520}}>
@@ -1062,8 +1076,20 @@ function NormalHoursModal({normalHours,onClose,onSave}){
             {selectedStaff&&selectedHistoryGroups.map(function(g){
               return(
                 <div key={g.validFrom} style={{marginBottom:14,padding:"10px 12px",background:g.isActive?"#EFF6FF":"#F8FAFC",borderRadius:8,border:"1px solid "+(g.isActive?"#BFDBFE":"#E2E8F0")}}>
-                  <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":"#64748B",marginBottom:6}}>
-                    {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":""}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":"#64748B"}}>
+                      {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":""}
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <button type="button" onClick={function(){loadGroupForEdit(g);}}
+                        style={{padding:"3px 9px",background:"#fff",color:"#374151",border:"1px solid #E2E8F0",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                        수정
+                      </button>
+                      <button type="button" onClick={function(){deleteGroup(g);}}
+                        style={{padding:"3px 9px",background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA",borderRadius:5,fontSize:10,fontWeight:600,cursor:"pointer"}}>
+                        삭제
+                      </button>
+                    </div>
                   </div>
                   {g.items.map(function(h){return(
                     <div key={h.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#374151",padding:"2px 0"}}>
@@ -3417,6 +3443,37 @@ function App(){
       setNormalHours(updated);
     });
   }
+  function handleDeleteNormalHoursGroup(ids){
+    return sb.from("normal_hours").delete().in("id",ids).then(function(){
+      var remaining=normalHours.filter(function(h){return ids.indexOf(h.id)<0;});
+      // 남은 규칙들을 staffId+dow 그룹별로 재정렬하여 validTo 재계산
+      var groups={};
+      remaining.forEach(function(h){
+        var k=h.staffId+"_"+h.dow;
+        if(!groups[k])groups[k]=[];
+        groups[k].push(h);
+      });
+      var recalced=[];
+      Object.keys(groups).forEach(function(k){
+        var list=groups[k].sort(function(a,b){return(a.validFrom||"")>(b.validFrom||"")?1:-1;});
+        for(var i=0;i<list.length;i++){
+          var next=list[i+1];
+          if(next){
+            var d=new Date((next.validFrom||"")+"T12:00:00");
+            d.setDate(d.getDate()-1);
+            list[i].validTo=dateStr(d);
+          }else{
+            list[i].validTo=null;
+          }
+          recalced.push(list[i]);
+        }
+      });
+      var rows2=recalced.map(function(h){return{id:h.id,staff_id:h.staffId,dow:h.dow,start_time:h.startTime||null,end_time:h.endTime||null,is_holiday:!!h.isHoliday,valid_from:h.validFrom,valid_to:h.validTo,updated_at:new Date().toISOString()};});
+      return(rows2.length>0?sb.from("normal_hours").upsert(rows2,{onConflict:"id"}):Promise.resolve()).then(function(){
+        setNormalHours(recalced);
+      });
+    });
+  }
 
   function handleSaveEvent(form){
     var isEdit=!!(eventModal&&eventModal.id);
@@ -3614,7 +3671,7 @@ function App(){
           onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}/>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} normalHours={normalHours} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
-      {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours}/>}
+      {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours} onDeleteGroup={handleDeleteNormalHoursGroup}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {orderCategoryManageModal&&<BoardCategoryManageModal categories={[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory} onReorder={handleReorderOrderCategory}/>}
