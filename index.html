@@ -1087,7 +1087,7 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
                 <div key={g.validFrom} style={{marginBottom:14,padding:"10px 12px",background:g.isActive?"#EFF6FF":g.isFuture?"#FFFBEB":"#F8FAFC",borderRadius:8,border:"1px solid "+(g.isActive?"#BFDBFE":g.isFuture?"#FDE68A":"#E2E8F0")}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                     <div style={{fontSize:11,fontWeight:700,color:g.isActive?"#2563EB":g.isFuture?"#92400E":"#64748B"}}>
-                      {g.validFrom} ~ {g.validTo||"현재"} {g.isActive?"(적용중)":g.isFuture?"(예정)":""}
+                      {g.validFrom} ~ {g.validTo?g.validTo:(g.isFuture?"종료없음":"현재")} {g.isActive?"(적용중)":g.isFuture?"(예정)":""}
                     </div>
                     <div style={{display:"flex",gap:6}}>
                       <button type="button" onClick={function(){loadGroupForEdit(g);}}
