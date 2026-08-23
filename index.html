@@ -1100,12 +1100,18 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
                       </button>
                     </div>
                   </div>
-                  {g.items.map(function(h){return(
+                  {g.items
+                    .filter(function(h){return h.startTime||h.endTime;})
+                    .sort(function(a,b){return((a.dow+6)%7)-((b.dow+6)%7);})
+                    .map(function(h){return(
                     <div key={h.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:11,color:"#374151",padding:"2px 0"}}>
                       <span style={{width:20,fontWeight:600,color:(h.dow===0?"#EF4444":h.dow===6?"#3B82F6":"#374151")}}>{DOW_KR[h.dow]}</span>
                       <span className="ml-mono">{h.startTime||"—"} ~ {h.endTime||"—"}</span>
                     </div>
                   );})}
+                  {g.items.every(function(h){return!h.startTime&&!h.endTime;})&&(
+                    <p style={{fontSize:10,color:"#CBD5E1",padding:"2px 0"}}>근무 요일 없음</p>
+                  )}
                 </div>
               );
             })}
