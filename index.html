@@ -972,18 +972,16 @@ function NormalHoursModal({normalHours,onClose,onSave,onDeleteGroup}){
 
   function submit(){
     if(!applyFrom){alert("적용 시작일을 선택해주세요.");return;}
-    if(!window.confirm(applyFrom+"부터 "+(editingGroupIds?"수정된":"새")+" 정규 근무시간이 적용돼요. 계속할까요?"))return;
+    if(!selectedStaffId){alert("직원을 선택해주세요.");return;}
+    if(!window.confirm(staffName(selectedStaffId)+"의 정규 근무시간을 "+applyFrom+"부터 "+(editingGroupIds?"수정":"새로 등록")+"할까요?"))return;
     setSaving(true);
     var entries=[];
-    STAFF.forEach(function(s){
-      for(var d=0;d<7;d++){
-        var k=keyOf(s.id,d);
-        var r=rows[k];
-        if(r&&(r.start||r.end)){
-          entries.push({id:uid(),staffId:s.id,dow:d,startTime:r.start||null,endTime:r.end||null,isHoliday:false});
-        }
-      }
-    });
+    for(var d=0;d<7;d++){
+      var k=keyOf(selectedStaffId,d);
+      var r=rows[k]||{start:"",end:""};
+      // 값이 비어있어도 항목을 만들어서, 이전 규칙의 해당 요일이 확실히 종료되도록 함
+      entries.push({id:uid(),staffId:selectedStaffId,dow:d,startTime:r.start||null,endTime:r.end||null,isHoliday:false});
+    }
     onSave(entries,applyFrom,editingGroupIds).then(function(){setSaving(false);onClose();}).catch(function(){setSaving(false);});
   }
 
