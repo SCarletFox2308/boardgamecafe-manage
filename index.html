@@ -768,11 +768,25 @@ function EventModal({event,votes,defaultDate,currentUser,onClose,onSave,onDelete
 }
 
 // ── CalendarFilterBar ──
+// ── CollapsibleFilterGroup (토글 필터 묶음을 접고 펼 수 있게 감싸는 공용 컴포넌트) ──
+function CollapsibleFilterGroup({label,children}){
+  var [open,setOpen]=useState(true);
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+      <button type="button" onClick={function(){setOpen(!open);}}
+        style={{display:"inline-flex",alignItems:"center",gap:3,padding:"4px 8px",background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:10,fontWeight:700,flexShrink:0}}>
+        {open?<CD size={11}/>:<CR size={11}/>}
+        {label}
+      </button>
+      {open&&<div style={{display:"flex",flexWrap:"wrap",gap:6}}>{children}</div>}
+    </div>
+  );
+}
+
 function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore,onAddEvent}){
   return(
     <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
-      <span style={{fontSize:10,fontWeight:700,color:"#94A3B8"}}>필터</span>
-      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+      <CollapsibleFilterGroup label="직원">
         <button onClick={function(){setFilterStaff("all");}}
           style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
             border:"1.5px solid "+(filterStaff==="all"?"#334155":"#E2E8F0"),
@@ -789,8 +803,8 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
             {s.name}
           </button>
         );})}
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+      </CollapsibleFilterGroup>
+      <CollapsibleFilterGroup label="매장">
         <button onClick={function(){setFilterStore("all");}}
           style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
             border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
@@ -807,7 +821,7 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
             {s.label}
           </button>
         );})}
-      </div>
+      </CollapsibleFilterGroup>
       {(filterStaff!=="all"||filterStore!=="all")&&(
         <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
           style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
@@ -1375,7 +1389,7 @@ function CompletedOrdersView({items,orders}){
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        <CollapsibleFilterGroup label="매장">
           <button onClick={function(){setFilterStore("all");}}
             style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
               border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
@@ -1392,7 +1406,7 @@ function CompletedOrdersView({items,orders}){
               {s.id}
             </button>
           );})}
-        </div>
+        </CollapsibleFilterGroup>
         <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
           style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
           <option value="all">전체 품목</option>
@@ -1526,7 +1540,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        <CollapsibleFilterGroup label="매장">
           <button onClick={function(){setFilterStore("all");setChecked(new Set());}}
             style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
               border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
@@ -1543,8 +1557,8 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
               {s.id}
             </button>
           );})}
-        </div>
-        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+        </CollapsibleFilterGroup>
+        <CollapsibleFilterGroup label="상태">
           <button onClick={function(){setFilterStatus("all");setChecked(new Set());}}
             style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
               border:"1.5px solid "+(filterStatus==="all"?"#334155":"#E2E8F0"),
@@ -1561,7 +1575,7 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
               {st.id}
             </button>
           );})}
-        </div>
+        </CollapsibleFilterGroup>
         <button onClick={function(){setFilterUrgent(!filterUrgent);setChecked(new Set());}}
           style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",
             border:"1.5px solid "+(filterUrgent?"#DC2626":"#E2E8F0"),
@@ -2486,7 +2500,7 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
         {categories.length>0&&(
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          <CollapsibleFilterGroup label="분류">
             <button onClick={function(){setFilterCat("all");}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
                 border:"1.5px solid "+(filterCat==="all"?"#334155":"#E2E8F0"),
@@ -2503,7 +2517,7 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
                 {c.name}
               </button>
             );})}
-          </div>
+          </CollapsibleFilterGroup>
         )}
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{sorted.length}개 글</span>
         <div style={{marginLeft:"auto",display:"flex",gap:8}}>
