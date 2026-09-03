@@ -768,64 +768,70 @@ function EventModal({event,votes,defaultDate,currentUser,onClose,onSave,onDelete
 }
 
 // ── CalendarFilterBar ──
-// ── CollapsibleFilterGroup (토글 필터 묶음을 접고 펼 수 있게 감싸는 공용 컴포넌트) ──
-function CollapsibleFilterGroup({label,children}){
+// ── CollapsibleFilterBar (필터 전체를 한 번에 접고 펼 수 있게 감싸는 공용 컴포넌트) ──
+function CollapsibleFilterBar({activeCount,children}){
   var [open,setOpen]=useState(true);
   return(
-    <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-      <button type="button" onClick={function(){setOpen(!open);}}
-        style={{display:"inline-flex",alignItems:"center",gap:3,padding:"4px 8px",background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:10,fontWeight:700,flexShrink:0}}>
-        {open?<CD size={11}/>:<CR size={11}/>}
-        {label}
-      </button>
-      {open&&<div style={{display:"flex",flexWrap:"wrap",gap:6}}>{children}</div>}
+    <div style={{display:"flex",flexDirection:"column",width:"100%"}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <button type="button" onClick={function(){setOpen(!open);}}
+          style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 8px",background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:10,fontWeight:700,flexShrink:0}}>
+          {open?<CD size={11}/>:<CR size={11}/>}
+          필터
+          {!open&&activeCount>0&&<span style={{fontSize:9,fontWeight:700,padding:"1px 6px",borderRadius:999,background:"#DBEAFE",color:"#1E40AF"}}>{activeCount}개 적용중</span>}
+        </button>
+      </div>
+      {open&&<div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,marginTop:6,width:"100%"}}>{children}</div>}
     </div>
   );
 }
 
 function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore,onAddEvent}){
+  var activeCount=(filterStaff!=="all"?1:0)+(filterStore!=="all"?1:0);
   return(
-    <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
-      <CollapsibleFilterGroup label="직원">
-        <button onClick={function(){setFilterStaff("all");}}
-          style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-            border:"1.5px solid "+(filterStaff==="all"?"#334155":"#E2E8F0"),
-            background:filterStaff==="all"?"#334155":"#fff",
-            color:filterStaff==="all"?"#fff":"#94A3B8"}}>
-          전체직원
-        </button>
-        {STAFF.map(function(s){var active=filterStaff===s.id;return(
-          <button key={s.id} onClick={function(){setFilterStaff(active?"all":s.id);}}
+    <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"flex-start",gap:8,flexShrink:0,flexWrap:"wrap"}}>
+      <CollapsibleFilterBar activeCount={activeCount}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          <button onClick={function(){setFilterStaff("all");}}
             style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(active?s.color:"#E2E8F0"),
-              background:active?s.color+"22":"#fff",
-              color:active?s.color:"#94A3B8"}}>
-            {s.name}
+              border:"1.5px solid "+(filterStaff==="all"?"#334155":"#E2E8F0"),
+              background:filterStaff==="all"?"#334155":"#fff",
+              color:filterStaff==="all"?"#fff":"#94A3B8"}}>
+            전체직원
           </button>
-        );})}
-      </CollapsibleFilterGroup>
-      <CollapsibleFilterGroup label="매장">
-        <button onClick={function(){setFilterStore("all");}}
-          style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-            border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
-            background:filterStore==="all"?"#334155":"#fff",
-            color:filterStore==="all"?"#fff":"#94A3B8"}}>
-          전체매장
-        </button>
-        {STORES.map(function(s){var active=filterStore===s.id;return(
-          <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
+          {STAFF.map(function(s){var active=filterStaff===s.id;return(
+            <button key={s.id} onClick={function(){setFilterStaff(active?"all":s.id);}}
+              style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                border:"1.5px solid "+(active?s.color:"#E2E8F0"),
+                background:active?s.color+"22":"#fff",
+                color:active?s.color:"#94A3B8"}}>
+              {s.name}
+            </button>
+          );})}
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          <button onClick={function(){setFilterStore("all");}}
             style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
-              background:active?s.badge.bg:"#fff",
-              color:active?s.badge.color:"#94A3B8"}}>
-            {s.label}
+              border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
+              background:filterStore==="all"?"#334155":"#fff",
+              color:filterStore==="all"?"#fff":"#94A3B8"}}>
+            전체매장
           </button>
-        );})}
-      </CollapsibleFilterGroup>
-      {(filterStaff!=="all"||filterStore!=="all")&&(
-        <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
-          style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
-      )}
+          {STORES.map(function(s){var active=filterStore===s.id;return(
+            <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
+              style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
+                background:active?s.badge.bg:"#fff",
+                color:active?s.badge.color:"#94A3B8"}}>
+              {s.label}
+            </button>
+          );})}
+        </div>
+        {(filterStaff!=="all"||filterStore!=="all")&&(
+          <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
+            style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
+        )}
+      </CollapsibleFilterBar>
       <button onClick={onAddEvent} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F3E8FF",color:"#6B21A8",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E9D5FF",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>📌 이벤트 등록</button>
     </div>
   );
@@ -1388,37 +1394,39 @@ function CompletedOrdersView({items,orders}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",flexShrink:0}}>
-        <CollapsibleFilterGroup label="매장">
-          <button onClick={function(){setFilterStore("all");}}
-            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
-              background:filterStore==="all"?"#334155":"#fff",
-              color:filterStore==="all"?"#fff":"#94A3B8"}}>
-            전체
-          </button>
-          {STORES.map(function(s){var active=filterStore===s.id;return(
-            <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",gap:8,alignItems:"flex-start",flexShrink:0}}>
+        <CollapsibleFilterBar activeCount={(filterStore!=="all"?1:0)+(filterItem!=="all"?1:0)}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <button onClick={function(){setFilterStore("all");}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
-                background:active?s.badge.bg:"#fff",
-                color:active?s.badge.color:"#94A3B8"}}>
-              {s.id}
+                border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
+                background:filterStore==="all"?"#334155":"#fff",
+                color:filterStore==="all"?"#fff":"#94A3B8"}}>
+              전체
             </button>
-          );})}
-        </CollapsibleFilterGroup>
-        <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
-          style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
-          <option value="all">전체 품목</option>
-          {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
-        </select>
-        <span style={{fontSize:10,color:"#94A3B8"}}>기간</span>
-        <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
-          style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
-        <span style={{fontSize:10,color:"#94A3B8"}}>~</span>
-        <input type="date" value={filterTo} onChange={function(e){setFilterTo(e.target.value);}}
-          style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
-        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{completedOrders.length}건</span>
+            {STORES.map(function(s){var active=filterStore===s.id;return(
+              <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
+                  background:active?s.badge.bg:"#fff",
+                  color:active?s.badge.color:"#94A3B8"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+          <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
+            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+            <option value="all">전체 품목</option>
+            {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+          </select>
+          <span style={{fontSize:10,color:"#94A3B8"}}>기간</span>
+          <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
+            style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
+          <span style={{fontSize:10,color:"#94A3B8"}}>~</span>
+          <input type="date" value={filterTo} onChange={function(e){setFilterTo(e.target.value);}}
+            style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
+        </CollapsibleFilterBar>
+        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8",flexShrink:0}}>{completedOrders.length}건</span>
       </div>
       <div className="tbl-wrap">
         {completedOrders.length===0?(
@@ -1539,51 +1547,53 @@ function OrderStatusView({items,orders,onUpdateOrderStatus,onDeleteOrders}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
-        <CollapsibleFilterGroup label="매장">
-          <button onClick={function(){setFilterStore("all");setChecked(new Set());}}
-            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
-              background:filterStore==="all"?"#334155":"#fff",
-              color:filterStore==="all"?"#fff":"#94A3B8"}}>
-            전체
-          </button>
-          {STORES.map(function(s){var active=filterStore===s.id;return(
-            <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);setChecked(new Set());}}
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"flex-start",gap:8,flexShrink:0}}>
+        <CollapsibleFilterBar activeCount={(filterStore!=="all"?1:0)+(filterStatus!=="all"?1:0)+(filterUrgent?1:0)}>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <button onClick={function(){setFilterStore("all");setChecked(new Set());}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
-                background:active?s.badge.bg:"#fff",
-                color:active?s.badge.color:"#94A3B8"}}>
-              {s.id}
+                border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
+                background:filterStore==="all"?"#334155":"#fff",
+                color:filterStore==="all"?"#fff":"#94A3B8"}}>
+              전체
             </button>
-          );})}
-        </CollapsibleFilterGroup>
-        <CollapsibleFilterGroup label="상태">
-          <button onClick={function(){setFilterStatus("all");setChecked(new Set());}}
-            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(filterStatus==="all"?"#334155":"#E2E8F0"),
-              background:filterStatus==="all"?"#334155":"#fff",
-              color:filterStatus==="all"?"#fff":"#94A3B8"}}>
-            전체
-          </button>
-          {ACTIVE_STATUSES.map(function(st){var active=filterStatus===st.id;return(
-            <button key={st.id} onClick={function(){setFilterStatus(active?"all":st.id);setChecked(new Set());}}
+            {STORES.map(function(s){var active=filterStore===s.id;return(
+              <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);setChecked(new Set());}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
+                  background:active?s.badge.bg:"#fff",
+                  color:active?s.badge.color:"#94A3B8"}}>
+                {s.id}
+              </button>
+            );})}
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <button onClick={function(){setFilterStatus("all");setChecked(new Set());}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(active?st.dot:"#E2E8F0"),
-                background:active?st.bg:"#fff",
-                color:active?st.color:"#94A3B8"}}>
-              {st.id}
+                border:"1.5px solid "+(filterStatus==="all"?"#334155":"#E2E8F0"),
+                background:filterStatus==="all"?"#334155":"#fff",
+                color:filterStatus==="all"?"#fff":"#94A3B8"}}>
+              전체
             </button>
-          );})}
-        </CollapsibleFilterGroup>
-        <button onClick={function(){setFilterUrgent(!filterUrgent);setChecked(new Set());}}
-          style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",
-            border:"1.5px solid "+(filterUrgent?"#DC2626":"#E2E8F0"),
-            background:filterUrgent?"#FEE2E2":"#fff",
-            color:filterUrgent?"#991B1B":"#94A3B8"}}>
-          🚨 긴급만
-        </button>
-        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filteredOrders.length}건</span>
+            {ACTIVE_STATUSES.map(function(st){var active=filterStatus===st.id;return(
+              <button key={st.id} onClick={function(){setFilterStatus(active?"all":st.id);setChecked(new Set());}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(active?st.dot:"#E2E8F0"),
+                  background:active?st.bg:"#fff",
+                  color:active?st.color:"#94A3B8"}}>
+                {st.id}
+              </button>
+            );})}
+          </div>
+          <button onClick={function(){setFilterUrgent(!filterUrgent);setChecked(new Set());}}
+            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",
+              border:"1.5px solid "+(filterUrgent?"#DC2626":"#E2E8F0"),
+              background:filterUrgent?"#FEE2E2":"#fff",
+              color:filterUrgent?"#991B1B":"#94A3B8"}}>
+            🚨 긴급만
+          </button>
+        </CollapsibleFilterBar>
+        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8",flexShrink:0}}>{filteredOrders.length}건</span>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
           {checked.size>0&&<span style={{fontSize:10,color:"#64748B",fontWeight:600}}>{checked.size}개 선택</span>}
           <button onClick={function(){
@@ -2500,7 +2510,7 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
       <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
         {categories.length>0&&(
-          <CollapsibleFilterGroup label="분류">
+          <CollapsibleFilterBar activeCount={filterCat!=="all"?1:0}>
             <button onClick={function(){setFilterCat("all");}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
                 border:"1.5px solid "+(filterCat==="all"?"#334155":"#E2E8F0"),
@@ -2517,7 +2527,7 @@ function BoardView({posts,comments,categories,currentUser,onWrite,onItemClick,on
                 {c.name}
               </button>
             );})}
-          </CollapsibleFilterGroup>
+          </CollapsibleFilterBar>
         )}
         <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{sorted.length}개 글</span>
         <div style={{marginLeft:"auto",display:"flex",gap:8}}>
@@ -2716,53 +2726,55 @@ function TodoView({todos,subitemsByTodo,allAssigneesByTodo,todoCategories,curren
           완료
         </button>
       </div>
-      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"center",gap:8,flexShrink:0}}>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          <button onClick={function(){setFilterStore("all");}}
-            style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-              border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
-              background:filterStore==="all"?"#334155":"#fff",
-              color:filterStore==="all"?"#fff":"#94A3B8"}}>
-            전체
-          </button>
-          {TODO_STORES.map(function(s){var active=filterStore===s.id;return(
-            <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
-              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
-                background:active?"#EFF6FF":"#fff",
-                color:active?"#2563EB":"#94A3B8"}}>
-              {s.label}
-            </button>
-          );})}
-        </div>
-        {todoCategories&&todoCategories.length>0&&(
+      <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"10px 16px",display:"flex",flexWrap:"wrap",alignItems:"flex-start",gap:8,flexShrink:0}}>
+        <CollapsibleFilterBar activeCount={(filterStore!=="all"?1:0)+(filterCat!=="all"?1:0)}>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            <button onClick={function(){setFilterCat("all");}}
+            <button onClick={function(){setFilterStore("all");}}
               style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(filterCat==="all"?"#334155":"#E2E8F0"),
-                background:filterCat==="all"?"#334155":"#fff",
-                color:filterCat==="all"?"#fff":"#94A3B8"}}>
-              전체분류
+                border:"1.5px solid "+(filterStore==="all"?"#334155":"#E2E8F0"),
+                background:filterStore==="all"?"#334155":"#fff",
+                color:filterStore==="all"?"#fff":"#94A3B8"}}>
+              전체
             </button>
-            <button onClick={function(){setFilterCat(filterCat==="none"?"all":"none");}}
-              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(filterCat==="none"?"#334155":"#E2E8F0"),
-                background:filterCat==="none"?"#334155":"#fff",
-                color:filterCat==="none"?"#fff":"#94A3B8"}}>
-              분류없음
-            </button>
-            {todoCategories.map(function(c){var active=filterCat===c.id;return(
-              <button key={c.id} onClick={function(){setFilterCat(active?"all":c.id);}}
+            {TODO_STORES.map(function(s){var active=filterStore===s.id;return(
+              <button key={s.id} onClick={function(){setFilterStore(active?"all":s.id);}}
                 style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
                   border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
                   background:active?"#EFF6FF":"#fff",
                   color:active?"#2563EB":"#94A3B8"}}>
-                {c.name}
+                {s.label}
               </button>
             );})}
           </div>
-        )}
-        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8"}}>{filtered.length}건</span>
+          {todoCategories&&todoCategories.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              <button onClick={function(){setFilterCat("all");}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(filterCat==="all"?"#334155":"#E2E8F0"),
+                  background:filterCat==="all"?"#334155":"#fff",
+                  color:filterCat==="all"?"#fff":"#94A3B8"}}>
+                전체분류
+              </button>
+              <button onClick={function(){setFilterCat(filterCat==="none"?"all":"none");}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(filterCat==="none"?"#334155":"#E2E8F0"),
+                  background:filterCat==="none"?"#334155":"#fff",
+                  color:filterCat==="none"?"#fff":"#94A3B8"}}>
+                분류없음
+              </button>
+              {todoCategories.map(function(c){var active=filterCat===c.id;return(
+                <button key={c.id} onClick={function(){setFilterCat(active?"all":c.id);}}
+                  style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                    border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
+                    background:active?"#EFF6FF":"#fff",
+                    color:active?"#2563EB":"#94A3B8"}}>
+                  {c.name}
+                </button>
+              );})}
+            </div>
+          )}
+        </CollapsibleFilterBar>
+        <span className="ml-mono" style={{fontSize:10,color:"#94A3B8",flexShrink:0}}>{filtered.length}건</span>
         <div style={{marginLeft:"auto",display:"flex",gap:8}}>
           {currentUser&&currentUser.isAdmin&&(
             <button onClick={onManageCategories} style={{padding:"5px 10px",background:"#F8FAFC",color:"#374151",borderRadius:6,fontSize:10,fontWeight:600,border:"1px solid #E2E8F0",cursor:"pointer"}}>분류 관리</button>
