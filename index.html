@@ -1414,11 +1414,24 @@ function CompletedOrdersView({items,orders}){
               </button>
             );})}
           </div>
-          <select value={filterItem} onChange={function(e){setFilterItem(e.target.value);}}
-            style={{padding:"6px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
-            <option value="all">전체 품목</option>
-            {items.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
-          </select>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <button onClick={function(){setFilterItem("all");}}
+              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                border:"1.5px solid "+(filterItem==="all"?"#334155":"#E2E8F0"),
+                background:filterItem==="all"?"#334155":"#fff",
+                color:filterItem==="all"?"#fff":"#94A3B8"}}>
+              전체품목
+            </button>
+            {items.map(function(it){var active=filterItem===it.id;return(
+              <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
+                style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                  border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
+                  background:active?"#EFF6FF":"#fff",
+                  color:active?"#2563EB":"#94A3B8"}}>
+                {it.name}
+              </button>
+            );})}
+          </div>
           <span style={{fontSize:10,color:"#94A3B8"}}>기간</span>
           <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
             style={{padding:"5px 8px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none"}}/>
