@@ -1373,24 +1373,49 @@ function WorkListView({works,currentUser,normalHours,holidayMap,onEdit,onDelete,
 }
 
 // ── CompletedOrdersView (완료된 주문 - 최근 6개월/2000건, 물품/매장 필터) ──
-function CompletedOrdersView({items,orders}){
+function CompletedOrdersView({items,orders,orderCategories}){
   var [filterStore,setFilterStore]=useState("all");
-  var [filterItem,setFilterItem]=useState("all");
+  var [filterItem,setFilterItem]=useState("all"); // "all" | "cat:{catId}" | itemId
   var [filterFrom,setFilterFrom]=useState(function(){var d=new Date();d.setMonth(d.getMonth()-6);return d.toISOString().slice(0,10);});
   var [filterTo,setFilterTo]=useState(new Date().toISOString().slice(0,10));
 
   function itemName(itemId){var it=items.find(function(x){return x.id===itemId;});return it?it.name:itemId;}
 
+  var itemsByCategory=useMemo(function(){
+    var m={};
+    var none=[];
+    items.forEach(function(it){
+      if(it.categoryId){
+        if(!m[it.categoryId])m[it.categoryId]=[];
+        m[it.categoryId].push(it);
+      }else{
+        none.push(it);
+      }
+    });
+    return{byId:m,none:none};
+  },[items]);
+
   var completedOrders=useMemo(function(){
     return orders.filter(function(o){
       if(o.status!=="완료")return false;
       if(filterStore!=="all"&&o.storeId!==filterStore)return false;
-      if(filterItem!=="all"&&o.itemId!==filterItem)return false;
+      if(filterItem!=="all"){
+        if(filterItem.indexOf("cat:")===0){
+          var catId=filterItem.slice(4);
+          var it=items.find(function(x){return x.id===o.itemId;});
+          if(!it||it.categoryId!==catId)return false;
+        }else if(filterItem==="none"){
+          var it2=items.find(function(x){return x.id===o.itemId;});
+          if(!it2||it2.categoryId)return false;
+        }else{
+          if(o.itemId!==filterItem)return false;
+        }
+      }
       if(filterFrom&&o.changedAt&&o.changedAt.slice(0,10)<filterFrom)return false;
       if(filterTo&&o.changedAt&&o.changedAt.slice(0,10)>filterTo)return false;
       return true;
     }).sort(function(a,b){return b.changedAt>a.changedAt?1:-1;}).slice(0,2000);
-  },[orders,filterStore,filterItem,filterFrom,filterTo]);
+  },[orders,filterStore,filterItem,filterFrom,filterTo,items]);
 
   return(
     <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
@@ -1414,23 +1439,64 @@ function CompletedOrdersView({items,orders}){
               </button>
             );})}
           </div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            <button onClick={function(){setFilterItem("all");}}
-              style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                border:"1.5px solid "+(filterItem==="all"?"#334155":"#E2E8F0"),
-                background:filterItem==="all"?"#334155":"#fff",
-                color:filterItem==="all"?"#fff":"#94A3B8"}}>
-              전체품목
-            </button>
-            {items.map(function(it){var active=filterItem===it.id;return(
-              <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",width:52,flexShrink:0}}>전체</span>
+              <button onClick={function(){setFilterItem("all");}}
                 style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                  border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
-                  background:active?"#EFF6FF":"#fff",
-                  color:active?"#2563EB":"#94A3B8"}}>
-                {it.name}
+                  border:"1.5px solid "+(filterItem==="all"?"#334155":"#E2E8F0"),
+                  background:filterItem==="all"?"#334155":"#fff",
+                  color:filterItem==="all"?"#fff":"#94A3B8"}}>
+                전체품목
               </button>
-            );})}
+            </div>
+            {orderCategories.map(function(c){
+              var catItems=itemsByCategory.byId[c.id]||[];
+              if(catItems.length===0)return null;
+              var catActive=filterItem==="cat:"+c.id;
+              return(
+                <div key={c.id} style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                  <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",width:52,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</span>
+                  <button onClick={function(){setFilterItem(catActive?"all":"cat:"+c.id);}}
+                    style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                      border:"1.5px solid "+(catActive?"#334155":"#E2E8F0"),
+                      background:catActive?"#334155":"#fff",
+                      color:catActive?"#fff":"#94A3B8"}}>
+                    {c.name} 전체
+                  </button>
+                  {catItems.map(function(it){var active=filterItem===it.id;return(
+                    <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
+                      style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                        border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
+                        background:active?"#EFF6FF":"#fff",
+                        color:active?"#2563EB":"#94A3B8"}}>
+                      {it.name}
+                    </button>
+                  );})}
+                </div>
+              );
+            })}
+            {itemsByCategory.none.length>0&&(
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+                <span style={{fontSize:10,fontWeight:700,color:"#94A3B8",width:52,flexShrink:0}}>미분류</span>
+                <button onClick={function(){setFilterItem(filterItem==="none"?"all":"none");}}
+                  style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                    border:"1.5px solid "+(filterItem==="none"?"#334155":"#E2E8F0"),
+                    background:filterItem==="none"?"#334155":"#fff",
+                    color:filterItem==="none"?"#fff":"#94A3B8"}}>
+                  미분류 전체
+                </button>
+                {itemsByCategory.none.map(function(it){var active=filterItem===it.id;return(
+                  <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
+                    style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                      border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
+                      background:active?"#EFF6FF":"#fff",
+                      color:active?"#2563EB":"#94A3B8"}}>
+                    {it.name}
+                  </button>
+                );})}
+              </div>
+            )}
           </div>
           <span style={{fontSize:10,color:"#94A3B8"}}>기간</span>
           <input type="date" value={filterFrom} onChange={function(e){setFilterFrom(e.target.value);}}
@@ -1969,7 +2035,7 @@ function OrderView({items,orders,orderCategories,currentUser,onItemClick,onAddIt
 
       {/* 미플 / 아카이브 탭 */}
       {orderTab==="status"&&<OrderStatusView items={items} orders={orders} onUpdateOrderStatus={onUpdateOrderStatus} onDeleteOrders={onDeleteOrders}/>}
-      {orderTab==="completed"&&<CompletedOrdersView items={items} orders={orders}/>}
+      {orderTab==="completed"&&<CompletedOrdersView items={items} orders={orders} orderCategories={orderCategories}/>}
 
       {/* 일괄 주문 확인 팝업 */}
       {confirmStore&&(
