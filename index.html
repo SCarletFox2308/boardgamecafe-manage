@@ -533,28 +533,46 @@ function ItemDetailModal({item,history,orderCategories,onClose,onSave,onDelete})
 }
 
 // ── TodoModal ──
-function TodoModal({todo,currentUser,todoCategories,onClose,onSave,onDelete}){
+function TodoModal({todo,currentUser,todoCategories,existingSubitems,onClose,onSave,onDelete}){
   var isEdit=!!(todo&&todo.id);
   var [form,setForm]=useState({
     title:todo&&todo.title||"",storeId:todo&&todo.storeId||STORES[0].id,detail:todo&&todo.detail||"",categoryId:todo&&todo.categoryId||"",
   });
-  var [subitems,setSubitems]=useState(["","",""]); // 신규 등록 시 세부항목 (최소 1개 이상 입력해야함)
+  // 세부항목 관리: {key, id, title, isNew, removed}
+  // 기존 항목은 id(DB id)를 유지, 신규 추가 항목은 isNew:true로 표시, 삭제된 기존 항목은 removed:true로 표시(UI에서만 숨김, 저장 시 실제 삭제 처리)
+  var [subitems,setSubitems]=useState(function(){
+    if(isEdit&&existingSubitems&&existingSubitems.length>0){
+      return existingSubitems.map(function(si){return{key:si.id,id:si.id,title:si.title,isNew:false,removed:false};});
+    }
+    return[{key:uid(),id:null,title:"",isNew:true,removed:false},{key:uid(),id:null,title:"",isNew:true,removed:false},{key:uid(),id:null,title:"",isNew:true,removed:false}];
+  });
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
 
-  function updateSubitem(idx,value){
-    setSubitems(function(prev){var next=[...prev];next[idx]=value;return next;});
+  function updateSubitemTitle(key,value){
+    setSubitems(function(prev){return prev.map(function(s){return s.key===key?{...s,title:value}:s;});});
   }
-  function addSubitemField(){setSubitems(function(prev){return[...prev,""];});}
-  function removeSubitemField(idx){setSubitems(function(prev){return prev.filter(function(_,i){return i!==idx;});});}
+  function addSubitemField(){
+    setSubitems(function(prev){return[...prev,{key:uid(),id:null,title:"",isNew:true,removed:false}];});
+  }
+  function removeSubitemField(key){
+    setSubitems(function(prev){return prev.map(function(s){return s.key===key?{...s,removed:true}:s;});});
+  }
+
+  var visibleSubitems=subitems.filter(function(s){return!s.removed;});
 
   function submit(e){
     e.preventDefault();
     if(!form.title.trim()){setErr("할 일 제목을 입력해주세요.");return;}
-    var cleanSubitems=subitems.map(function(s){return s.trim();}).filter(Boolean);
-    if(!isEdit&&cleanSubitems.length===0){setErr("세부항목을 최소 1개 입력해주세요.");return;}
+    var cleanNew=visibleSubitems.filter(function(s){return s.isNew&&s.title.trim();}).map(function(s){return s.title.trim();});
+    var updatedExisting=visibleSubitems.filter(function(s){return!s.isNew&&s.title.trim();}).map(function(s){return{id:s.id,title:s.title.trim()};});
+    var removedIds=subitems.filter(function(s){return!s.isNew&&s.removed;}).map(function(s){return s.id;});
+    if(!isEdit&&cleanNew.length===0){setErr("세부항목을 최소 1개 입력해주세요.");return;}
+    if(isEdit&&updatedExisting.length===0&&cleanNew.length===0){setErr("세부항목이 최소 1개는 있어야 해요.");return;}
     setSaving(true);
-    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim(),categoryId:form.categoryId||null,subitems:cleanSubitems}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:(todo&&todo.id)||uid(),...form,title:form.title.trim(),detail:form.detail.trim(),categoryId:form.categoryId||null,
+      subitems:cleanNew,updatedSubitems:updatedExisting,removedSubitemIds:removedIds
+    }).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -608,28 +626,25 @@ function TodoModal({todo,currentUser,todoCategories,onClose,onSave,onDelete}){
           <textarea value={form.detail} onChange={function(e){setForm({...form,detail:e.target.value});}}
             className="ml-inp" style={{width:"100%",padding:"8px 12px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none",resize:"vertical",minHeight:60}} placeholder="간단한 설명이나 참고사항"/>
         </div>
-        {!isEdit&&(
-          <div style={{marginBottom:20}}>
-            <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>세부항목 *</label>
-            {subitems.map(function(v,idx){return(
-              <div key={idx} style={{display:"flex",gap:6,marginBottom:6}}>
-                <input value={v} onChange={function(e){updateSubitem(idx,e.target.value);}}
-                  className="ml-inp" style={{flex:1,padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}} placeholder={"항목 "+(idx+1)}/>
-                {subitems.length>1&&(
-                  <button type="button" onClick={function(){removeSubitemField(idx);}}
-                    style={{background:"none",border:"none",cursor:"pointer",color:"#CBD5E1",padding:"0 4px"}}>
-                    <X size={14}/>
-                  </button>
-                )}
-              </div>
-            );})}
-            <button type="button" onClick={addSubitemField}
-              style={{width:"100%",padding:"7px",background:"#F8FAFC",color:"#64748B",border:"1px dashed #CBD5E1",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",marginTop:2}}>
-              + 항목 추가
-            </button>
-            {err&&<p style={{fontSize:11,color:"#EF4444",marginTop:6}}>{err}</p>}
-          </div>
-        )}
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:6}}>세부항목 *</label>
+          {visibleSubitems.map(function(s){return(
+            <div key={s.key} style={{display:"flex",gap:6,marginBottom:6}}>
+              <input value={s.title} onChange={function(e){updateSubitemTitle(s.key,e.target.value);}}
+                className="ml-inp" style={{flex:1,padding:"7px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}} placeholder="세부항목 내용"/>
+              <button type="button" onClick={function(){removeSubitemField(s.key);}}
+                style={{background:"none",border:"none",cursor:"pointer",color:"#CBD5E1",padding:"0 4px"}}>
+                <X size={14}/>
+              </button>
+            </div>
+          );})}
+          <button type="button" onClick={addSubitemField}
+            style={{width:"100%",padding:"7px",background:"#F8FAFC",color:"#64748B",border:"1px dashed #CBD5E1",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",marginTop:2}}>
+            + 항목 추가
+          </button>
+          {isEdit&&<p style={{fontSize:10,color:"#94A3B8",marginTop:6}}>이미 완료 처리된 세부항목의 내용을 바꿔도 완료 상태는 유지돼요.</p>}
+          {err&&<p style={{fontSize:11,color:"#EF4444",marginTop:6}}>{err}</p>}
+        </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           {isEdit?(
             <button type="button" onClick={function(){onDelete(todo);}}
@@ -1392,6 +1407,8 @@ function CompletedOrdersView({items,orders,orderCategories}){
         none.push(it);
       }
     });
+    Object.keys(m).forEach(function(k){m[k].sort(function(a,b){return a.name.localeCompare(b.name,"ko");});});
+    none.sort(function(a,b){return a.name.localeCompare(b.name,"ko");});
     return{byId:m,none:none};
   },[items]);
 
@@ -1464,15 +1481,11 @@ function CompletedOrdersView({items,orders,orderCategories}){
                       color:catActive?"#fff":"#94A3B8"}}>
                     {c.name} 전체
                   </button>
-                  {catItems.map(function(it){var active=filterItem===it.id;return(
-                    <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
-                      style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                        border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
-                        background:active?"#EFF6FF":"#fff",
-                        color:active?"#2563EB":"#94A3B8"}}>
-                      {it.name}
-                    </button>
-                  );})}
+                  <select value={catItems.some(function(it){return it.id===filterItem;})?filterItem:""} onChange={function(e){if(e.target.value)setFilterItem(e.target.value);}}
+                    style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+                    <option value="">품목 선택…</option>
+                    {catItems.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+                  </select>
                 </div>
               );
             })}
@@ -1486,15 +1499,11 @@ function CompletedOrdersView({items,orders,orderCategories}){
                     color:filterItem==="none"?"#fff":"#94A3B8"}}>
                   미분류 전체
                 </button>
-                {itemsByCategory.none.map(function(it){var active=filterItem===it.id;return(
-                  <button key={it.id} onClick={function(){setFilterItem(active?"all":it.id);}}
-                    style={{padding:"5px 12px",borderRadius:999,fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
-                      border:"1.5px solid "+(active?"#2563EB":"#E2E8F0"),
-                      background:active?"#EFF6FF":"#fff",
-                      color:active?"#2563EB":"#94A3B8"}}>
-                    {it.name}
-                  </button>
-                );})}
+                <select value={itemsByCategory.none.some(function(it){return it.id===filterItem;})?filterItem:""} onChange={function(e){if(e.target.value)setFilterItem(e.target.value);}}
+                  style={{padding:"5px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:11,outline:"none",background:"#fff",color:"#1E293B"}}>
+                  <option value="">품목 선택…</option>
+                  {itemsByCategory.none.map(function(it){return <option key={it.id} value={it.id}>{it.name}</option>;})}
+                </select>
               </div>
             )}
           </div>
@@ -3395,6 +3404,32 @@ function App(){
       if(isEdit){
         await sb.from("todos").update({title:form.title,store_id:form.storeId,detail:form.detail,category_id:form.categoryId||null}).eq("id",form.id);
         setTodos(function(prev){return prev.map(function(t){return t.id===form.id?{...t,title:form.title,storeId:form.storeId,detail:form.detail,categoryId:form.categoryId||null}:t;});});
+
+        // 삭제된 기존 세부항목 처리
+        var removedIds=form.removedSubitemIds||[];
+        if(removedIds.length>0){
+          await sb.from("todo_subitems").delete().in("id",removedIds);
+          setTodoSubitems(function(prev){return prev.filter(function(s){return removedIds.indexOf(s.id)<0;});});
+        }
+        // 이름이 바뀐 기존 세부항목 처리
+        var updatedExisting=form.updatedSubitems||[];
+        for(var i=0;i<updatedExisting.length;i++){
+          var u=updatedExisting[i];
+          await sb.from("todo_subitems").update({title:u.title}).eq("id",u.id);
+        }
+        if(updatedExisting.length>0){
+          setTodoSubitems(function(prev){return prev.map(function(s){
+            var match=updatedExisting.find(function(u){return u.id===s.id;});
+            return match?{...s,title:match.title}:s;
+          });});
+        }
+        // 새로 추가된 세부항목 처리
+        var currentCount=todoSubitems.filter(function(s){return s.todoId===form.id;}).length;
+        var newSubRows=(form.subitems||[]).map(function(title,idx){return{id:uid(),todo_id:form.id,title:title,status:"대기",sort_order:currentCount+idx};});
+        if(newSubRows.length>0){
+          await sb.from("todo_subitems").insert(newSubRows);
+          setTodoSubitems(function(prev){return[...prev,...newSubRows.map(function(r){return{id:r.id,todoId:r.todo_id,title:r.title,status:r.status,completedAt:null,completedBy:null,sortOrder:r.sort_order};})];});
+        }
       }else{
         var row={id:form.id,title:form.title,store_id:form.storeId,staff_id:myId,detail:form.detail,category_id:form.categoryId||null,closed:false,created_at:new Date().toISOString()};
         await sb.from("todos").insert(row);
@@ -3898,7 +3933,7 @@ function App(){
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {orderCategoryManageModal&&<BoardCategoryManageModal categories={[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory} onReorder={handleReorderOrderCategory}/>}
-      {todoModal!==null&&<TodoModal todo={todoModal} currentUser={currentUser} todoCategories={todoCategories} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
+      {todoModal!==null&&<TodoModal todo={todoModal} currentUser={currentUser} todoCategories={todoCategories} existingSubitems={todoModal&&todoModal.id?(subitemsByTodo[todoModal.id]||[]):[]} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
       {todoDetailModal!==null&&<TodoDetailModal todo={todoDetailModal} subitems={subitemsByTodo[todoDetailModal.id]||[]} assigneesBySubitem={assigneesBySubitem} todoCategories={todoCategories} currentUser={currentUser}
         onClose={function(){setTodoDetailModal(null);}}
         onEdit={function(t){setTodoDetailModal(null);setTodoModal(t);}}
