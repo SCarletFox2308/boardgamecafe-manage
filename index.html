@@ -1128,38 +1128,38 @@ function CalendarView({works,events,gameMoves,normalHours,onDayClick,onWorkClick
                 style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(148,163,184,.15)",color:"#94A3B8",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,padding:0,zIndex:1}}>
                 +
               </button>
-              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
+              <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
                 <span style={{fontSize:12,fontWeight:isToday?700:500,color:isToday?"#fff":isHoliday?"#EF4444":isSat?"#3B82F6":"#1E293B",width:22,height:22,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:"50%",background:isToday?"#3B82F6":"transparent"}}>
                   {day}
                 </span>
               </div>
               {(holiday||(showEvent&&dayEvents.length>0))&&(
-                <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
+                <div style={{display:"flex",flexDirection:"column",gap:1,marginBottom:2}}>
                   {holiday&&(
-                    <div style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#FEE2E2",color:"#991B1B",lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <div style={{fontSize:9,fontWeight:700,padding:"1px 3px",borderRadius:4,background:"#FEE2E2",color:"#991B1B",lineHeight:1.2,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                       {holiday}
                     </div>
                   )}
                   {showEvent&&dayEvents.map(function(ev){return(
                     <button key={ev.id} onClick={function(e){e.stopPropagation();onEventClick(ev);}}
-                      style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#F3E8FF",color:"#6B21A8",border:"1px solid #E9D5FF",cursor:"pointer",lineHeight:1.3,width:"100%",whiteSpace:"normal",wordBreak:"break-all",textAlign:"left",display:"block"}}>
+                      style={{fontSize:9,fontWeight:700,padding:"1px 3px",borderRadius:4,background:"#F3E8FF",color:"#6B21A8",border:"1px solid #E9D5FF",cursor:"pointer",lineHeight:1.2,width:"100%",whiteSpace:"normal",wordBreak:"break-all",textAlign:"left",display:"block"}}>
                       {ev.title}
                     </button>
                   );})}
                 </div>
               )}
               {showGame&&dayGameMoves.length>0&&(
-                <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
+                <div style={{display:"flex",flexDirection:"column",gap:1,marginBottom:2}}>
                   {gameOnly?(
                     dayGameMoves.map(function(gm){var sname=(STORES.find(function(s){return s.id===gm.storeId;})||{}).id||gm.storeId;return(
                       <button key={gm.id} onClick={function(e){e.stopPropagation();onGameMoveClick&&onGameMoveClick(gm);}}
-                        style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,cursor:"pointer",lineHeight:1.3,width:"100%",whiteSpace:"normal",wordBreak:"break-all",textAlign:"left",display:"block"}}>
+                        style={{fontSize:9,fontWeight:700,padding:"1px 3px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,cursor:"pointer",lineHeight:1.2,width:"100%",whiteSpace:"normal",wordBreak:"break-all",textAlign:"left",display:"block"}}>
                         {"("+sname+")"+gm.gameName}
                       </button>
                     );})
                   ):(
                     Object.keys(gameMovesByStore).map(function(sid){var sname=(STORES.find(function(s){return s.id===sid;})||{}).id||sid;return(
-                      <div key={sid} style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,lineHeight:1.25,width:"100%",textAlign:"center"}}>
+                      <div key={sid} style={{fontSize:9,fontWeight:700,padding:"1px 3px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,lineHeight:1.15,width:"100%",textAlign:"center"}}>
                         <div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sname}</div>
                         <div>{gameMovesByStore[sid].length+"건"}</div>
                       </div>
@@ -1172,13 +1172,13 @@ function CalendarView({works,events,gameMoves,normalHours,onDayClick,onWorkClick
                 if(ws.length===0)return null;
                 var b=s.badge;
                 return(
-                  <div key={s.id} style={{marginBottom:3}}>
-                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:1,whiteSpace:"nowrap"}}>{s.id}</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
+                  <div key={s.id} style={{marginBottom:1}}>
+                    <div style={{fontSize:9,fontWeight:700,color:b.color,marginBottom:0,whiteSpace:"nowrap"}}>{s.id}</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:1}}>
                       {ws.map(function(w){var abnormal=checkWorkAbnormal(w,normalHours);return(
                         <button key={w.id} onClick={function(e){e.stopPropagation();onWorkClick(w);}}
                           title={abnormal?"정규 근무시간과 다름":""}
-                          style={{position:"relative",fontSize:9,fontWeight:600,padding:"2px 4px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.3,flexShrink:0}}>
+                          style={{position:"relative",fontSize:9,fontWeight:600,padding:"1px 3px",borderRadius:4,background:staffColor(w.staffId)+"22",color:staffColor(w.staffId),border:"1px solid "+staffColor(w.staffId)+"44",cursor:"pointer",whiteSpace:"nowrap",lineHeight:1.2,flexShrink:0}}>
                           {staffName(w.staffId)}
                           {abnormal&&<span style={{position:"absolute",top:-2,right:-2,width:6,height:6,borderRadius:"50%",background:"#0F172A",border:"1px solid #fff"}}/>}
                         </button>
@@ -3478,7 +3478,8 @@ function App(){
     try{localStorage.removeItem(STORAGE_KEY);}catch(e){}
     setCurrentUser(null);
     setLoading(true);
-    setWorks([]);setOrderItems([]);setOrderHistory([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);setTodoSubitems([]);setSubitemAssignees([]);setTodoCategories([]);
+    setWorks([]);setOrderItems([]);setOrders([]);setTodos([]);setStaffList([]);setSubs([]);setPosts([]);setComments([]);setCategories([]);setEvents([]);setEventVotes([]);setOrderCategories([]);setNormalHours([]);setTodoSubitems([]);setSubitemAssignees([]);setTodoCategories([]);
+    setGameMoves([]);
     setAppHolidayMap({});
   }
 
