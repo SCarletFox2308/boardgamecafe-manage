@@ -3562,6 +3562,37 @@ function App(){
     })();
   },[currentUser]);
 
+  var subitemsByTodo=useMemo(function(){
+    var m={};
+    todoSubitems.forEach(function(s){
+      if(!m[s.todoId])m[s.todoId]=[];
+      m[s.todoId].push(s);
+    });
+    Object.keys(m).forEach(function(tid){m[tid].sort(function(a,b){return a.sortOrder-b.sortOrder;});});
+    return m;
+  },[todoSubitems]);
+
+  var assigneesBySubitem=useMemo(function(){
+    var m={};
+    subitemAssignees.forEach(function(a){
+      if(!m[a.subitemId])m[a.subitemId]=[];
+      m[a.subitemId].push(a);
+    });
+    return m;
+  },[subitemAssignees]);
+
+  var allAssigneesByTodo=useMemo(function(){
+    var m={};
+    todoSubitems.forEach(function(s){
+      var subA=assigneesBySubitem[s.id]||[];
+      subA.forEach(function(a){
+        if(!m[s.todoId])m[s.todoId]=[];
+        if(m[s.todoId].indexOf(a.staffId)<0)m[s.todoId].push(a.staffId);
+      });
+    });
+    return m;
+  },[todoSubitems,assigneesBySubitem]);
+
   if(!currentUser){
     return(
       <div className="ml-root">
@@ -4044,36 +4075,6 @@ function App(){
     }).catch(function(e){alert("삭제 실패: "+e.message);});
   }
 
-  var subitemsByTodo=useMemo(function(){
-    var m={};
-    todoSubitems.forEach(function(s){
-      if(!m[s.todoId])m[s.todoId]=[];
-      m[s.todoId].push(s);
-    });
-    Object.keys(m).forEach(function(tid){m[tid].sort(function(a,b){return a.sortOrder-b.sortOrder;});});
-    return m;
-  },[todoSubitems]);
-
-  var assigneesBySubitem=useMemo(function(){
-    var m={};
-    subitemAssignees.forEach(function(a){
-      if(!m[a.subitemId])m[a.subitemId]=[];
-      m[a.subitemId].push(a);
-    });
-    return m;
-  },[subitemAssignees]);
-
-  var allAssigneesByTodo=useMemo(function(){
-    var m={};
-    todoSubitems.forEach(function(s){
-      var subA=assigneesBySubitem[s.id]||[];
-      subA.forEach(function(a){
-        if(!m[s.todoId])m[s.todoId]=[];
-        if(m[s.todoId].indexOf(a.staffId)<0)m[s.todoId].push(a.staffId);
-      });
-    });
-    return m;
-  },[todoSubitems,assigneesBySubitem]);
 
   var MAIN_TABS=[
     {id:"work",label:"근무",icon:<CalIcon size={13}/>},
