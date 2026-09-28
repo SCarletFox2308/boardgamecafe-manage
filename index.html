@@ -51,6 +51,7 @@ const TODO_STORES=[
   {id:"본사", label:"본사", badge:{bg:"#F3E8FF",color:"#6B21A8"}},
 ];
 const STAFF_COLORS=["#7C3AED","#0369A1","#059669","#DC2626","#D97706","#0891B2","#BE185D","#065F46","#4F46E5","#CA8A04","#DB2777","#0D9488","#B91C1C","#7C2D12","#1D4ED8","#16A34A","#9333EA","#EA580C","#0E7490","#4D7C0F"];
+const GAME_MOVE_COLOR={bg:"#FFEDD5",color:"#9A3412",border:"#FDBA74"};
 var STAFF=[]; // DB에서 동적으로 로드됨
 const STATUSES=[
   {id:"발주",next:"주문",bg:"#F3E8FF",color:"#6B21A8",dot:"#A855F7"},
@@ -782,6 +783,75 @@ function EventModal({event,votes,defaultDate,currentUser,onClose,onSave,onDelete
   );
 }
 
+// ── GameMoveModal (게임이동 등록) ──
+function GameMoveModal({move,defaultDate,onClose,onSave,onDelete}){
+  var isEdit=!!(move&&move.id);
+  var [form,setForm]=useState({
+    moveDate:(move&&move.moveDate)||defaultDate||dateStr(new Date()),
+    gameName:(move&&move.gameName)||"",
+    storeId:(move&&move.storeId)||STORES[0]&&STORES[0].id||"",
+  });
+  var [err,setErr]=useState("");
+  var [saving,setSaving]=useState(false);
+
+  function submit(e){
+    e.preventDefault();
+    if(!form.gameName.trim()){setErr("게임명을 입력해주세요.");return;}
+    setSaving(true);
+    onSave({id:(move&&move.id)||uid(),moveDate:form.moveDate,gameName:form.gameName.trim(),storeId:form.storeId}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+  }
+
+  return(
+    <div className="modal-overlay" onClick={function(e){if(e.target===e.currentTarget)onClose();}}>
+      <form className="modal-box fade-in" onSubmit={submit} style={{padding:24,color:"#1E293B"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h2 style={{fontSize:16,fontWeight:700}}>{isEdit?"게임이동 상세":"게임이동 등록"}</h2>
+          <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>날짜</label>
+          <input type="date" value={form.moveDate} onChange={function(e){setForm({...form,moveDate:e.target.value});}}
+            className="ml-inp" style={{width:"100%",padding:"8px 10px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,outline:"none"}}/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>게임명 *</label>
+          <input value={form.gameName} onChange={function(e){setForm({...form,gameName:e.target.value});setErr("");}}
+            className="ml-inp" autoFocus style={{width:"100%",padding:"8px 12px",border:"1px solid "+(err?"#EF4444":"#CBD5E1"),borderRadius:6,fontSize:12,outline:"none"}} placeholder="예: 아그리콜라"/>
+          {err&&<p style={{fontSize:11,color:"#EF4444",marginTop:3}}>{err}</p>}
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>매장 (이동 도착지)</label>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {STORES.map(function(s){var active=form.storeId===s.id;return(
+              <button key={s.id} type="button" onClick={function(){setForm({...form,storeId:s.id});}}
+                style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                  border:"1.5px solid "+(active?s.badge.color:"#E2E8F0"),
+                  background:active?s.badge.bg:"#fff",
+                  color:active?s.badge.color:"#94A3B8"}}>
+                {s.label}
+              </button>
+            );})}
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          {isEdit?(
+            <button type="button" onClick={function(){onDelete(move);}}
+              style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",border:"1px solid #FECACA",borderRadius:6,fontSize:12,color:"#DC2626",background:"#FEF2F2",cursor:"pointer"}}>
+              <Trash2 size={13}/> 삭제
+            </button>
+          ):<span/>}
+          <div style={{display:"flex",gap:8}}>
+            <button type="button" onClick={onClose} style={{padding:"8px 16px",border:"1px solid #CBD5E1",borderRadius:6,fontSize:12,color:"#64748B",background:"#fff",cursor:"pointer"}}>취소</button>
+            <button type="submit" disabled={saving} style={{padding:"8px 18px",background:"#2563EB",color:"#fff",borderRadius:6,fontSize:12,border:"none",cursor:"pointer",opacity:saving?0.6:1}}>
+              {saving?"저장 중…":isEdit?"수정":"등록"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 // ── CalendarFilterBar ──
 // ── CollapsibleFilterBar (필터 전체를 한 번에 접고 펼 수 있게 감싸는 공용 컴포넌트) ──
 function CollapsibleFilterBar({activeCount,children}){
@@ -801,11 +871,23 @@ function CollapsibleFilterBar({activeCount,children}){
   );
 }
 
-function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore,onAddEvent}){
-  var activeCount=(filterStaff!=="all"?1:0)+(filterStore!=="all"?1:0);
+function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStore,filterType,setFilterType,onAddEvent,onAddGameMove}){
+  var activeCount=(filterStaff!=="all"?1:0)+(filterStore!=="all"?1:0)+(filterType!=="all"?1:0);
+  var TYPE_OPTIONS=[{id:"all",label:"전체"},{id:"work",label:"근무일정"},{id:"event",label:"이벤트"},{id:"game",label:"게임이동"}];
   return(
     <div style={{background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 20px",display:"flex",alignItems:"flex-start",gap:8,flexShrink:0,flexWrap:"wrap"}}>
       <CollapsibleFilterBar activeCount={activeCount}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+          {TYPE_OPTIONS.map(function(t){var active=filterType===t.id;return(
+            <button key={t.id} onClick={function(){setFilterType(t.id);}}
+              style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
+                border:"1.5px solid "+(active?"#9A3412":"#E2E8F0"),
+                background:active?"#FFEDD5":"#fff",
+                color:active?"#9A3412":"#94A3B8"}}>
+              {t.label}
+            </button>
+          );})}
+        </div>
         <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
           <button onClick={function(){setFilterStaff("all");}}
             style={{padding:"4px 10px",borderRadius:999,fontSize:10,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",
@@ -842,19 +924,26 @@ function CalendarFilterBar({filterStaff,setFilterStaff,filterStore,setFilterStor
             </button>
           );})}
         </div>
-        {(filterStaff!=="all"||filterStore!=="all")&&(
-          <button onClick={function(){setFilterStaff("all");setFilterStore("all");}}
+        {(filterStaff!=="all"||filterStore!=="all"||filterType!=="all")&&(
+          <button onClick={function(){setFilterStaff("all");setFilterStore("all");setFilterType("all");}}
             style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:10,color:"#64748B",background:"#fff",cursor:"pointer"}}>초기화</button>
         )}
       </CollapsibleFilterBar>
-      <button onClick={onAddEvent} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F3E8FF",color:"#6B21A8",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E9D5FF",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>📌 이벤트 등록</button>
+      <div style={{marginLeft:"auto",display:"flex",gap:6,flexShrink:0}}>
+        <button onClick={onAddGameMove} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#FFEDD5",color:"#9A3412",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #FDBA74",cursor:"pointer",whiteSpace:"nowrap"}}>🎲 게임이동 등록</button>
+        <button onClick={onAddEvent} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 14px",background:"#F3E8FF",color:"#6B21A8",borderRadius:6,fontSize:11,fontWeight:600,border:"1px solid #E9D5FF",cursor:"pointer",whiteSpace:"nowrap"}}>📌 이벤트 등록</button>
+      </div>
     </div>
   );
 }
 
 // ── CalendarView ──
-function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWork,filterStaff,filterStore}){
-  filterStaff=filterStaff||"all";filterStore=filterStore||"all";
+function CalendarView({works,events,gameMoves,onDayClick,onWorkClick,onEventClick,onGameMoveClick,onAddWork,filterStaff,filterStore,filterType}){
+  filterStaff=filterStaff||"all";filterStore=filterStore||"all";filterType=filterType||"all";
+  var showWork=filterType==="all"||filterType==="work";
+  var showEvent=filterType==="all"||filterType==="event";
+  var showGame=filterType==="all"||filterType==="game";
+  var gameOnly=filterType==="game";
   var today=new Date();
   var [year,setYear]=useState(today.getFullYear());
   var [month,setMonth]=useState(today.getMonth());
@@ -897,6 +986,18 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
     return map;
   },[events,year,month]);
 
+  var gameMovesByDate=useMemo(function(){
+    var map={};
+    (gameMoves||[]).forEach(function(gm){
+      if(!gm.moveDate)return;
+      if(gm.moveDate.slice(0,7)!==year+"-"+pad(month+1))return;
+      if(!map[gm.moveDate])map[gm.moveDate]=[];
+      map[gm.moveDate].push(gm);
+    });
+    Object.values(map).forEach(function(list){list.sort(function(a,b){return(a.gameName||"")>(b.gameName||"")?1:-1;});});
+    return map;
+  },[gameMoves,year,month]);
+
   var DOW=["일","월","화","수","목","금","토"];
   var cells=[];
   for(var i=0;i<firstDay;i++)cells.push(null);
@@ -925,6 +1026,9 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
           var isSat=dow===6;
           var dayWorks=worksByDate[ds]||{};
           var dayEvents=eventsByDate[ds]||[];
+          var dayGameMoves=gameMovesByDate[ds]||[];
+          var gameMovesByStore={};
+          dayGameMoves.forEach(function(gm){if(!gameMovesByStore[gm.storeId])gameMovesByStore[gm.storeId]=[];gameMovesByStore[gm.storeId].push(gm);});
           return(
             <div key={ds} className="cal-day" onClick={function(){onDayClick(ds);}}
               style={{position:"relative",minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
@@ -937,14 +1041,14 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
                   {day}
                 </span>
               </div>
-              {(holiday||dayEvents.length>0)&&(
+              {(holiday||(showEvent&&dayEvents.length>0))&&(
                 <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
                   {holiday&&(
                     <div style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#FEE2E2",color:"#991B1B",lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                       {holiday}
                     </div>
                   )}
-                  {dayEvents.map(function(ev){return(
+                  {showEvent&&dayEvents.map(function(ev){return(
                     <button key={ev.id} onClick={function(e){e.stopPropagation();onEventClick(ev);}}
                       style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:"#F3E8FF",color:"#6B21A8",border:"1px solid #E9D5FF",cursor:"pointer",lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textAlign:"left",display:"block"}}>
                       {ev.title}
@@ -952,7 +1056,25 @@ function CalendarView({works,events,onDayClick,onWorkClick,onEventClick,onAddWor
                   );})}
                 </div>
               )}
-              {STORES.map(function(s){
+              {showGame&&dayGameMoves.length>0&&(
+                <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:4}}>
+                  {gameOnly?(
+                    dayGameMoves.map(function(gm){var sname=(STORES.find(function(s){return s.id===gm.storeId;})||{}).id||gm.storeId;return(
+                      <button key={gm.id} onClick={function(e){e.stopPropagation();onGameMoveClick&&onGameMoveClick(gm);}}
+                        style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,cursor:"pointer",lineHeight:1.3,width:"100%",whiteSpace:"normal",wordBreak:"break-all",textAlign:"left",display:"block"}}>
+                        {"("+sname+")"+gm.gameName}
+                      </button>
+                    );})
+                  ):(
+                    Object.keys(gameMovesByStore).map(function(sid){var sname=(STORES.find(function(s){return s.id===sid;})||{}).id||sid;return(
+                      <div key={sid} style={{fontSize:9,fontWeight:700,padding:"2px 4px",borderRadius:4,background:GAME_MOVE_COLOR.bg,color:GAME_MOVE_COLOR.color,border:"1px solid "+GAME_MOVE_COLOR.border,lineHeight:1.3,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {sname+" "+gameMovesByStore[sid].length+"건"}
+                      </div>
+                    );})
+                  )}
+                </div>
+              )}
+              {showWork&&STORES.map(function(s){
                 var ws=dayWorks[s.id]||[];
                 if(ws.length===0)return null;
                 var b=s.badge;
@@ -3211,6 +3333,7 @@ function App(){
   var [loading,setLoading]=useState(true);
   var [calFilterStaff,setCalFilterStaff]=useState("all");
   var [calFilterStore,setCalFilterStore]=useState("all");
+  var [calFilterType,setCalFilterType]=useState("all");
   var [works,setWorks]=useState([]);
   var [workModal,setWorkModal]=useState(null);
   var [orderItems,setOrderItems]=useState([]);
@@ -3242,6 +3365,8 @@ function App(){
   var [events,setEvents]=useState([]);
   var [eventVotes,setEventVotes]=useState([]);
   var [eventModal,setEventModal]=useState(null);
+  var [gameMoves,setGameMoves]=useState([]);
+  var [gameMoveModal,setGameMoveModal]=useState(null);
   var [dayDetailModal,setDayDetailModal]=useState(null); // 날짜 문자열 또는 null
 
   function handleLogin(user){
@@ -3308,6 +3433,7 @@ function App(){
       try{var r12=await sb.from("normal_hours").select("*");setNormalHours((r12.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id||null,dow:x.dow!=null?x.dow:null,startTime:x.start_time||"",endTime:x.end_time||"",isHoliday:!!x.is_holiday,validFrom:x.valid_from||null,validTo:x.valid_to||null};}));}catch(e){setNormalHours([]);}
       try{var r9=await sb.from("events").select("*").order("event_date",{ascending:true}).limit(500);setEvents((r9.data||[]).map(function(x){return{id:x.id,title:x.title,eventDate:x.event_date,eventTime:x.event_time||"",location:x.location||"",authorId:x.author_id};}));}catch(e){setEvents([]);}
       try{var r10=await sb.from("event_votes").select("*").limit(2000);setEventVotes((r10.data||[]).map(function(x){return{id:x.id,eventId:x.event_id,staffId:x.staff_id,response:x.response};}));}catch(e){setEventVotes([]);}
+      try{var r17=await sb.from("game_moves").select("*").order("move_date",{ascending:true}).limit(1000);setGameMoves((r17.data||[]).map(function(x){return{id:x.id,moveDate:x.move_date,gameName:x.game_name,storeId:x.store_id,authorId:x.author_id};}));}catch(e){setGameMoves([]);}
       setLoading(false);
     })();
   },[currentUser]);
@@ -3772,6 +3898,27 @@ function App(){
     }).catch(function(e){alert("투표 실패: "+e.message);});
   }
 
+  function handleSaveGameMove(form){
+    var isEdit=!!(gameMoveModal&&gameMoveModal.id);
+    if(isEdit){
+      return sb.from("game_moves").update({move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId}).eq("id",form.id).then(function(){
+        setGameMoves(function(prev){return prev.map(function(g){return g.id===form.id?{...g,moveDate:form.moveDate,gameName:form.gameName,storeId:form.storeId}:g;});});
+        setGameMoveModal(null);
+      });
+    }
+    var row={id:form.id,move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId,author_id:myId,created_at:new Date().toISOString()};
+    return sb.from("game_moves").insert(row).then(function(){
+      setGameMoves(function(prev){return[...prev,{id:row.id,moveDate:row.move_date,gameName:row.game_name,storeId:row.store_id,authorId:row.author_id}];});
+      setGameMoveModal(null);
+    });
+  }
+  function handleDeleteGameMove(gm){
+    if(!window.confirm("\""+gm.gameName+"\" 게임이동 기록을 삭제할까요?"))return;
+    sb.from("game_moves").delete().eq("id",gm.id).then(function(){
+      setGameMoves(function(prev){return prev.filter(function(x){return x.id!==gm.id;});});
+      setGameMoveModal(null);
+    }).catch(function(e){alert("삭제 실패: "+e.message);});
+  }
 
   var subitemsByTodo=useMemo(function(){
     var m={};
@@ -3874,17 +4021,18 @@ function App(){
           {mainTab==="work"&&workSubTab==="cal"&&(
             <TabErrorBoundary key="work-cal">
             <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore} onAddEvent={function(){setEventModal({date:null});}}/>
+              <CalendarFilterBar filterStaff={calFilterStaff} setFilterStaff={setCalFilterStaff} filterStore={calFilterStore} setFilterStore={setCalFilterStore} filterType={calFilterType} setFilterType={setCalFilterType} onAddEvent={function(){setEventModal({date:null});}} onAddGameMove={function(){setGameMoveModal({date:null});}}/>
               <div style={{flex:1,overflow:"auto"}}>
-                <CalendarView works={works} events={events}
+                <CalendarView works={works} events={events} gameMoves={gameMoves}
                   onDayClick={function(ds){setDayDetailModal(ds);}}
                   onWorkClick={function(w){
                     if(isAdmin||w.staffId===myId)setWorkModal({record:w});
                     else alert(staffName(w.staffId)+"의 일정은 수정할 수 없어요.");
                   }}
                   onEventClick={function(ev){setEventModal(ev);}}
+                  onGameMoveClick={function(gm){setGameMoveModal(gm);}}
                   onAddWork={function(ds){setWorkModal({date:ds,forceStaffId:isAdmin?null:myId,defaultStaffId:myId});}}
-                  filterStaff={calFilterStaff} filterStore={calFilterStore}/>
+                  filterStaff={calFilterStaff} filterStore={calFilterStore} filterType={calFilterType}/>
               </div>
             </div>
             </TabErrorBoundary>
@@ -3931,6 +4079,7 @@ function App(){
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} normalHours={normalHours} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours} onDeleteGroup={handleDeleteNormalHoursGroup}/>}
       {eventModal!==null&&<EventModal event={eventModal.id?eventModal:null} votes={eventVotes} defaultDate={eventModal.date||null} currentUser={currentUser} onClose={function(){setEventModal(null);}} onSave={handleSaveEvent} onDelete={handleDeleteEvent} onVote={handleVoteEvent}/>}
+      {gameMoveModal!==null&&<GameMoveModal move={gameMoveModal.id?gameMoveModal:null} defaultDate={gameMoveModal.date||null} onClose={function(){setGameMoveModal(null);}} onSave={handleSaveGameMove} onDelete={handleDeleteGameMove}/>}
       {itemModal!==null&&<ItemDetailModal item={itemModal} history={orders} orderCategories={orderCategories} onClose={function(){setItemModal(null);}} onSave={handleSaveItem} onDelete={handleDeleteItem}/>}
       {orderCategoryManageModal&&<BoardCategoryManageModal categories={[...orderCategories].sort(function(a,b){return a.sortOrder-b.sortOrder;})} title="상품 카테고리 관리" onClose={function(){setOrderCategoryManageModal(false);}} onAdd={handleAddOrderCategory} onRename={handleRenameOrderCategory} onDelete={handleDeleteOrderCategory} onReorder={handleReorderOrderCategory}/>}
       {todoModal!==null&&<TodoModal todo={todoModal} currentUser={currentUser} todoCategories={todoCategories} existingSubitems={todoModal&&todoModal.id?(subitemsByTodo[todoModal.id]||[]):[]} onClose={function(){setTodoModal(null);}} onSave={handleSaveTodo} onDelete={handleDeleteTodo}/>}
