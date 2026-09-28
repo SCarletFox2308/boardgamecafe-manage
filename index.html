@@ -6,9 +6,9 @@
 <title>미플+아카이브 업무 관리</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script>window.require=window.require||function(){return undefined;};</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.81.0/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -4206,7 +4206,15 @@ root.render(<App/>);
 <script>
 (function(){
   function showError(t,d){document.getElementById("root").innerHTML="<div style='padding:24px;color:#991B1B;background:#FEF2F2;white-space:pre-wrap;font-family:sans-serif'><b>"+t+"</b><br>"+d+"</div>";}
-  window.onerror=function(m,s,l){showError("오류가 발생했어요:",m+" (line "+l+")");}
+  window.onerror=function(m,s,l,c,err){
+    var detail=(err&&err.stack)?err.stack:(m+" ("+(s||"?")+":"+(l||0)+":"+(c||0)+")");
+    showError("오류가 발생했어요:",detail);
+  }
+  window.onunhandledrejection=function(ev){
+    var reason=ev&&ev.reason;
+    var detail=(reason&&reason.stack)?reason.stack:((reason&&reason.message)?reason.message:String(reason));
+    showError("처리되지 않은 오류가 발생했어요:",detail);
+  }
   try{
     var sb=window.supabase.createClient(
       "https://kgtopbstibqdixgdntds.supabase.co",
