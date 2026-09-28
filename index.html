@@ -3415,6 +3415,30 @@ class TabErrorBoundary extends React.Component{
   }
 }
 
+// ── Root Error Boundary (App 렌더/훅 자체에서 발생하는 오류까지 잡아서 상세 표시) ──
+class RootErrorBoundary extends React.Component{
+  constructor(props){super(props);this.state={error:null,info:null};}
+  static getDerivedStateFromError(e){return{error:e};}
+  componentDidCatch(e,info){console.error("Root error:",e,info);this.setState({info:info});}
+  render(){
+    if(this.state.error){
+      var e=this.state.error;
+      var detail=(e&&e.stack)?e.stack:((e&&e.message)?e.message:String(e));
+      var compStack=this.state.info&&this.state.info.componentStack;
+      return React.createElement("div",{style:{padding:24,color:"#991B1B",background:"#FEF2F2",fontFamily:"monospace",whiteSpace:"pre-wrap",fontSize:11,lineHeight:1.5}},
+        React.createElement("div",{style:{fontSize:15,fontWeight:700,marginBottom:12,fontFamily:"sans-serif"}},"앱 초기화 중 오류가 발생했어요:"),
+        React.createElement("div",{style:{marginBottom:12}},detail),
+        compStack&&React.createElement("div",{style:{color:"#B91C1C",opacity:0.8}},compStack),
+        React.createElement("button",{
+          onClick:function(){window.location.reload();},
+          style:{marginTop:16,padding:"8px 20px",background:"#DC2626",color:"#fff",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"sans-serif"}
+        },"새로고침")
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App(){
   // localStorage에서 저장된 사용자 복원 시도
   var saved=null;
@@ -4200,7 +4224,7 @@ function App(){
 }
 
 const root=ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App/>);
+root.render(<RootErrorBoundary><App/></RootErrorBoundary>);
 
 </script>
 <script>
