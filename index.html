@@ -136,11 +136,21 @@ th{position:sticky;top:0;z-index:2;background:#334155;}
 `;
 
 // ── DayDetailModal (날짜별 근무 상세) ──
-function DayDetailModal({date,works,currentUser,onClose,onEditWork}){
+function DayDetailModal({date,works,events,gameMoves,currentUser,onClose,onEditWork,onEditEvent,onEditGameMove}){
   var dayWorks=useMemo(function(){
     return works.filter(function(w){return w.startAt&&w.startAt.slice(0,10)===date;})
       .sort(function(a,b){return(a.startAt||"")>(b.startAt||"")?1:-1;});
   },[works,date]);
+
+  var dayEvents=useMemo(function(){
+    return(events||[]).filter(function(ev){return ev.eventDate===date;})
+      .sort(function(a,b){return(a.eventTime||"")>(b.eventTime||"")?1:-1;});
+  },[events,date]);
+
+  var dayGameMoves=useMemo(function(){
+    return(gameMoves||[]).filter(function(gm){return gm.moveDate===date;})
+      .sort(function(a,b){return(a.gameName||"")>(b.gameName||"")?1:-1;});
+  },[gameMoves,date]);
 
   var byStore=useMemo(function(){
     var map={};
@@ -162,8 +172,35 @@ function DayDetailModal({date,works,currentUser,onClose,onEditWork}){
           <button type="button" onClick={onClose} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
         </div>
 
+        {dayEvents.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#6B21A8",marginBottom:8,padding:"2px 8px",background:"#F3E8FF",borderRadius:4,display:"inline-block"}}>📌 이벤트</div>
+            {dayEvents.map(function(ev){return(
+              <div key={ev.id} onClick={function(){onEditEvent&&onEditEvent(ev);}}
+                style={{display:"flex",alignItems:"center",gap:8,padding:"8px 4px",borderBottom:"1px solid #F1F5F9",cursor:onEditEvent?"pointer":"default"}}>
+                <span style={{fontSize:12,fontWeight:600,color:"#1E293B",flex:1}}>{ev.title}</span>
+                {ev.eventTime&&<span className="ml-mono" style={{fontSize:11,color:"#374151"}}>{ev.eventTime}</span>}
+                {ev.location&&<span style={{fontSize:10,color:"#94A3B8",whiteSpace:"nowrap",maxWidth:80,overflow:"hidden",textOverflow:"ellipsis"}}>{ev.location}</span>}
+              </div>
+            );})}
+          </div>
+        )}
+
+        {dayGameMoves.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#9A3412",marginBottom:8,padding:"2px 8px",background:"#FFEDD5",borderRadius:4,display:"inline-block"}}>🎲 게임이동</div>
+            {dayGameMoves.map(function(gm){var sname=(STORES.find(function(s){return s.id===gm.storeId;})||{}).id||gm.storeId;return(
+              <div key={gm.id} onClick={function(){onEditGameMove&&onEditGameMove(gm);}}
+                style={{display:"flex",alignItems:"center",gap:8,padding:"8px 4px",borderBottom:"1px solid #F1F5F9",cursor:onEditGameMove?"pointer":"default"}}>
+                <span style={{fontSize:12,fontWeight:600,color:"#1E293B",flex:1}}>{"("+sname+")"+gm.gameName}</span>
+                <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:999,background:gm.isDone?"#DCFCE7":"#FEF2F2",color:gm.isDone?"#059669":"#DC2626",whiteSpace:"nowrap"}}>{gm.isDone?"완료":"미완료"}</span>
+              </div>
+            );})}
+          </div>
+        )}
+
         {dayWorks.length===0?(
-          <div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"#94A3B8"}}>등록된 근무가 없어요.</div>
+          dayEvents.length===0&&dayGameMoves.length===0&&<div style={{padding:"24px 0",textAlign:"center",fontSize:12,color:"#94A3B8"}}>등록된 일정이 없어요.</div>
         ):(
           STORES.map(function(s){
             var list=byStore[s.id]||[];
@@ -790,6 +827,7 @@ function GameMoveModal({move,defaultDate,onClose,onSave,onDelete}){
     moveDate:(move&&move.moveDate)||defaultDate||dateStr(new Date()),
     gameName:(move&&move.gameName)||"",
     storeId:(move&&move.storeId)||STORES[0]&&STORES[0].id||"",
+    isDone:(move&&move.isDone)||false,
   });
   var [err,setErr]=useState("");
   var [saving,setSaving]=useState(false);
@@ -798,7 +836,7 @@ function GameMoveModal({move,defaultDate,onClose,onSave,onDelete}){
     e.preventDefault();
     if(!form.gameName.trim()){setErr("게임명을 입력해주세요.");return;}
     setSaving(true);
-    onSave({id:(move&&move.id)||uid(),moveDate:form.moveDate,gameName:form.gameName.trim(),storeId:form.storeId}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
+    onSave({id:(move&&move.id)||uid(),moveDate:form.moveDate,gameName:form.gameName.trim(),storeId:form.storeId,isDone:!!form.isDone}).then(function(){setSaving(false);}).catch(function(){setSaving(false);});
   }
 
   return(
@@ -831,6 +869,25 @@ function GameMoveModal({move,defaultDate,onClose,onSave,onDelete}){
                 {s.label}
               </button>
             );})}
+          </div>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:"block",fontSize:12,fontWeight:500,marginBottom:4}}>이동 여부</label>
+          <div style={{display:"flex",gap:6}}>
+            <button type="button" onClick={function(){setForm({...form,isDone:false});}}
+              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                border:"1.5px solid "+(!form.isDone?"#DC2626":"#E2E8F0"),
+                background:!form.isDone?"#FEF2F2":"#fff",
+                color:!form.isDone?"#DC2626":"#94A3B8"}}>
+              미완료
+            </button>
+            <button type="button" onClick={function(){setForm({...form,isDone:true});}}
+              style={{padding:"6px 14px",borderRadius:999,fontSize:12,fontWeight:600,cursor:"pointer",
+                border:"1.5px solid "+(form.isDone?"#059669":"#E2E8F0"),
+                background:form.isDone?"#DCFCE7":"#fff",
+                color:form.isDone?"#059669":"#94A3B8"}}>
+              완료
+            </button>
           </div>
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -3433,7 +3490,7 @@ function App(){
       try{var r12=await sb.from("normal_hours").select("*");setNormalHours((r12.data||[]).map(function(x){return{id:x.id,staffId:x.staff_id||null,dow:x.dow!=null?x.dow:null,startTime:x.start_time||"",endTime:x.end_time||"",isHoliday:!!x.is_holiday,validFrom:x.valid_from||null,validTo:x.valid_to||null};}));}catch(e){setNormalHours([]);}
       try{var r9=await sb.from("events").select("*").order("event_date",{ascending:true}).limit(500);setEvents((r9.data||[]).map(function(x){return{id:x.id,title:x.title,eventDate:x.event_date,eventTime:x.event_time||"",location:x.location||"",authorId:x.author_id};}));}catch(e){setEvents([]);}
       try{var r10=await sb.from("event_votes").select("*").limit(2000);setEventVotes((r10.data||[]).map(function(x){return{id:x.id,eventId:x.event_id,staffId:x.staff_id,response:x.response};}));}catch(e){setEventVotes([]);}
-      try{var r17=await sb.from("game_moves").select("*").order("move_date",{ascending:true}).limit(1000);setGameMoves((r17.data||[]).map(function(x){return{id:x.id,moveDate:x.move_date,gameName:x.game_name,storeId:x.store_id,authorId:x.author_id};}));}catch(e){setGameMoves([]);}
+      try{var r17=await sb.from("game_moves").select("*").order("move_date",{ascending:true}).limit(1000);setGameMoves((r17.data||[]).map(function(x){return{id:x.id,moveDate:x.move_date,gameName:x.game_name,storeId:x.store_id,authorId:x.author_id,isDone:!!x.is_done};}));}catch(e){setGameMoves([]);}
       setLoading(false);
     })();
   },[currentUser]);
@@ -3901,14 +3958,14 @@ function App(){
   function handleSaveGameMove(form){
     var isEdit=!!(gameMoveModal&&gameMoveModal.id);
     if(isEdit){
-      return sb.from("game_moves").update({move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId}).eq("id",form.id).then(function(){
-        setGameMoves(function(prev){return prev.map(function(g){return g.id===form.id?{...g,moveDate:form.moveDate,gameName:form.gameName,storeId:form.storeId}:g;});});
+      return sb.from("game_moves").update({move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId,is_done:!!form.isDone}).eq("id",form.id).then(function(){
+        setGameMoves(function(prev){return prev.map(function(g){return g.id===form.id?{...g,moveDate:form.moveDate,gameName:form.gameName,storeId:form.storeId,isDone:!!form.isDone}:g;});});
         setGameMoveModal(null);
       });
     }
-    var row={id:form.id,move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId,author_id:myId,created_at:new Date().toISOString()};
+    var row={id:form.id,move_date:form.moveDate,game_name:form.gameName,store_id:form.storeId,author_id:myId,is_done:!!form.isDone,created_at:new Date().toISOString()};
     return sb.from("game_moves").insert(row).then(function(){
-      setGameMoves(function(prev){return[...prev,{id:row.id,moveDate:row.move_date,gameName:row.game_name,storeId:row.store_id,authorId:row.author_id}];});
+      setGameMoves(function(prev){return[...prev,{id:row.id,moveDate:row.move_date,gameName:row.game_name,storeId:row.store_id,authorId:row.author_id,isDone:!!row.is_done}];});
       setGameMoveModal(null);
     });
   }
@@ -4072,9 +4129,11 @@ function App(){
         </>
       )}
       {dayDetailModal!==null&&(
-        <DayDetailModal date={dayDetailModal} works={works} currentUser={currentUser}
+        <DayDetailModal date={dayDetailModal} works={works} events={events} gameMoves={gameMoves} currentUser={currentUser}
           onClose={function(){setDayDetailModal(null);}}
-          onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}/>
+          onEditWork={function(w){setDayDetailModal(null);setWorkModal({record:w});}}
+          onEditEvent={function(ev){setDayDetailModal(null);setEventModal(ev);}}
+          onEditGameMove={function(gm){setDayDetailModal(null);setGameMoveModal(gm);}}/>
       )}
       {workModal!==null&&<WorkModal record={workModal.record||null} defaultDate={workModal.date||null} forceStaffId={workModal.forceStaffId||null} defaultStaffId={workModal.defaultStaffId||myId} normalHours={normalHours} onClose={function(){setWorkModal(null);}} onSave={handleSaveWork} onDelete={handleDeleteWork}/>}
       {hoursModal&&<NormalHoursModal normalHours={normalHours} onClose={function(){setHoursModal(false);}} onSave={handleSaveNormalHours} onDeleteGroup={handleDeleteNormalHoursGroup}/>}
