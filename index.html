@@ -1102,12 +1102,12 @@ function CalendarView({works,events,gameMoves,normalHours,onDayClick,onWorkClick
         <h2 style={{fontSize:17,fontWeight:700,color:"#0F172A"}}>{year}년 {month+1}월</h2>
         <button onClick={nextMonth} style={{display:"inline-flex",alignItems:"center",padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:8,background:"#fff",cursor:"pointer"}}><CR size={16}/></button>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
         {DOW.map(function(d,i){return(
           <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,padding:"6px 0",color:i===0?"#EF4444":i===6?"#3B82F6":"#64748B"}}>{d}</div>
         );})}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
         {cells.map(function(day,idx){
           if(!day)return <div key={"e"+idx}/>;
           var ds=year+"-"+pad(month+1)+"-"+pad(day);
@@ -1123,7 +1123,7 @@ function CalendarView({works,events,gameMoves,normalHours,onDayClick,onWorkClick
           dayGameMoves.forEach(function(gm){if(!gameMovesByStore[gm.storeId])gameMovesByStore[gm.storeId]=[];gameMovesByStore[gm.storeId].push(gm);});
           return(
             <div key={ds} className="cal-day" onClick={function(){onDayClick(ds);}}
-              style={{position:"relative",minHeight:90,padding:"6px 7px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
+              style={{position:"relative",minHeight:90,padding:"6px 3px",background:isToday?"#EFF6FF":"#fff",border:isToday?"1.5px solid #3B82F6":"1px solid #E2E8F0",borderRadius:8,overflow:"hidden"}}>
               <button onClick={function(e){e.stopPropagation();onAddWork(ds);}}
                 style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",border:"none",background:"rgba(148,163,184,.15)",color:"#94A3B8",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,padding:0,zIndex:1}}>
                 +
